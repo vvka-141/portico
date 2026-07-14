@@ -75,8 +75,11 @@ Reopen this decision if **any two** of the following become true:
 2. A user contributes a working source-generator prototype as a pull request.
 3. The `dotnet tool install` distribution pattern becomes the primary way Portico CLIs are
    consumed (evidence: NuGet download telemetry shows this).
-4. A competing .NET CLI framework (Cocona, Spectre.Console.Cli) ships AOT first and starts
-   winning adopters who cite AOT as the reason.
+4. A competing .NET CLI framework of Portico's *shape* (Spectre.Console.Cli, System.CommandLine)
+   ships AOT and starts winning adopters who cite AOT as the reason. ConsoleAppFramework does not
+   count: it is AOT-first by design and always has been, so it is the baseline this decision was
+   taken against, not new evidence. (This criterion used to name **Cocona**; it was archived on
+   2025-12-14 and is no longer a competitor at all.)
 
 Until then, the cost/benefit does not pencil out.
 
