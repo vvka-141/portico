@@ -47,6 +47,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **A failing example now tells you why it failed.** `CliContractValidator<T>` knew the reason — the
+  framework writes it out — and threw it away, so the signature feature produced a red test that said
+  only *that* an example broke. `CliContractExample.FailureReason` now carries the framework's own
+  diagnostic (`Unrecognized option(s): --bogus`), and `Validate`'s `onNotInvoked` receives it as a
+  second argument. **Breaking**: `onNotInvoked` is now `Action<CliCommandExampleAttribute, string>`.
+  The validator also no longer writes those diagnostics to the process console as a side effect —
+  asking a question should not print.
 - **Top-level `--help` now lists your commands.** It used to concatenate the full detail of every
   command — usage line, arguments, every option — into one wall, with no command list and no
   descriptions. It now prints the `Commands:` summary every CLI a user has met (git, docker, dotnet,

@@ -128,7 +128,7 @@ public sealed class CliOptionalArgument_Should
         // very forms that used to fail. If the fix were wrong, the contract validator would say so.
         var notDispatched = 0;
         new CliContractValidator<ITool>().Validate(
-            onNotInvoked: example => notDispatched++);
+            onNotInvoked: (example, reason) => notDispatched++);
 
         Assert.Equal(0, notDispatched);
     }

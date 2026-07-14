@@ -28,7 +28,13 @@ public sealed class AdminContract_Should
     [Theory]
     [MemberData(nameof(Examples))]
     public void Dispatch(CliContractExample example) =>
-        Assert.True(example.Matched, $"Example did not dispatch: {example.Example}");
+        // FailureReason is the framework's own diagnostic — "Unrecognized option(s): --bogus",
+        // "Value 'abc' for option '--amount' is invalid." Without it, a red build tells you an
+        // example broke and leaves you to find out why.
+        Assert.True(
+            example.Matched,
+            $"Example did not dispatch: {example.Example}{System.Environment.NewLine}" +
+            $"  Reason: {example.FailureReason}");
 
     // Dispatching is the floor, not the ceiling. `Matched` only says the example reached *some*
     // route — it would stay green if the example silently began reaching a different handler, or
