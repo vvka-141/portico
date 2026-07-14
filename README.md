@@ -94,6 +94,14 @@ checking your CLI:
 | `POR007` | one parameter targeted by two `[CliArgument]`s |
 | `POR008` | a `[CliRoute]` method that cannot return an exit code |
 
+Stated precisely, because a vague boast is worse than none: **no other .NET CLI framework reports
+compile-time diagnostics for CLI attribute misuse.** Not "no competitor ships analyzers" — that would
+be false, and you would catch it. [ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework)
+*is* an analyzer, a source generator with no DLL reference at all. What it does not do is diagnose your
+CLI declarations: its validation runs at runtime, after binding, via `DataAnnotations`. The others
+validate at runtime or not at all. ([The alternatives, honestly](docs/explanation/alternatives.md) —
+with the versions and the date they were checked.)
+
 ## Secrets do not reach your logs
 
 Mark an option `Sensitive = true` and its value is redacted wherever the framework echoes the command
@@ -200,9 +208,17 @@ Honest concessions, because a comparison that concedes nothing is not worth read
   [docs/explanation/aot.md](docs/explanation/aot.md) — the decision, and the conditions under which
   we would revisit it.
 - **Not Microsoft's.** [System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/)
-  went 2.0 GA in November 2025 and is the safe institutional choice. Portico's bet is that its
-  builder-and-lambda shape is the reason people leave it.
+  went **2.0 GA in November 2025** — the "perpetual beta" jab is dead, and 2.0 also cut library size
+  ~32% and improved parsing ~40%. If your organisation's rule is "prefer the first-party option,"
+  that rule is defensible. Portico's bet against it is not stability and not speed; it is **shape**.
+  People who left it say they wanted *"a simple programming style rather than the complex fluent
+  style with nested lambdas that the library favored"*
+  ([discussion](https://github.com/spectreconsole/spectre.console/discussions/1397)) — which is
+  a citation, not our taste, and it is why routes here are attributes on methods.
 - **Not a REPL, not a DSL, not a config-file format.** One command, one invocation, one exit code.
+
+The full comparison, with versions and the date they were checked:
+[The alternatives, honestly](docs/explanation/alternatives.md).
 
 [Cocona](https://github.com/mayuki/Cocona) — the framework closest to Portico's shape — was archived
 by its author on 14 December 2025. If you are coming from it, there is a
@@ -233,6 +249,7 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 - [Extensibility](docs/explanation/extensibility.md) — what you can extend, and what is deliberately sealed
 - [AOT](docs/explanation/aot.md) — why not, and what would change our mind
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
+- [The alternatives, honestly](docs/explanation/alternatives.md) — what every competitor is better at, and the one claim we make
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
 - [Migrating from Cocona](docs/how-to/migrate-from-cocona.md) — the concept mapping, and when another framework is the better move
 - [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI

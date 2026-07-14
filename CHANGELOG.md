@@ -36,6 +36,9 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   `CliMiddleware` lifecycle hooks and `Clone`, and the `CliPrompt` / `CliCompletion` / `CliHelpBuilder`
   members now carry a `<summary>` and a usage `<example>`. A new public member that ships without them
   fails the build (`Portico_XmlDocGate_Should`) — the surface an agent reads cannot silently decay.
+- `docs/explanation/alternatives.md` — what each competing .NET CLI framework is better at, with
+  versions and the date the landscape was checked, and the one claim Portico makes stated precisely
+  enough to be falsified.
 - `docs/how-to/migrate-from-cocona.md` — a migration guide for Cocona users (Cocona was archived
   2025-12-14), including where ConsoleAppFramework or System.CommandLine is the better destination.
 - `docs/how-to/compose-clis.md` + `examples/PlatformCli` — mounting several independently-built
