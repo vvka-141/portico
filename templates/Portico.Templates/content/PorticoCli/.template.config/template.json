@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Alexey Evlampiev",
+  "classifications": [ "CLI", "Command Line", "Console", "Portico" ],
+  "identity": "Portico.Cli.CSharp",
+  "name": "Portico CLI",
+  "description": "A Portico CLI with one route, one executable example, and a green contract test.",
+  "shortName": "portico-cli",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "PorticoCli",
+  "preferNameDirectory": true,
+  "symbols": {
+    "porticoVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "The Portico package version to reference.",
+      "defaultValue": "0.1.*",
+      "replaces": "PORTICO_VERSION"
+    },
+    "Framework": {
+      "type": "parameter",
+      "datatype": "choice",
+      "choices": [ { "choice": "net10.0" } ],
+      "defaultValue": "net10.0",
+      "replaces": "net10.0"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "PorticoCli/PorticoCli.csproj" },
+    { "path": "PorticoCli.Tests/PorticoCli.Tests.csproj" }
+  ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

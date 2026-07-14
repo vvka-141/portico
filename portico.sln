@@ -37,6 +37,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Portico.Hosting", "src\Port
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Portico.Hosting.Tests", "test\Portico.Hosting.Tests\Portico.Hosting.Tests.csproj", "{FC632E7E-5424-4CF0-8F41-0126D5DB1E11}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "templates", "templates", "{808186BE-9BD0-DD1D-D574-36EEAD1E7F8F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Portico.Templates", "templates\Portico.Templates\Portico.Templates.csproj", "{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -215,6 +219,18 @@ Global
 		{FC632E7E-5424-4CF0-8F41-0126D5DB1E11}.Release|x64.Build.0 = Release|Any CPU
 		{FC632E7E-5424-4CF0-8F41-0126D5DB1E11}.Release|x86.ActiveCfg = Release|Any CPU
 		{FC632E7E-5424-4CF0-8F41-0126D5DB1E11}.Release|x86.Build.0 = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|x64.Build.0 = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Debug|x86.Build.0 = Debug|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|x64.ActiveCfg = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|x64.Build.0 = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|x86.ActiveCfg = Release|Any CPU
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -234,5 +250,6 @@ Global
 		{5351AF56-D31A-4793-B9BE-C4C61E89EB10} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
 		{01E340CE-2B26-4D65-A223-C37FC36E034D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FC632E7E-5424-4CF0-8F41-0126D5DB1E11} = {0C88DD14-F956-CE84-757C-A364CCF449FC}
+		{E1A6C959-6BCE-4C30-8E67-D13ED3F84D40} = {808186BE-9BD0-DD1D-D574-36EEAD1E7F8F}
 	EndGlobalSection
 EndGlobal
