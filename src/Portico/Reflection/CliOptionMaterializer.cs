@@ -60,6 +60,34 @@ internal abstract class CliOptionMaterializer
         $"If '{token}' is a positional argument, pass it after the '--' terminator (e.g. '… -- {token}').";
 
     /// <summary>
+    /// The converter's own explanation of a failed conversion, with the internal parameter name
+    /// stripped. A <see cref="TypeConverter"/> reports a bad value as an
+    /// <see cref="ArgumentException"/>, whose <see cref="Exception.Message"/> appends
+    /// <c>(Parameter 'value')</c> — and <c>value</c> is a local in this file, not anything the user
+    /// typed or can act on. Keep the diagnosis ("abc is not a valid value for Decimal"), drop the
+    /// leak (POR-17).
+    /// </summary>
+    protected static string Explain(Exception ex)
+    {
+        var message = ex.Message;
+
+        if (ex is ArgumentException { ParamName: { Length: > 0 } paramName })
+        {
+            // Matching on the suffix the BCL actually builds from ParamName, rather than a regex
+            // over the message, means a localized framework simply keeps its message intact instead
+            // of being mangled by a pattern written for English.
+            var suffix = $"(Parameter '{paramName}')";
+            var index = message.IndexOf(suffix, StringComparison.Ordinal);
+            if (index >= 0)
+            {
+                message = message.Remove(index, suffix.Length);
+            }
+        }
+
+        return message.Trim();
+    }
+
+    /// <summary>
     /// Builds a materializer for the given attribute + declared type. Throws
     /// <see cref="CliConfigurationException"/> if no built-in handles the combination.
     /// </summary>
@@ -141,7 +169,9 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                             if (parsed is null)
                             {
                                 throw new CliOptionMaterializationException(
-                                    $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' could not be converted to '{valueType.Name}'.");
+                                    attribute.Sensitive
+                                        ? $"Value for key '{key}' of option '{attribute.DisplayAliases}' could not be converted to '{valueType.Name}'."
+                                        : $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' could not be converted to '{valueType.Name}'.");
                             }
                             return parsed;
                         }
@@ -153,7 +183,9 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                         {
                             var expected = string.Join(", ", Enum.GetNames(valueType));
                             throw new CliOptionMaterializationException(
-                                $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is not a valid {valueType.Name}. Expected: {expected}. {ex.Message}",
+                                attribute.Sensitive
+                                    ? $"Value for key '{key}' of option '{attribute.DisplayAliases}' is not a valid {valueType.Name}. Expected: {expected}."
+                                    : $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is not a valid {valueType.Name}. Expected: {expected}.",
                                 ex);
                         }
                         catch (Exception ex)
@@ -161,7 +193,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                             throw new CliOptionMaterializationException(
                                 attribute.Sensitive
                                     ? $"Value for key '{key}' of option '{attribute.DisplayAliases}' is invalid."
-                                    : $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
+                                    : $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is invalid. {Explain(ex)}",
                                 ex);
                         }
                     }
@@ -335,7 +367,9 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
                 if (result == null)
                 {
                     throw new CliOptionMaterializationException(
-                        $"The value '{value}' cannot be converted to the required type '{declaredType.FullName}'.");
+                        attribute.Sensitive
+                            ? $"Value for option '{attribute.DisplayAliases}' could not be converted to '{declaredType.Name}'."
+                            : $"Value '{value}' for option '{attribute.DisplayAliases}' could not be converted to '{declaredType.Name}'.");
                 }
                 return result;
             }
@@ -350,18 +384,18 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
                     .Join(", ");
                 throw new CliOptionMaterializationException(
                     attribute.Sensitive
-                        ? $"The value is invalid. Expected: {expectedValueCsv}."
-                        : $"The value '{value}' is invalid. Expected: {expectedValueCsv}. {ex.Message}",
+                        ? $"Value for option '{attribute.DisplayAliases}' is invalid. Expected: {expectedValueCsv}."
+                        : $"Value '{value}' for option '{attribute.DisplayAliases}' is invalid. Expected: {expectedValueCsv}.",
                     ex);
             }
             catch (Exception ex)
             {
-                // A sensitive option echoes neither the value nor ex.Message — the inner exception
-                // text embeds the value too ("'hunter2' is not a valid value for Int32").
+                // A sensitive option echoes neither the value nor the converter's explanation — the
+                // inner message embeds the value too ("'hunter2' is not a valid value for Int32").
                 throw new CliOptionMaterializationException(
                     attribute.Sensitive
-                        ? "The value is invalid."
-                        : $"The value '{value}' is invalid. {ex.Message}",
+                        ? $"Value for option '{attribute.DisplayAliases}' is invalid."
+                        : $"Value '{value}' for option '{attribute.DisplayAliases}' is invalid. {Explain(ex)}",
                     ex);
             }
         }
@@ -560,7 +594,9 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
                 if (result is null)
                 {
                     throw new CliOptionMaterializationException(
-                        $"Value '{raw}' for option '{attribute.DisplayAliases}' could not be converted to '{itemType.Name}'.");
+                        attribute.Sensitive
+                            ? $"Value for option '{attribute.DisplayAliases}' could not be converted to '{itemType.Name}'."
+                            : $"Value '{raw}' for option '{attribute.DisplayAliases}' could not be converted to '{itemType.Name}'.");
                 }
                 return result;
             }
@@ -572,7 +608,9 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
             {
                 var expected = string.Join(", ", Enum.GetNames(itemType));
                 throw new CliOptionMaterializationException(
-                    $"Value '{raw}' for option '{attribute.DisplayAliases}' is not a valid {itemType.Name}. Expected: {expected}. {ex.Message}",
+                    attribute.Sensitive
+                        ? $"Value for option '{attribute.DisplayAliases}' is not a valid {itemType.Name}. Expected: {expected}."
+                        : $"Value '{raw}' for option '{attribute.DisplayAliases}' is not a valid {itemType.Name}. Expected: {expected}.",
                     ex);
             }
             catch (Exception ex)
@@ -580,7 +618,7 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
                 throw new CliOptionMaterializationException(
                     attribute.Sensitive
                         ? $"Value for option '{attribute.DisplayAliases}' is invalid."
-                        : $"Value '{raw}' for option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
+                        : $"Value '{raw}' for option '{attribute.DisplayAliases}' is invalid. {Explain(ex)}",
                     ex);
             }
         }
