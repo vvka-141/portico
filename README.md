@@ -56,9 +56,23 @@ public void Dispatch(CliContractExample example) =>
     Assert.True(example.Matched, $"Example did not dispatch: {example.Example}");
 ```
 
-Rename a route, change an option, make an argument required — the example stops dispatching and the
-build goes red. **The documentation cannot drift from the code, because the documentation is the
-test.** The analyzer (`POR004`) fails the build if a route ships with no example at all.
+Rename a route, make an argument required — the example stops dispatching and the build goes red.
+
+But dispatching is the floor, not the ceiling. Each example also reports **which handler it
+reached** and **what values were bound to it**, so an example can pin the whole contract:
+
+```csharp
+var seed = new CliContractValidator<IAdminTool>().Enumerate()
+    .Single(e => e.Example == "db seed --rows 100");
+
+Assert.Equal(nameof(IAdminTool.Seed), seed.Handler);   // the route, pinned
+Assert.Equal(100, seed.Arguments["rows"]);             // the binding, pinned — an int, not "100"
+```
+
+Retype `--rows` from `int` to `string` and the example still *dispatches* — but it no longer binds
+`100`, and the build goes red. **The documentation cannot drift from the code, because the
+documentation is the test.** The analyzer (`POR004`) fails the build if a route ships with no
+example at all.
 
 This is not a hypothetical. Writing the worked example in this repo, that test caught a real bug in
 the framework on its first run — `TimeSpan?` was not accepting `"30 seconds"`. It is fixed. That is
