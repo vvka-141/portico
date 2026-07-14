@@ -4,8 +4,10 @@
 
 Your service's operational surface is an API. Treat it like one.
 
-Portico is contract-first CLI routing for .NET: your routes are routes, your examples are tests, and
-Roslyn analyzers check both at compile time. Zero dependencies. DI is opt-in.
+ASP.NET Core for the terminal: your routes are routes, and **your examples are executable tests** —
+so the CLI cannot lie about what it accepts. Every `[CliCommandExample]` runs through the real
+pipeline, and a stale one fails the build. Roslyn analyzers check the rest at compile time. Zero
+dependencies. DI is opt-in.
 
 ```csharp
 using Portico;
@@ -81,6 +83,16 @@ Retype `--rows` from `int` to `string` and the example still *dispatches* — bu
 documentation is the test.** The analyzer (`POR004`) fails the build if a route ships with no
 example at all.
 
+Compare what an example is everywhere else. `cobra.Command.Example`, oclif's `examples`, yargs'
+`.example()`, OpenCLI's `examples: [string]` — free text, printed in help, checked by nobody. They are
+correct on the day they are written and unverifiable ever after.
+
+The exception, and we will name it: **Azure CLI's `azdev linter` genuinely runs help examples through
+the real parser** and fails CI on a bad one. It is real prior art. The difference is scope — Microsoft
+built it for one CLI, and it checks that an example's options are *recognised*; Portico makes it the
+framework's central abstraction, and checks that an example *dispatches to a handler and binds
+values*. More on [who got there first](docs/explanation/alternatives.md#who-got-there-first).
+
 This is not a hypothetical. Writing the worked example in this repo, that test caught a real bug in
 the framework on its first run — `TimeSpan?` was not accepting `"30 seconds"`. It is fixed. That is
 exactly what the mechanism is for.
@@ -123,6 +135,9 @@ line — trace output, timing output, conversion errors:
 And when a user mistypes a command, Portico prints the route they typed — **never the option
 values**. No route matched, so it has no way to know which of them was a password. In a container,
 stderr is the log stream; that is not a place to guess.
+
+The same mechanism does a second job nobody asked it to: an agent that runs your CLI and reads its
+output never sees the credential either. It was built for logs; it works for transcripts.
 
 ## Several teams, one binary
 

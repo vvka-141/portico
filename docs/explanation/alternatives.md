@@ -82,5 +82,30 @@ Composition is not part of the claim, deliberately: mounting sub-CLIs is
 [not novel](../how-to/compose-clis.md) — oclif and cobra have done it for years. What is unusual is
 that Portico's verification survives the mount.
 
+**Declarative attribute routing is not part of the claim either**, because it is table stakes: clap
+derive (Rust), picocli (Java), typer (Python), kong (Go) and oclif (Node) all have it. And "less
+boilerplate" is not a benefit worth selling in 2026 — an agent will emit two hundred lines of builder
+wiring and never get bored. Anyone pitching you brevity is pitching a scarcity that no longer exists.
+
+## Who got there first
+
+An honest pitch names its prior art. **"Nobody thought to validate examples" would be false**, and we
+are not going to say it.
+
+- **Azure CLI** got there first, and did it properly. Its `azdev linter` carries
+  `faulty_help_example_parameters_rule`, which parses every help example **through the real command
+  parser** and fails CI on one that does not hold up. (Checked in `azdev/operations/linter/rules/help_rules.py`
+  — not taken on trust.) The honest distinction is scope, not novelty: Microsoft built bespoke tooling
+  for *one* CLI, checking that an example's options are **recognised**. Portico makes it the framework's
+  central abstraction, and checks that an example **dispatches to a specific handler and binds specific
+  values** — so retyping an option from `int` to `string` fails the build even though the example still
+  parses.
+- **[trycmd](https://github.com/assert-rs/trycmd)** (Rust) executes README examples as snapshot tests —
+  the closest thing to this idea in a mainstream ecosystem.
+- **docopt** attacked the same drift from the opposite end, deriving the parser *from* the help text.
+
+What survives all three: no .NET CLI framework makes verified examples the contract, and no framework
+in any ecosystem checks that an example reaches the handler it names, binding the values it names.
+
 That is the entire pitch. If none of it is worth anything to you, one of the frameworks above is a
 better choice, and you should use it.

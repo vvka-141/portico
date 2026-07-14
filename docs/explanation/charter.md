@@ -195,6 +195,44 @@ gates, not nice-to-haves.
 
 ## 7. Positioning sentence
 
-> **"ASP.NET Core for the terminal. Your routes are routes. Your examples are tests. That's the whole framework."**
+> **"ASP.NET Core for the terminal. Your routes are routes, and your examples are executable tests —
+> so the CLI cannot lie about what it accepts."**
 
 Every piece of public copy must pass the "would a .NET developer recognize this in 5 seconds?" test.
+
+### What the pitch is NOT (POR-44)
+
+The load-bearing clause is the second one. The first is recognition; the second is the claim.
+
+- **Not "declarative attributes".** Attribute routing is **table stakes** in 2026 — clap derive (Rust),
+  picocli (Java), typer (Python), kong (Go), oclif (Node) all have it. Leading with it concedes the
+  argument to everyone.
+- **Not "less boilerplate".** Boilerplate cost is approaching zero: an agent will emit two hundred
+  lines of builder wiring and never tire. Brevity is not a benefit to a tireless author, so a pitch
+  built on it is dead on arrival.
+- **Not "declarative is better for LLMs".** That is *unmeasured* (POR-42). It must not appear on any
+  public surface until it is measured, however plausible it sounds.
+
+What is scarce is not typing speed. It is **ground truth**: a description of the command surface that
+cannot drift from the surface itself. Every incumbent's examples are free text —
+`cobra.Command.Example`, oclif's `examples`, yargs' `.example()`, OpenCLI's `examples: [string]` — printed
+in help, checked by nobody. Portico's are executed through the real pipeline against the real contract,
+and a stale one fails the build.
+
+### The prior art we concede, by name
+
+An honest pitch names the people who got there first. **"Nobody thought to validate examples" is false
+and must never be said.**
+
+- **Azure CLI.** Its `azdev linter` has `faulty_help_example_parameters_rule`, which parses each help
+  example through the **real** command parser and fails CI on an invalid one. Verified in
+  `azdev/operations/linter/rules/help_rules.py`, not assumed. That is genuine, shipped prior art. The
+  honest distinction: Microsoft built bespoke tooling for *one* CLI, checking that an example's options
+  are *recognised*; Portico makes it the framework's central abstraction, checking that an example
+  **dispatches to a specific handler and binds specific values**.
+- **trycmd** (Rust) executes README examples as snapshot tests — the closest thing in a mainstream
+  ecosystem.
+- **docopt** derived the parser from the help text, attacking the same drift from the opposite end.
+
+The claim that survives all three: *no .NET CLI framework makes verified examples the contract*, and no
+framework in any ecosystem checks that an example reaches the handler it names with the values it names.
