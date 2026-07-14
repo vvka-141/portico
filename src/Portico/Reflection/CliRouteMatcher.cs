@@ -18,12 +18,17 @@ internal static class CliRouteMatcher
     public static bool IsMatch(CliRouteModel model, CliInvocation invocation)
     {
         var segments = model.Segments;
-        if (segments.Length != invocation.Segments.Length)
+        var supplied = invocation.Segments.Length;
+
+        // A trailing run of optional arguments may be omitted from the right, so the acceptable
+        // token count is a range, not an equality. Dropped slots are only ever at the tail, so the
+        // indices below still line up.
+        if (supplied < model.MinSegmentCount || supplied > segments.Length)
         {
             return false;
         }
 
-        for (int i = 0; i < segments.Length; ++i)
+        for (int i = 0; i < supplied; ++i)
         {
             if (segments[i] is CliLiteralSegment literal &&
                 !literal.Matches(invocation.Segments[i]))

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Portico.Reflection;
 
@@ -30,6 +31,64 @@ internal sealed class CliRouteModel
         Examples = examples;
         LiteralPrefix = literalPrefix;
         RouteSignature = routeSignature;
+        MinSegmentCount = ComputeMinSegmentCount(segments, parameters);
+        RejectNonTrailingOptionalArguments(name, parameters, MinSegmentCount);
+    }
+
+    /// <summary>
+    /// How many positional segments the user must supply. Below <see cref="Segments"/>.Length only
+    /// when the route ends in a run of optional arguments (a <c>[CliArgument]</c> parameter with a
+    /// C# default), each of which may be omitted from the right.
+    /// </summary>
+    public int MinSegmentCount { get; }
+
+    /// <summary>
+    /// Walks the segments from the right, shortening the required prefix for each trailing optional
+    /// argument. A literal or a required argument stops the walk — which is what confines
+    /// optionality to the tail and keeps matching unambiguous.
+    /// </summary>
+    private static int ComputeMinSegmentCount(
+        ImmutableArray<CliRouteSegment> segments,
+        ImmutableArray<ParameterInfoDecorator> parameters)
+    {
+        var min = segments.Length;
+        for (var i = segments.Length - 1; i >= 0; --i)
+        {
+            if (segments[i] is not CliArgumentSegment) break;
+
+            var bound = parameters
+                .OfType<CliArgumentParameterInfo>()
+                .FirstOrDefault(p => p.CliRoutePosition == i);
+
+            if (bound is null || !bound.IsOptionalArgument) break;
+
+            min = i;
+        }
+
+        return min;
+    }
+
+    /// <summary>
+    /// An optional argument with a required one after it is unresolvable: given fewer tokens than
+    /// slots, the framework cannot know which slot the user meant to skip. Reject it at
+    /// <c>CliApplication.Create</c> rather than binding something arbitrary at dispatch.
+    /// </summary>
+    private static void RejectNonTrailingOptionalArguments(
+        string routeName,
+        ImmutableArray<ParameterInfoDecorator> parameters,
+        int minSegmentCount)
+    {
+        foreach (var argument in parameters.OfType<CliArgumentParameterInfo>())
+        {
+            if (argument.IsOptionalArgument && argument.CliRoutePosition < minSegmentCount)
+            {
+                throw new CliConfigurationException(
+                    $"Route '{routeName}': the optional argument <{argument.CliArgumentName.ToUpperInvariant()}> " +
+                    $"is followed by a required positional. An optional argument must be last — otherwise, given " +
+                    $"fewer tokens than slots, the framework cannot tell which one you meant to omit. Give the " +
+                    $"later arguments defaults too, or drop the default from this one.");
+            }
+        }
     }
 
     /// <summary>The reflected method name — used in dispatch error messages and help.</summary>

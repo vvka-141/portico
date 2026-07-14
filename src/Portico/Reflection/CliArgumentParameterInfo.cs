@@ -39,9 +39,21 @@ internal sealed class CliArgumentParameterInfo : CliParameterInfo
             .FirstOrDefault(argument.Description)
             .DefaultIfNullOrWhiteSpace(argument.Name);
         CliRoutePosition = cliRoutePosition;
+
+        // A C# default on the parameter — `string target = "default"` — is the author stating,
+        // unambiguously, that the positional is optional. Honour it: the route matches with the
+        // segment absent and the parameter binds to its default.
+        IsOptionalArgument = HasDefaultValue;
+        ArgumentDefaultValue = HasDefaultValue ? DefaultValue : null;
     }
 
     public string Description { get; }
+
+    /// <summary>True when the bound parameter declares a C# default value.</summary>
+    public bool IsOptionalArgument { get; }
+
+    /// <summary>The parameter's C# default, used when an optional positional is omitted.</summary>
+    public object? ArgumentDefaultValue { get; }
 
     public TypeConverter TypeConverter { get; }
 
@@ -53,6 +65,11 @@ internal sealed class CliArgumentParameterInfo : CliParameterInfo
     {
         if (CliRoutePosition >= invocation.Segments.Length)
         {
+            if (IsOptionalArgument)
+            {
+                return ArgumentDefaultValue;
+            }
+
             throw new CliExitException(
                 $"Missing positional argument <{CliArgumentName.ToUpperInvariant()}>.")
             { ExitCode = CliExitException.UsageErrorExitCode };

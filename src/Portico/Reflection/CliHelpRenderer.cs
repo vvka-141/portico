@@ -22,11 +22,11 @@ internal static class CliHelpRenderer
     {
         var sb = new StringBuilder();
 
-        // Signature: literals verbatim, argument slots as <NAME>.
-        foreach (var seg in model.Segments)
+        // Signature: literals verbatim, required argument slots as <NAME>, optional ones as [NAME].
+        for (var i = 0; i < model.Segments.Length; ++i)
         {
             if (sb.Length > 0) sb.Append(' ');
-            sb.Append(SignatureToken(seg));
+            sb.Append(SignatureToken(model.Segments[i], i, model));
         }
         var optionInfos = model.Options;
         if (optionInfos.Length > 0) sb.Append(" [options]");
@@ -51,10 +51,10 @@ internal static class CliHelpRenderer
 
         // Usage line
         sb.Append("Usage: ").Append(executableName);
-        foreach (var seg in model.Segments)
+        for (var i = 0; i < model.Segments.Length; ++i)
         {
             sb.Append(' ');
-            sb.Append(SignatureToken(seg));
+            sb.Append(SignatureToken(model.Segments[i], i, model));
         }
         var optionInfos = model.Options;
         if (optionInfos.Length > 0) sb.Append(" [options]");
@@ -83,12 +83,20 @@ internal static class CliHelpRenderer
         return sb.ToString();
     }
 
-    private static string SignatureToken(CliRouteSegment seg) => seg switch
+    // <NAME> is required, [NAME] is optional — the convention git/docker/dotnet all use.
+    private static string SignatureToken(CliRouteSegment seg, int position, CliRouteModel model) => seg switch
     {
         CliLiteralSegment literal => literal.Text,
-        CliArgumentSegment arg => $"<{arg.Argument.Name.ToUpperInvariant()}>",
+        CliArgumentSegment arg => IsOptionalAt(model, position)
+            ? $"[{arg.Argument.Name.ToUpperInvariant()}]"
+            : $"<{arg.Argument.Name.ToUpperInvariant()}>",
         _ => "?"
     };
+
+    private static bool IsOptionalAt(CliRouteModel model, int position) =>
+        model.Parameters
+            .OfType<CliArgumentParameterInfo>()
+            .Any(p => p.CliRoutePosition == position && p.IsOptionalArgument);
 
     // Description (skip when the reflection-derived default is just the method name).
     private static void AppendDescription(StringBuilder sb, CliRouteModel model)
