@@ -26,6 +26,8 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <!-- The DI implementation is a TEST dependency of the adapter: you need a container to test against one. -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <!-- Portico.Hosting: the Generic Host itself. -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Roslyn host (analyzers and code fixes)">
