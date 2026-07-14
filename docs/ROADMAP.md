@@ -19,8 +19,10 @@ A 1.0 release ships when all three are true:
 3. **Differentiated** — the shape-defining choices (attribute routing, examples-as-tests, map
    options, container-agnostic dispatch, shipped analyzers) are sharpened, not eroded.
 
-The [Charter §6 / §6.5](explanation/charter.md) gates are the checklist. **Two of them are currently
-not met** and say so, with ticket numbers — a gate nobody re-runs is decoration.
+The [Charter §6 / §6.5](explanation/charter.md) gates are the checklist. **The two that were not met
+are now met** — analyzer coverage (POR-25: POR009 + POR010 close it) and XML docs on the public
+surface (POR-27), and the second is now enforced by a test rather than by an audit. A gate nobody
+re-runs is decoration, so before you trust this paragraph, re-run them.
 
 ---
 
@@ -92,7 +94,26 @@ subclass together cannot express. That, not a hypothetical, is the bar.
 - **Interactive prompts beyond `GetYesNoAnswer`.** Composition with Spectre.Console is the answer.
 
 - **Configuration-file fallback (`appsettings.json`).** A CLI's input is argv. Environment-variable
-  fallback is the line we draw.
+  fallback is the line we draw — and since POR-54 it works on scalars, flags and collections, and
+  refuses maps out loud rather than binding nothing.
+
+- **Response files (`@args.txt`).** Declined (POR-55). `csc`, `dotnet` and `curl` all expand a leading
+  `@`, and the argument for it is real: a backfill command with a thousand ids outgrows the shell's
+  length limit, and that is Portico's audience.
+
+  It is declined anyway, because **the same job is done better by a `--ids-file path` option that the
+  handler reads**: that option appears in `--help`, and — the deciding point — it is *verifiable by an
+  example* (`[CliCommandExample("db backfill --ids-file ids.txt")]`). Response-file expansion happens
+  **before routing**, so it is invisible to the contract: no example can cover it, no analyzer can
+  check it, and the CLI's own description of itself would silently omit a way of invoking it. A
+  framework whose central claim is "the examples are the contract" cannot ship an input channel the
+  contract cannot see.
+
+  It also fails the Charter's own test — it has no expression in the HTTP metaphor. There is no
+  `@file` in a query string.
+
+  **Reopen if:** a real user hits the command-line length limit and a `--*-file` option genuinely does
+  not serve them. That is new evidence, and it beats this reasoning.
 
 - **Plugin-style command loading from external assemblies.** A security and boundary problem, with no
   asking user.
