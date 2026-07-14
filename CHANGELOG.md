@@ -19,6 +19,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **A composed CLI can now verify its examples.** `CliContractValidator<T>` registered the
+  contract's proxy unmounted, so it passed examples that the real, composed application rejects with
+  exit 2. It now takes the root routes the contract ships under —
+  `new CliContractValidator<IAwsTool>("aws")` — and runs every example against the mounted route.
+  A contract registered at the root is unaffected.
 - **Help no longer lies in a composed CLI.** A command mounted under a root route
   (`AddCommands(tool, [new CliRouteAttribute("aws")])`) rendered its `[CliCommandExample]` verbatim —
   `master deploy --region eu-west-1` — which exits 2 when pasted, because the real route is

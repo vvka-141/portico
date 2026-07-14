@@ -26,9 +26,35 @@ namespace Portico.Testing;
 /// dispatching to a different overload, or binding a different value, still dispatches; only
 /// <see cref="CliContractExample.Handler"/> and <see cref="CliContractExample.Arguments"/> catch it.
 /// </para>
+/// <para>
+/// A contract composed into a master CLI under a root route
+/// (<c>AddCommands(tool, [new CliRouteAttribute("aws")])</c>) must be validated <em>in the position
+/// it ships in</em> — pass those root routes to the constructor. Validating the unmounted surface of
+/// a contract that only ever ships mounted proves nothing about the CLI users actually get: the
+/// examples would pass here and exit 2 there (POR-40).
+/// </para>
 /// </remarks>
 public sealed class CliContractValidator<T> where T : class
 {
+    private readonly string[] _rootRoutes;
+
+    /// <summary>
+    /// Validates <typeparamref name="T"/> in the position it ships in.
+    /// </summary>
+    /// <param name="rootRoutes">
+    /// The root routes the contract is mounted under in the real application — the same values
+    /// passed to <c>AddCommands(instance, rootRoutes)</c>. Omit them for a contract registered at
+    /// the root. Each example is run against the mounted route, so an example that does not
+    /// dispatch in the composed CLI fails here.
+    /// </param>
+    /// <example><code>
+    /// // Program.cs:  cfg.AddCommands(new AwsTool(), [new CliRouteAttribute("aws")])
+    /// new CliContractValidator&lt;IAwsTool&gt;("aws")
+    ///     .Validate(onNotInvoked: ex =&gt; Assert.Fail($"Example didn't dispatch: {ex.Example}"));
+    /// </code></example>
+    public CliContractValidator(params string[] rootRoutes) =>
+        _rootRoutes = rootRoutes ?? [];
+
     /// <summary>
     /// Runs every <c>[CliCommandExample]</c> on <typeparamref name="T"/> through a
     /// <see cref="DispatchProxy"/>-backed application and reports which examples matched
@@ -143,9 +169,15 @@ public sealed class CliContractValidator<T> where T : class
         var app = CliApplication
             .Create(builder =>
             {
-                builder.AddCommands(proxy);
+                builder.AddCommands(proxy, _rootRoutes.Select(r => new CliRouteAttribute(r)));
                 configureApplication?.Invoke(builder);
             });
+
+        // The example is authored against the contract, which cannot know its mount — so the mount
+        // is what we prepend before running it, exactly as help does (POR-39).
+        var mount = _rootRoutes.Length == 0
+            ? string.Empty
+            : string.Join(' ', _rootRoutes) + " ";
 
         var results = new List<(CliCommandExampleAttribute, CliDispatch?)>(testCases.Length);
         foreach (var testCase in testCases)
@@ -158,7 +190,7 @@ public sealed class CliContractValidator<T> where T : class
             // dispatch would mean the framework short-circuited (--help, --version), which is
             // not a route match and must not be reported as one.
             recorder.Clear();
-            int exitCode = app.Run($"program {testCase.Example}");
+            int exitCode = app.Run($"program {mount}{testCase.Example}");
             var dispatch = exitCode == 0 ? recorder.Dispatch : null;
 
             results.Add((testCase, dispatch));
