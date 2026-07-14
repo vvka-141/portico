@@ -8,6 +8,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
+    <!-- Direct Roslyn references for the hand-rolled analyzer tests. Workspaces is needed to
+         drive the CodeFixProviders (Document, CodeFixContext, Formatter) from the apply-and-verify
+         harness. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,6 +26,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Portico\Portico.csproj" />
+    <!-- Referenced as ordinary assemblies (not as analyzer plugins): the tests instantiate the
+         DiagnosticAnalyzer and CodeFixProvider types directly and drive them over a scratch
+         compilation. -->
+    <ProjectReference Include="..\..\src\Portico.Analyzers\Portico.Analyzers.csproj" />
+    <ProjectReference Include="..\..\src\Portico.Analyzers.CodeFixes\Portico.Analyzers.CodeFixes.csproj" />
   </ItemGroup>
 
 </Project>
