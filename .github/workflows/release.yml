@@ -1,0 +1,59 @@
+name: Release
+
+# Fires ONLY on a v* tag. Pushing that tag is the release action — nothing else publishes.
+# MinVer derives the package version from the tag: v0.2.0 -> 0.2.0.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # to create the GitHub Release
+
+jobs:
+  release:
+    name: Verify, pack, publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # MANDATORY. MinVer derives the version from tag history; a shallow clone has none and
+          # would silently publish the wrong version.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: '10.0.x'
+
+      # The SAME gate as CI. A release that skips the gate is not a gate — this is the last
+      # moment the code is checkable before it is immutable on nuget.org.
+      - name: Restore
+        run: dotnet restore portico.sln
+
+      - name: Build
+        run: dotnet build portico.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test portico.sln -c Release --no-build --verbosity normal
+
+      - name: Pack
+        run: dotnet pack portico.sln -c Release --no-build -o ./artifacts
+
+      - name: Show what will be published
+        run: ls -la ./artifacts
+
+      - name: Publish to nuget.org
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --skip-duplicate
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          --title "${{ github.ref_name }}"
+          --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)."
+          ./artifacts/*.nupkg

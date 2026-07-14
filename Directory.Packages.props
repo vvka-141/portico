@@ -16,6 +16,11 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
+  <ItemGroup Label="Versioning">
+    <!-- Derives the package version from the git tag. Build-time only (PrivateAssets="all"). -->
+    <PackageVersion Include="MinVer" Version="7.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Roslyn host (analyzers and code fixes)">
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />

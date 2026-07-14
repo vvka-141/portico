@@ -12,13 +12,30 @@
 
   <PropertyGroup Label="Version">
     <!--
-      Placeholder only. POR-6 (Release Engineering) replaces this with MinVer,
-      which derives the version from the git tag. Until then this keeps `dotnet
-      pack` off the SDK's implicit 1.0.0 default: Portico stays in 0.x until the
-      API surface settles.
+      The version is derived from the git tag by MinVer — there is no hand-edited version
+      property, and adding one back would silently override the tag. Tag `v0.2.0` produces
+      0.2.0; with no tag in history you get 0.0.0-alpha.0.N, which is the correct
+      pre-first-release answer, not something to paper over.
+
+      Consequence for CI: any checkout that packs MUST use fetch-depth: 0. A shallow clone
+      has no tag history, so MinVer would quietly compute the wrong version.
     -->
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
+
+  <ItemGroup Label="Version">
+    <!--
+      PrivateAssets="all": MinVer runs at build time only and never becomes a package
+      dependency. The produced nupkg's dependency group stays empty — verified by unzipping
+      it, and by Portico_Package_Should.HaveNoDependencies, which walks the built assembly's
+      referenced assemblies.
+
+      Note: `dotnet list package` on src/Portico WILL now list MinVer, because it reports
+      top-level PackageReferences regardless of PrivateAssets. That is a reporting artifact,
+      not a dependency — check the nupkg, not the list.
+    -->
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
 
   <PropertyGroup Label="Language">
     <!-- net10.0 only. No multi-targeting until a real user asks for it. -->
