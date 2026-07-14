@@ -1,0 +1,33 @@
+<Project>
+
+  <!--
+    Central Package Management — every external NuGet dependency declares its
+    version here, exactly once. Per-project csproj files use a bare
+    <PackageReference Include="X" /> with no Version attribute.
+
+    Note what is absent: the Portico package itself has ZERO dependencies. The
+    Roslyn packages below are build-time only (PrivateAssets="all"), and the
+    test packages never ship. Anything a feature "needs" from
+    Microsoft.Extensions.* belongs in Portico.DependencyInjection or
+    Portico.Hosting — or it does not belong.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="Roslyn host (analyzers and code fixes)">
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test infrastructure">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+  </ItemGroup>
+
+</Project>

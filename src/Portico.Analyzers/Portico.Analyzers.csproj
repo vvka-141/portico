@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- netstandard2.0 is a Roslyn requirement: it keeps the analyzer loadable by
+         every host (VS, Rider, `dotnet build`). Overrides the solution-wide net10.0. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Portico.Analyzers</RootNamespace>
+    <AssemblyName>Portico.Analyzers</AssemblyName>
+    <!--
+      The analyzer runs inside Roslyn, never at runtime, and never ships to
+      application output. Its DLL is packed into the Portico package's
+      analyzers/dotnet/cs/ directory (see Portico.csproj), so this project
+      produces a payload, not a package of its own.
+    -->
+    <IsPackable>false</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.CodeAnalysis.CSharp.Workspaces is deliberately NOT referenced here.
+      Per RS1038, an analyzer assembly carrying a Workspaces reference can fail to
+      load in command-line builds where Workspaces is absent — silently disabling
+      every diagnostic it ships. Code-fix providers inherently need Workspaces, so
+      they live in the sibling Portico.Analyzers.CodeFixes assembly.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The code fixes consume the internal diagnostic descriptors declared here. -->
+    <InternalsVisibleTo Include="Portico.Analyzers.CodeFixes" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+</Project>

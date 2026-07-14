@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Portico.Analyzers</RootNamespace>
+    <AssemblyName>Portico.Analyzers.CodeFixes</AssemblyName>
+    <!--
+      Code-fix providers run only inside Roslyn / IDE hosts, and they need
+      Microsoft.CodeAnalysis.Workspaces. Splitting them out keeps the sibling
+      analyzer assembly free of Workspaces (RS1038), so the diagnostics load
+      reliably during command-line builds on hosts that do not ship Workspaces.
+
+      Both DLLs are bundled into the Portico package under analyzers/dotnet/cs/
+      — see Portico.csproj. IsPackable=false: this is a payload, not a package.
+    -->
+    <IsPackable>false</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The fixes reference the analyzer's internal diagnostic descriptors; the
+         analyzer csproj grants access via InternalsVisibleTo. -->
+    <ProjectReference Include="..\Portico.Analyzers\Portico.Analyzers.csproj" />
+  </ItemGroup>
+
+</Project>

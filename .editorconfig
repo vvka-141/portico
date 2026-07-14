@@ -1,0 +1,33 @@
+root = true
+
+# ---------------------------------------------------------------------------
+# Portico — analyzer policy
+#
+# CA2007 (ConfigureAwait) is enforced as a warning — and TreatWarningsAsErrors
+# makes that a build failure — across the shipping library. Portico is library
+# code: an awaited expression must never implicitly capture a synchronization
+# context. ConfigureAwait(false) is behaviorally inert except in sync-context
+# callers (WPF/WinForms/legacy ASP.NET), where it prevents deadlock.
+#
+# Only CA2007 is turned on. The broader CAxxxx suite stays at its defaults —
+# a wide rule set on a fresh repo is noise, not safety.
+# ---------------------------------------------------------------------------
+
+[*.cs]
+dotnet_diagnostic.CA2007.severity = warning
+
+# File-scoped namespaces are the house style. IDE0161 flags block-scoped ones.
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Tests run on a synchronous test host where context capture is harmless;
+# holding them to CA2007 adds noise without safety value.
+[test/**.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+# Roslyn analyzers and code fixes target the compiler host, not a runtime
+# synchronization context; CA2007 is not meaningful there.
+[src/Portico.Analyzers/**.cs]
+dotnet_diagnostic.CA2007.severity = none
+
+[src/Portico.Analyzers.CodeFixes/**.cs]
+dotnet_diagnostic.CA2007.severity = none

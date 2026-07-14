@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Portico</PackageId>
+    <Title>Portico</Title>
+    <RootNamespace>Portico</RootNamespace>
+    <Description>The command surface for .NET backend services. Contract-first CLI routing where your examples are tests, verified at compile time by Roslyn analyzers. Zero dependencies; DI is opt-in.</Description>
+    <PackageTags>CLI;CommandLine;Console;Routing;Analyzers;Testing;Portico</PackageTags>
+  </PropertyGroup>
+
+  <!--
+    ZERO PackageReferences. This is a hard rule, not an aspiration: the DI and
+    Hosting adapters are separate packages precisely so this one can stay clean.
+    Verified by Portico_Package_Should.HaveNoDependencies.
+  -->
+
+  <ItemGroup>
+    <!-- The internalized helpers (POR-11) and the routing internals are not public
+         surface, but they carry their own tests. -->
+    <InternalsVisibleTo Include="Portico.Tests" />
+  </ItemGroup>
+
+  <!--
+    The analyzer pack — both assemblies are bundled into this package's
+    analyzers/dotnet/cs/ directory, so a plain <PackageReference Include="Portico" />
+    gets the build-time diagnostics (POR001-POR008) and the IDE code fixes with no
+    second `dotnet add package`. Neither assembly is a runtime dependency.
+
+    OutputItemType="Analyzer" + ReferenceOutputAssembly="false" means: (a) our own
+    build dogfoods the analyzers; (b) we do not link against their DLLs.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Portico.Analyzers\Portico.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Portico.Analyzers.CodeFixes\Portico.Analyzers.CodeFixes.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Portico.Analyzers\bin\$(Configuration)\netstandard2.0\Portico.Analyzers.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+    <None Include="..\Portico.Analyzers.CodeFixes\bin\$(Configuration)\netstandard2.0\Portico.Analyzers.CodeFixes.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>

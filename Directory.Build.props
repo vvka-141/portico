@@ -1,0 +1,83 @@
+<Project>
+
+  <!--
+    Shared conventions for every project in the Portico solution.
+
+    Per-project csproj files declare only what is project-specific:
+      PackageId, Title, Description, PackageTags
+      <PackageReference> and <ProjectReference>
+    Everything else — identity, license, package shape, reproducible-build
+    settings — lives here. Third-party versions live in Directory.Packages.props.
+  -->
+
+  <PropertyGroup Label="Version">
+    <!--
+      Placeholder only. POR-6 (Release Engineering) replaces this with MinVer,
+      which derives the version from the git tag. Until then this keeps `dotnet
+      pack` off the SDK's implicit 1.0.0 default: Portico stays in 0.x until the
+      API surface settles.
+    -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Language">
+    <!-- net10.0 only. No multi-targeting until a real user asks for it. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- Explicit usings are the house style, inherited from the origin source. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Identity">
+    <Authors>Alexey Evlampiev</Authors>
+    <Company>Portico</Company>
+    <Copyright>© Alexey Evlampiev. All rights reserved.</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Repository">
+    <PackageProjectUrl>https://github.com/vvka-141/portico</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vvka-141/portico</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <PropertyGroup Label="License">
+    <!--
+      Apache-2.0, not MPL-2.0. Portico is a library linked into proprietary
+      backend services; Apache's explicit patent grant is the reflex-safe choice
+      for that audience. Acceptance is not required — permissive licenses that
+      demand a click read as encumbered.
+    -->
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <PropertyGroup Label="PackageShape">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Quiet the "no XML docs" noise without losing the generated doc file. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Reproducible build">
+    <!-- Source-link ships in the SDK; no package reference is needed for it. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Local builds keep their dirty-tree behaviour. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup Label="Pack the shared README"
+             Condition="'$(IsPackable)' != 'false'">
+    <!-- The repo-root README is the single source for every package's NuGet page. -->
+    <None Include="$(MSBuildThisFileDirectory)README.md"
+          Pack="true"
+          PackagePath="\"
+          Visible="false" />
+  </ItemGroup>
+
+</Project>
