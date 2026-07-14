@@ -21,11 +21,26 @@ Config layering without a config file, declared on the option itself.
 The command line wins over the environment; the environment wins over the default. An operator sets
 `PORTICO_API_TOKEN` once in the container and stops typing it.
 
-**Scalar options only, today.** `EnvironmentVariable` on a `CliFlag?`, a collection or a map is
-**silently inert** — the option takes its default as though the variable were unset, with no
-diagnostic. The fallback lives in the scalar materializer and nowhere else. If you are configuring a
-containerized service from the environment, this is the edge you will hit; it is pinned by
-`CliEnvironmentFallback_Should` and tracked as a bug rather than hidden.
+What the variable means depends on the option's shape, because a string has to answer questions argv
+never asks:
+
+| Shape | Environment form | Notes |
+|---|---|---|
+| scalar | `PORTICO_API_TOKEN=abc` | converted exactly as a typed value would be |
+| `CliFlag?` | `PORTICO_VERBOSE=1` | on unless the value is empty, `0`, `false` or `no` (any case) |
+| collection | `PORTICO_TAGS=a,b,c` | comma-separated; a value containing a comma must come from argv |
+| **map** | — | **not supported, and it throws at startup** |
+
+**Set-but-empty is off.** `docker run -e FOO` and an undefined variable in a compose file both pass
+`FOO=`, so treating "the variable exists" as "the flag is on" would silently enable a flag nobody
+asked for — on the most common container idiom there is.
+
+**The map case is declined, loudly.** One variable cannot carry key/value pairs without nesting one
+separator inside another (`PORTICO_SHARD=eu=3,us=5`), and every such encoding breaks on the first
+value that contains either separator. So `EnvironmentVariable` on a map option throws
+`CliConfigurationException` from `CliApplication.Create` — before a single command runs — rather than
+binding nothing at dispatch. Take the value as a scalar and parse it in your handler, where you choose
+the format.
 
 ### `DefaultValue` — the string form
 
