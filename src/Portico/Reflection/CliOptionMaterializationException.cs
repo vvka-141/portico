@@ -10,7 +10,11 @@ namespace Portico.Reflection;
 /// </summary>
 internal sealed class CliOptionMaterializationException : FormatException
 {
-    public CliOptionMaterializationException(string message) : base(message) { }
+    // Every message on this path embeds a value the user typed ("Value 'abc' for option '--amount' is
+    // invalid."). That is attacker-influenced input on its way to stderr, so it is sanitized here —
+    // one choke point rather than a dozen interpolation sites, each of which someone would eventually
+    // forget (POR-48; the same lesson as the Sensitive leaks in POR-24/POR-17).
+    public CliOptionMaterializationException(string message) : base(CliSanitizer.Sanitize(message)) { }
 
     /// <summary>
     /// Preserves the underlying conversion failure as <see cref="Exception.InnerException"/>
@@ -18,5 +22,5 @@ internal sealed class CliOptionMaterializationException : FormatException
     /// <see cref="OverflowException"/> / etc. without message-substring parsing.
     /// </summary>
     public CliOptionMaterializationException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(CliSanitizer.Sanitize(message), innerException) { }
 }

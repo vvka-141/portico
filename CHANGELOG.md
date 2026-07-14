@@ -64,6 +64,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **stderr is no longer a prompt-injection channel.** Everything the framework echoes back — the
+  command line you typed, a value that failed to convert — is attacker-influenced input. It now has
+  ANSI escapes and invisible codepoints stripped, so a crafted command line cannot rewrite a terminal
+  or smuggle text a human reviewer cannot see but a model still reads. **Handler output is untouched:**
+  a handler owns its bytes.
 - **`EnvironmentVariable` now works on flags and collections, and refuses maps out loud.** It was
   honoured by scalar options and **silently inert** everywhere else — a containerized service set the
   variable, nothing happened, and there was nothing to debug. A flag is now on unless the variable is

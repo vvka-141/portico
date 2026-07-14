@@ -283,6 +283,7 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 - [AOT](docs/explanation/aot.md) — why not, and what would change our mind
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
 - [Capabilities](docs/reference/capabilities.md) — the whole surface, every entry backed by a test
+- [The agent-first CLI contract, scored](docs/explanation/agent-first-contract.md) — what Portico answers, what it declines, and why
 - [Analyzer rules](docs/reference/analyzer-rules.md) — the ten compile-time checks, and how to suppress one
 - [The alternatives, honestly](docs/explanation/alternatives.md) — what every competitor is better at, and the one claim we make
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
