@@ -64,6 +64,15 @@ public abstract class CliMiddleware : CliOptions, ICloneable
     }
 
 
+    /// <summary>
+    /// Runs after the route matched and this middleware's own options were bound, but before the
+    /// handler is invoked — the CLI's <c>OnActionExecuting</c>. Throw <see cref="CliExitException"/>
+    /// here to reject the invocation and choose its exit code; the handler then never runs.
+    /// </summary>
+    /// <param name="invocation">
+    /// The matched invocation. Values of <c>Sensitive</c> options are already redacted in its
+    /// <see cref="CliInvocation.ToString()"/> — it is safe to log.
+    /// </param>
     /// <example><code>
     /// public sealed class TraceMiddleware : CliMiddleware
     /// {
@@ -79,6 +88,14 @@ public abstract class CliMiddleware : CliOptions, ICloneable
         Debug.WriteLine($"{GetType()}.{nameof(OnExecutingAction)}");
     }
 
+    /// <summary>
+    /// Runs after the dispatch, <b>whether it succeeded or threw</b> — it is invoked from a
+    /// <c>finally</c>, so it is the symmetric counterpart to <see cref="OnExecutingAction"/> and the
+    /// right place to release anything that hook acquired. It runs even if
+    /// <see cref="OnExecutingAction"/> itself threw partway through. A failure additionally reaches
+    /// <see cref="OnError"/>, which runs first; this hook is not told the outcome.
+    /// </summary>
+    /// <param name="invocation">The invocation that just completed, successfully or not.</param>
     /// <example><code>
     /// public override void OnActionExecuted(CliInvocation invocation)
     /// {
@@ -90,6 +107,17 @@ public abstract class CliMiddleware : CliOptions, ICloneable
         Debug.WriteLine($"{GetType()}.{nameof(OnActionExecuted)}");
     }
 
+    /// <summary>
+    /// Runs when the dispatch failed, before <see cref="OnActionExecuted"/>. Observational only: the
+    /// original exception propagates regardless, and an exception thrown from this hook is swallowed
+    /// — a buggy telemetry hook must not mask the failure the user actually needs to see. To change
+    /// the exit code, throw <see cref="CliExitException"/> from
+    /// <see cref="OnExecutingAction"/> instead.
+    /// </summary>
+    /// <param name="invocation">The invocation that failed.</param>
+    /// <param name="exception">
+    /// The failure. A handler's exception arrives unwrapped (not as a <c>TargetInvocationException</c>).
+    /// </param>
     /// <example><code>
     /// public override void OnError(CliInvocation invocation, Exception exception)
     /// {
@@ -101,6 +129,15 @@ public abstract class CliMiddleware : CliOptions, ICloneable
         Debug.WriteLine($"{GetType()}.{nameof(OnError)}");
     }
 
+    /// <summary>
+    /// Produces the per-dispatch copy the framework binds options onto, so one registered middleware
+    /// instance can serve concurrent invocations without them writing over each other's option
+    /// values. Called by the framework; you rarely call it yourself.
+    /// <b>The copy is shallow</b> (<c>MemberwiseClone</c>): a reference-typed field — an injected
+    /// service, say — is shared across clones, not duplicated. That is right for a stateless
+    /// dependency and wrong for mutable per-invocation state.
+    /// </summary>
+    /// <returns>A shallow copy of this middleware.</returns>
     /// <example><code>var perDispatch = (CliMiddleware)sharedMiddleware.Clone();</code></example>
     public CliMiddleware Clone() => (CliMiddleware)this.MemberwiseClone();
 

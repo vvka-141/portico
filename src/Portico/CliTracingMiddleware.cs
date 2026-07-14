@@ -38,6 +38,17 @@ public sealed class CliTracingMiddleware : CliMiddleware
     [CliOption("--trace-level|--trace", "Trace level", DefaultValue = "Off")]
     public TraceLevel Level { get; set; } = TraceLevel.Off;
 
+    /// <summary>
+    /// Attaches this invocation's <see cref="TraceListener"/> to <see cref="Trace.Listeners"/>, so
+    /// the handler's <c>Trace.WriteLine</c> calls surface on the console at or above
+    /// <see cref="Level"/>. The listener is this middleware's own — other listeners are left alone.
+    /// </summary>
+    /// <param name="invocation">The matched invocation.</param>
+    /// <example><code>
+    /// CliApplication.Create(cfg =&gt; cfg
+    ///     .AddCommands(new MyTool())
+    ///     .UseMiddleware(new CliTracingMiddleware()));  // then: myapp db migrate --trace-level Verbose
+    /// </code></example>
     public override void OnExecutingAction(CliInvocation invocation)
     {
         // Route through the injected console (falls back to the process console only if the
@@ -48,6 +59,15 @@ public sealed class CliTracingMiddleware : CliMiddleware
         base.OnExecutingAction(invocation);
     }
 
+    /// <summary>
+    /// Detaches this invocation's listener. Runs from the framework's <c>finally</c>, so the listener
+    /// comes off even when the command threw — <see cref="Trace.Listeners"/> is process-global, and a
+    /// failed dispatch must not leak into the next one.
+    /// </summary>
+    /// <param name="invocation">The invocation that just completed.</param>
+    /// <example><code>
+    /// // Nothing to write: the listener attached in OnExecutingAction is removed here, always.
+    /// </code></example>
     public override void OnActionExecuted(CliInvocation invocation)
     {
         if (_ownListener is not null)

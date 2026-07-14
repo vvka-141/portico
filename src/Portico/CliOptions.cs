@@ -14,5 +14,9 @@ namespace Portico;
 /// </remarks>
 public abstract class CliOptions
 {
-    public static bool IsAssignableFrom(Type type) => typeof(CliOptions).IsAssignableFrom(type);
+    // Internal, not public (POR-27): this is a one-line wrapper over a BCL call, its only callers are
+    // the framework's own binder, and a user who wants it can write `typeof(CliOptions)
+    // .IsAssignableFrom(t)` themselves. A public member nobody meant to ship is better removed than
+    // documented.
+    internal static bool IsAssignableFrom(Type type) => typeof(CliOptions).IsAssignableFrom(type);
 }

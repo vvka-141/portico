@@ -139,13 +139,18 @@ gates, not nice-to-haves.
   New conventions introduced post-1.0 ship with their analyzer or are explicitly deferred with a
   charter-level rationale.
 
-- **⚠️ XML `<summary>` + `<example>` on every public method — NOT met. Inherited as "✅ audited"; false.**
-  Measured by reflecting over the exported surface of the built assembly and cross-referencing the
-  shipped `Portico.xml` (a source-grep is misleading — `CliApplication`'s private nested `Builder`
-  has `public` members that are not exported). Of 37 exported types and 87 public methods,
-  **`CliApplication.Create` — the primary entry point — has no `<summary>`**, nor do the three
-  `CliMiddleware` override points; and the whole `CliPrompt` surface has no `<example>`. Tracked as
-  **POR-27**, which also adds a test so the gate is enforced rather than re-asserted.
+- **✅ XML `<summary>` + `<example>` on every public method — met, and ENFORCED (POR-27).**
+  It was inherited as "✅ audited" and was false: `CliApplication.Create` — the primary entry point —
+  had no `<summary>` at all, nor did the four `CliMiddleware` override points or the two concrete
+  middlewares'; and the whole `CliPrompt` surface had no `<example>`. All are now documented, and
+  `CliOptions.IsAssignableFrom` — a public member nobody meant to ship — is `internal`.
+
+  **The gate no longer depends on anyone re-auditing it.** `Portico_XmlDocGate_Should` reflects over
+  the exported surface of the built assembly and cross-references the shipped `Portico.xml` on every
+  build (a source-grep is misleading — `CliApplication`'s private nested `Builder` has `public`
+  members that are not exported, and a grep reports ~130 phantom gaps). A new public member that
+  ships without a `<summary>` and an `<example>` now fails the build. That is the difference between
+  a gate and a decoration, and it is why this one decayed in the first place.
 
   **Charter-level exemptions** (intentionally exampleless): public constructors of the attribute
   types (the type-level example shows the canonical applied form); trivial positional/record

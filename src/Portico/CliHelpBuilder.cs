@@ -19,6 +19,13 @@ public sealed class CliHelpBuilder
     /// option name (<c>--help</c>, <c>-h</c>, <c>-?</c>); each trigger without a leading dash
     /// matches a bare first segment (<c>help</c>, <c>?</c>, <c>man</c>).
     /// </summary>
+    /// <param name="triggers">The replacement triggers. At least one is required.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <example><code>
+    /// CliApplication.Create(cfg =&gt; cfg
+    ///     .AddCommands(new MyTool())
+    ///     .WithHelp(help =&gt; help.Triggers("--help", "-h", "help")));
+    /// </code></example>
     public CliHelpBuilder Triggers(params string[] triggers)
     {
         ThrowIf.ArgumentNull(triggers);

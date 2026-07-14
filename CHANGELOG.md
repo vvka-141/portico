@@ -16,6 +16,10 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- **XML docs on the whole public surface, enforced by a test.** `CliApplication.Create`, the
+  `CliMiddleware` lifecycle hooks and `Clone`, and the `CliPrompt` / `CliCompletion` / `CliHelpBuilder`
+  members now carry a `<summary>` and a usage `<example>`. A new public member that ships without them
+  fails the build (`Portico_XmlDocGate_Should`) — the surface an agent reads cannot silently decay.
 - `docs/how-to/migrate-from-cocona.md` — a migration guide for Cocona users (Cocona was archived
   2025-12-14), including where ConsoleAppFramework or System.CommandLine is the better destination.
 - `docs/how-to/compose-clis.md` + `examples/PlatformCli` — mounting several independently-built
@@ -58,6 +62,9 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Changed
 
+- **`CliOptions.IsAssignableFrom` is now `internal`.** It was a one-line wrapper over
+  `typeof(CliOptions).IsAssignableFrom(type)` with no callers outside the framework — public surface
+  nobody meant to ship.
 - The shell-completion script's heredoc marker is `__PORTICO_ROUTES__`.
 
 [Unreleased]: https://github.com/vvka-141/portico/commits/main
