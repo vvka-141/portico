@@ -183,10 +183,12 @@ ConsoleAppFramework or System.CommandLine is the better destination instead.
 
 ## Known rough edges
 
-Portico is **0.x**. It is extracted from a framework with ~380 tests behind it, but it is honest
+Portico is **0.x**. It is extracted from a framework with ~430 tests behind it, and it is honest
 about what is not finished:
 
-- Top-level `--help` lists every command's options inline instead of a `Commands:` summary.
+- The `Portico.DependencyInjection` and `Portico.Hosting` adapter packages are not built yet. The
+  core works without them; DI is opt-in and the opt-in is what is missing.
+- There is no `dotnet new` template.
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
 

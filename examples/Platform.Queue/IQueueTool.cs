@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Portico;
@@ -11,12 +12,14 @@ namespace Platform.Queue;
 public interface IQueueTool
 {
     /// <summary>Report queue depth.</summary>
+    [Description("Report queue depth")]
     [CliRoute("status")]
     [CliCommandExample("status")]
     [CliCommandExample("status --queue orders")]
     int Status([CliOption("--queue", "Limit the report to one queue")] string? queue = null);
 
     /// <summary>Drain in-flight messages and stop accepting new ones.</summary>
+    [Description("Drain in-flight messages")]
     [CliRoute("drain")]
     [CliCommandExample("drain --timeout \"30 seconds\"")]
     Task<int> DrainAsync(

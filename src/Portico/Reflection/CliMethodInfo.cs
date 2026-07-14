@@ -19,7 +19,7 @@ namespace Portico.Reflection;
 /// help rendering, and binding/dispatch are delegated to <see cref="CliRouteMatcher"/>,
 /// <see cref="CliHelpRenderer"/>, and <see cref="CliMethodInvoker"/> respectively (SOL-78).
 /// </summary>
-internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
+internal sealed partial class CliMethodInfo : MethodInfoDecorator
 {
     private readonly CliContext _context;
     private readonly ImmutableArray<ParameterInfoDecorator> _parameters;
@@ -393,6 +393,9 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
 
     public IEnumerable<ICliOptionMemberInfo> GetOptions() => _model.Options;
 
+    /// <summary>The route model: the single source of truth the help renderer reads.</summary>
+    public CliRouteModel RouteModel => _model;
+
     internal IEnumerable<CliRouteSegment> Segments => _model.Segments;
 
     /// <summary>
@@ -428,8 +431,6 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
     public bool IsMatch(CliInvocation invocation) => CliRouteMatcher.IsMatch(_model, invocation);
 
     public double RankByOptions(CliInvocation invocation) => CliRouteMatcher.RankByOptions(_model, invocation);
-
-    public string ToGeneralHelpString() => CliHelpRenderer.RenderGeneralHelp(_model);
 
     public string ToCommandHelpString(string executableName) => CliHelpRenderer.RenderCommandHelp(_model, executableName);
 
@@ -542,15 +543,5 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
                 .Join(", ");
         builder.Append($"({parameters})");
         return builder.ToString();
-    }
-
-    public string ToString(string? format, IFormatProvider? formatProvider = null)
-    {
-        format = format?.ToUpperInvariant();
-        switch (format)
-        {
-            case ("GH"): return ToGeneralHelpString();
-            default: return base.ToString();
-        }
     }
 }

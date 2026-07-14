@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Portico;
 
 namespace Platform.Storage;
@@ -10,12 +11,14 @@ namespace Platform.Storage;
 public interface IStorageTool
 {
     /// <summary>Report bucket health.</summary>
+    [Description("Report bucket health")]
     [CliRoute("status")]
     [CliCommandExample("status")]
     [CliCommandExample("status --bucket invoices")]
     int Status([CliOption("--bucket", "Limit the report to one bucket")] string? bucket = null);
 
     /// <summary>Delete objects older than a retention window.</summary>
+    [Description("Delete objects older than a retention window")]
     [CliRoute("purge {bucket}")]
     [CliCommandExample("purge invoices --older-than \"30 days\"")]
     int Purge(

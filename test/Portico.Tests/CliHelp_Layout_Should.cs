@@ -70,8 +70,12 @@ public sealed class CliHelp_Layout_Should
     // --- General help snapshot --------------------------------------------------------------
 
     [Fact]
-    public void Pin_GeneralHelp_Layout()
+    public void Pin_GeneralHelp_Layout_For_A_Single_Command_Cli()
     {
+        // POR-31: one route means there is no menu to show. A "Commands:" list of one, followed by
+        // "run 'myapp <command> --help' for more information", would make the user type a second
+        // command to learn what the tool they just invoked does. So a single-command CLI gets that
+        // command's full help — the shape `grep --help` has.
         var console = new StringCliConsole();
         var app = CliApplication.Create(cfg => cfg
             .AddCommands(new DeployService())
@@ -81,7 +85,7 @@ public sealed class CliHelp_Layout_Should
 
         var actual = console.OutWriter.ToString().Replace("\r\n", "\n");
         const string expected =
-            "deploy <ENV> [options]\n" +
+            "Usage: myapp deploy <ENV> [options]\n" +
             "\n" +
             "Deploy the application to a target environment.\n" +
             "\n" +
@@ -91,6 +95,12 @@ public sealed class CliHelp_Layout_Should
             "Options:\n" +
             "  --dry-run, -n       Preview without applying changes\n" +
             "  --replicas, -r      Number of replicas  (default: 3)\n" +
+            "\n" +
+            "Examples:\n" +
+            "  myapp deploy prod\n" +
+            "      Deploy to production\n" +
+            "  myapp deploy staging --dry-run\n" +
+            "      Preview without applying\n" +
             "\n";
 
         Assert.Equal(expected, actual);
