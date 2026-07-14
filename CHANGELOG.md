@@ -19,6 +19,9 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **A failed conversion now names the option that rejected the value** — `Value 'abc' for option
+  '--amount' is invalid.`, not `The value 'abc' is invalid. (Parameter 'value')`. The internal
+  parameter name no longer leaks into user-facing output, on any option shape.
 - **Errors and help now name the program the user typed.** An apphost-launched app used to render
   its managed assembly — `Unknown command: admin.dll db migrat` — which is not a name anyone can
   copy out of an error and run. The process-derived name now comes from `Environment.ProcessPath`
