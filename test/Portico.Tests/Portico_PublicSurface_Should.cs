@@ -68,6 +68,31 @@ public sealed class Portico_PublicSurface_Should
     }
 
     [Fact]
+    public void NotExposeTheOptionMaterializerSeam()
+    {
+        // ROADMAP item C4, resolved: CliOptionMaterializer stays internal. There is no
+        // WithMaterializer<T>. The extension points a user needs already exist — [TypeConverter]
+        // (the BCL's own), and subclassing CliOptionAttribute to override CanAccept.
+        //
+        // This test exists because ExposeOnlyCliTypes would NOT catch a regression here:
+        // "CliOptionMaterializer" starts with "Cli", so it would sail through that check. Exposing
+        // a seam later is additive and safe; removing one is breaking — so the decision is pinned.
+        var leaked = ExportedTypes
+            .Where(t => t.Name.Contains("Materializer", StringComparison.Ordinal))
+            .Select(t => t.FullName!)
+            .ToList();
+
+        Assert.True(
+            leaked.Count == 0,
+            $"The option-materializer seam must stay internal (ROADMAP C4). Now exported: {string.Join(", ", leaked)}. " +
+            "If you mean to expose it, reopen C4 with the named user scenario that requires it.");
+
+        Assert.DoesNotContain(
+            typeof(CliApplication).Assembly.GetType("Portico.ICliApplicationBuilder")!.GetMethods(),
+            m => m.Name.Contains("Materializer", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void KeepTheInheritedTypeNames()
     {
         // CLAUDE.md: type names are inherited unchanged from the origin. `using Portico;` →

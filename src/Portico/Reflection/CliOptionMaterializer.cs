@@ -10,12 +10,36 @@ using System.Reflection;
 namespace Portico.Reflection;
 
 /// <summary>
-/// Internal base for option materializers. Made internal in Session 14 because the base was
-/// <c>public abstract</c> but every concrete subclass is internal — the public surface promised
-/// extensibility that the framework never actually honored (the <c>CreateOrThrow</c> cascade only
-/// dispatches to the three built-in subclasses). Extension for custom option types goes through
-/// <see cref="CliOptionAttribute"/> / <see cref="CliArgumentAttribute"/> subclasses overriding
-/// <c>CanAccept</c> — see <c>EXTENSIBILITY.md</c>.
+/// Internal base for option materializers. The base was once <c>public abstract</c> while every
+/// concrete subclass was internal — a public surface promising extensibility the framework never
+/// honoured (the <c>CreateOrThrow</c> cascade only ever dispatches to the built-in subclasses).
+/// <para>
+/// <b>ROADMAP item C4 — RESOLVED: this stays internal. There is no <c>WithMaterializer&lt;T&gt;</c>.</b>
+/// The question was whether to expose a materializer seam or seal it. Sealed, because the extension
+/// points a user actually needs already exist and cost the framework nothing:
+/// </para>
+/// <list type="number">
+///   <item>
+///     <b><c>[TypeConverter]</c></b> — the BCL's own answer to "my type is not convertible from a
+///     string". A user's domain type binds as a <c>[CliOption]</c> today with no framework seam at
+///     all; <see cref="CliOptionAttribute.CanAccept"/> resolves it through
+///     <c>TypeDescriptor.GetConverter</c>. Verified, not assumed.
+///   </item>
+///   <item>
+///     <b>Subclassing <see cref="CliOptionAttribute"/> / <see cref="CliArgumentAttribute"/></b> and
+///     overriding <c>CanAccept</c> — for a user who needs to change converter selection itself.
+///   </item>
+/// </list>
+/// <para>
+/// CHARTER §7 is directive here: "YAGNI applies hard… Speculative extensibility is rejected. If we
+/// proposed a hook once and nobody asked for it again, delete the proposal; don't ship the hook."
+/// No user has hit a wall these two points cannot solve. Exposing a seam later is additive and safe;
+/// removing one is a breaking change — so the asymmetry says wait for a named scenario.
+/// </para>
+/// <para>
+/// <b>Do not make this public without reopening C4</b> — <c>Portico_PublicSurface_Should</c> has a
+/// test that fails if you do. See <c>docs/explanation/extensibility.md</c> and <c>docs/ROADMAP.md</c>.
+/// </para>
 /// </summary>
 internal abstract class CliOptionMaterializer
 {

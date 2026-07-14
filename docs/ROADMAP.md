@@ -26,24 +26,54 @@ not met** and say so, with ticket numbers — a gate nobody re-runs is decoratio
 
 ## Open
 
-### The one unresolved API decision
-
-- **C4 — `CliOptionMaterializer` extensibility.** Expose `WithMaterializer<T>(...)`, or seal the
-  base. Carried unresolved from the origin's roadmap. **Must be settled before 1.0** — tracked as
-  **POR-36**.
-
-  Why it cannot wait: *exposing* extensibility later is additive and safe; *removing* it later is a
-  breaking change. Ship 1.0 with an accidentally-public materializer seam and we are committed to
-  supporting it forever. The 0.x window is the only cheap time to decide.
-
-  The Charter's own YAGNI rule (§7: "speculative extensibility is rejected") points at **seal**, and
-  the BCL already answers "my type is not convertible from a string" with `[TypeConverter]` — an
-  idiomatic extension point that costs the framework nothing.
+*(No open API decisions. C4 — the last one carried over from the origin — is resolved below.)*
 
 ### Everything else
 
 Open work lives in the tracker (project `POR`), not here. This file exists to carry the decisions a
 roadmap is uniquely good at recording: what is deliberately *not* being built, and why.
+
+---
+
+## Resolved decisions
+
+### C4 — `CliOptionMaterializer` extensibility: **SEALED**. Resolved 2026-07-14 (POR-36).
+
+The question, carried unresolved from the origin: expose a `WithMaterializer<T>(...)` seam, or seal
+the base? **Sealed.** `CliOptionMaterializer` stays `internal`. There is no `WithMaterializer<T>`,
+and a test (`Portico_PublicSurface_Should.NotExposeTheOptionMaterializerSeam`) fails if one appears.
+
+**Why.** The extension points a user actually needs already exist, and they cost the framework
+nothing:
+
+1. **`[TypeConverter]`** — the BCL's own answer to *"my type is not convertible from a string"*. A
+   user's domain type binds as a `[CliOption]` today with no framework seam at all:
+
+   ```csharp
+   [TypeConverter(typeof(SemVerConverter))]
+   public sealed record SemVer(int Major, int Minor, int Patch);
+
+   [CliRoute("ship")]
+   [CliCommandExample("ship --version 2.1.4")]
+   int Ship([CliOption("--version")] SemVer version);   // binds. verified, not assumed.
+   ```
+
+   `CliOptionAttribute.CanAccept` resolves it via `TypeDescriptor.GetConverter`. It is an extension
+   point every .NET developer already knows, and one we did not have to invent, document or maintain.
+
+2. **Subclassing `CliOptionAttribute` / `CliArgumentAttribute`** and overriding `CanAccept` — for the
+   rarer user who needs to change converter *selection* itself.
+
+Charter §7 is directive: *"YAGNI applies hard… Speculative extensibility is rejected. If we proposed
+a hook once and nobody asked for it again, delete the proposal; don't ship the hook."* Nobody has hit
+a wall these two points cannot solve.
+
+**The asymmetry is what makes this the safe call.** Exposing a seam later is additive and backward
+compatible. Removing one is a breaking change. So the cost of waiting is zero and the cost of
+guessing wrong is permanent — wait for a named scenario.
+
+**To reopen:** name the concrete user scenario that `[TypeConverter]` and a `CliOptionAttribute`
+subclass together cannot express. That, not a hypothetical, is the bar.
 
 ---
 
