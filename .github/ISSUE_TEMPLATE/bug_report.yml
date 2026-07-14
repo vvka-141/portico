@@ -1,0 +1,47 @@
+name: Bug report
+description: Something behaves differently from what it says it does.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Not for security problems.** If a value leaks, or a crafted command line does something it
+        should not, report it privately — see [SECURITY.md](../blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: Portico version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The command line
+      description: The smallest invocation that reproduces it, and the exit code you got.
+      placeholder: |
+        $ admin db migrate --rows abc
+        exit 2
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: The contract
+      description: >
+        The `[CliRoute]` method(s) involved — attributes and signature. This is usually enough to
+        reproduce a routing or binding bug exactly.
+      render: csharp
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true

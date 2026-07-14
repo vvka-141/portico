@@ -1,0 +1,39 @@
+name: Feature request
+description: Something Portico should do and does not.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Portico is deliberately narrow. Before writing code, please check
+        [the Charter](../blob/main/docs/explanation/charter.md) (what the framework is) and
+        [the Roadmap](../blob/main/docs/ROADMAP.md) (what it deliberately will not build, and why).
+        A proposal that lands on the parked list will be declined on those grounds, however good the
+        code is — and it is a poor use of your evening to find that out afterwards.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what happens today? Not the solution — the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What it would look like
+      description: The attribute, method or command line you wish existed.
+      render: csharp
+
+  - type: textarea
+    id: http
+    attributes:
+      label: How does it map to an HTTP API?
+      description: >
+        Portico's metaphor is "a CLI is an HTTP API without the H" — routes are routes, `[CliOption]`
+        is `[FromQuery]`, `CliMiddleware` is `IActionFilter`. If a feature is hard to explain through
+        that analogy, that is evidence it belongs somewhere else. Tell us where yours fits, or make
+        the case that the analogy does not apply here.
+    validations:
+      required: true
