@@ -18,8 +18,26 @@ namespace Portico;
 /// <c>ICliApplicationBuilder.UseMiddleware(new MyMiddleware())</c>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A fresh clone is populated from the parsed invocation on every <see cref="CliApplication.Run(string)"/>
 /// call, so state set in <see cref="OnExecutingAction"/> is thread-local per dispatch.
+/// </para>
+/// <para>
+/// <b>Constructor dependencies are supported.</b> You construct the middleware yourself and hand
+/// the instance to <c>UseMiddleware(...)</c> — the framework never calls
+/// <c>Activator.CreateInstance</c> on it — so injecting a service is the ordinary shape:
+/// <c>UseMiddleware(serviceProvider.GetRequiredService&lt;AuditMiddleware&gt;())</c>. (This is the
+/// difference between middleware and a <see cref="CliOptions"/> <i>bundle</i>, which IS
+/// Activator-constructed per invocation and therefore does need a public parameterless ctor —
+/// analyzer rule POR006.)
+/// </para>
+/// <para>
+/// <b>Caveat, because the per-dispatch copy is shallow.</b> <see cref="Clone"/> is
+/// <c>MemberwiseClone</c>, so a reference-typed field is <i>shared</i> across clones rather than
+/// duplicated. That is exactly right for an injected, stateless service. It is wrong for mutable
+/// per-invocation state: keep that in a field the hooks assign during the dispatch, not in a shared
+/// object handed in through the constructor.
+/// </para>
 /// </remarks>
 public abstract class CliMiddleware : CliOptions, ICloneable
 {

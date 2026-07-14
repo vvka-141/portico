@@ -8,10 +8,18 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// POR006 — any class that transitively extends <c>CliOptions</c> or <c>CliMiddleware</c>
-/// must have a public parameterless constructor. The framework instantiates bundles and
-/// middleware via <c>Activator.CreateInstance(Type)</c> on every command invocation; a
-/// parameter-taking ctor would throw <c>MissingMethodException</c> at dispatch.
+/// POR006 — a <c>CliOptions</c> <b>bundle</b> must have a public parameterless constructor. The
+/// framework instantiates bundles via <c>Activator.CreateInstance(Type)</c> on every command
+/// invocation (<c>CliOptionsParameterInfo</c>), so a parameter-taking ctor throws
+/// <c>MissingMethodException</c> at dispatch.
+/// <para>
+/// <b><c>CliMiddleware</c> is deliberately exempt</b>, even though it inherits from
+/// <c>CliOptions</c>. Middleware is never constructed by the framework — the user supplies an
+/// instance to <c>UseMiddleware(...)</c>, and it is <c>MemberwiseClone</c>d per dispatch, which
+/// preserves constructor-injected fields. Flagging it forbade the ordinary DI shape
+/// (<c>UseMiddleware(sp.GetRequiredService&lt;T&gt;())</c>) that the runtime has always supported.
+/// The two base classes have different lifecycles; only the bundle one is Activator-constructed.
+/// </para>
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class BundleCtorAnalyzer : DiagnosticAnalyzer
@@ -41,6 +49,10 @@ public sealed class BundleCtorAnalyzer : DiagnosticAnalyzer
 
         var bundleBase = FindBundleBase(symbol);
         if (bundleBase is null) return;
+
+        // Middleware is user-constructed and cloned, never Activator-constructed. A ctor dependency
+        // is legitimate — and is what a DI container hands to UseMiddleware(...).
+        if (bundleBase == "CliMiddleware") return;
 
         // If no constructors are declared, C# synthesizes a public parameterless one → OK.
         var ctors = symbol.InstanceConstructors.Where(c => !c.IsImplicitlyDeclared).ToArray();

@@ -129,19 +129,21 @@ internal static class PorticoDiagnostics
     /// </summary>
     public static readonly DiagnosticDescriptor BundleMissingParameterlessCtor = new(
         id: "POR006",
-        title: "CliOptions/CliMiddleware subclass must have a public parameterless constructor",
+        title: "CliOptions bundle must have a public parameterless constructor",
         messageFormat:
             "'{0}' extends {1} but lacks a public parameterless constructor. " +
-            "Bundles and middleware are instantiated per-invocation via Activator.CreateInstance — " +
+            "Option bundles are instantiated per-invocation via Activator.CreateInstance — " +
             "move dependencies out of the constructor or expose them as [CliOption] properties.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "CliOptions bundles and CliMiddleware subclasses are instantiated once per command " +
-            "invocation via Activator.CreateInstance(), which requires a public parameterless " +
-            "constructor. The framework throws CliConfigurationException at Create time; the " +
-            "analyzer catches it in the IDE.",
+            "A CliOptions bundle is instantiated once per command invocation via " +
+            "Activator.CreateInstance(), which requires a public parameterless constructor. The " +
+            "framework throws CliConfigurationException at Create time; the analyzer catches it in " +
+            "the IDE. CliMiddleware is NOT covered by this rule: middleware is supplied as an " +
+            "instance to UseMiddleware(...) and cloned per dispatch, so a constructor dependency " +
+            "is legitimate and is how a DI container injects into it.",
         helpLinkUri: HelpBase + "por006");
 
     /// <summary>

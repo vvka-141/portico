@@ -59,22 +59,31 @@ public sealed class BundleCtorAnalyzer_Should
         Assert.Contains("CliOptions", d.GetMessage());
     }
 
+    // POR-26. This assertion was INVERTED. The ported rule flagged a ctor-injected middleware on
+    // the premise that "middleware are instantiated per-invocation via Activator.CreateInstance" —
+    // which is false for middleware. CliMiddleware.Clone() is MemberwiseClone(), and middleware
+    // only ever reaches the framework through UseMiddleware(instance), which the USER constructs.
+    // The runtime has always supported ctor injection; only the analyzer forbade it, which blocked
+    // the ordinary DI shape UseMiddleware(sp.GetRequiredService<T>()).
+    //
+    // A ported test asserting a wrong rule is still a wrong rule.
     [Fact]
-    public async Task Flag_CliMiddleware_Subclass_Without_Parameterless_Ctor()
+    public async Task Accept_CliMiddleware_Subclass_With_A_Constructor_Dependency()
     {
         const string source = """
             using Portico;
 
-            public sealed class BadMiddleware : CliMiddleware
+            public interface IAuditLog { void Write(string message); }
+
+            public sealed class AuditMiddleware : CliMiddleware
             {
-                public BadMiddleware(string config) { }
+                private readonly IAuditLog _log;
+                public AuditMiddleware(IAuditLog log) => _log = log;
             }
             """;
 
         var diags = await AnalyzerTestRunner.RunAsync(new BundleCtorAnalyzer(), source);
-        var d = diags.Single(x => x.Id == "POR006");
-        Assert.Contains("BadMiddleware", d.GetMessage());
-        Assert.Contains("CliMiddleware", d.GetMessage());
+        Assert.Empty(diags.Where(d => d.Id == "POR006"));
     }
 
     [Fact]
