@@ -240,9 +240,6 @@ Portico is **0.x**. It is extracted from a framework with ~430 tests behind it, 
 about what is not finished:
 
 - There is no `dotnet new` template.
-- Installing *only* an adapter package (`Portico.DependencyInjection` / `Portico.Hosting`) does not
-  bring the analyzers with it — NuGet does not flow analyzer assets transitively. Add `Portico`
-  itself as well until this is fixed.
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
 

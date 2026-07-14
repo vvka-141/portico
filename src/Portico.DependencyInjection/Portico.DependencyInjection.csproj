@@ -21,7 +21,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Portico\Portico.csproj" />
+    <!--
+      PrivateAssets="none" is load-bearing (POR-53). NuGet's DEFAULT for a package dependency is
+      PrivateAssets="contentfiles;analyzers;build" — it does not flow analyzer assets transitively.
+      Without this, `dotnet add package Portico.DependencyInjection` gives you the framework with
+      POR001–POR010 silently switched off: a green build, and none of the compile-time checks the
+      README promises. Verified by consuming the packed .nupkg, not by reading the nuspec.
+    -->
+    <ProjectReference Include="..\Portico\Portico.csproj" PrivateAssets="none" />
   </ItemGroup>
 
   <ItemGroup>
