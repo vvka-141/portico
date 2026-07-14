@@ -497,7 +497,10 @@ public sealed partial class CliApplication
             .Prepend(invocation.ExecutableName)
             .Select(token => token.HasWhiteSpaces() ? token.Quote() : token)
             .Join(" ");
-        var header = $"Unknown command: {typed}.";
+        // The typed command line is attacker-influenced input, and this is the framework echoing it
+        // straight back to stderr. Strip ANSI escapes and invisible codepoints (POR-48): in a
+        // container, stderr is the log stream; increasingly it is also an agent's context window.
+        var header = $"Unknown command: {CliSanitizer.Sanitize(typed)}.";
         var suggestions = GetSuggestions(invocation).ToArray();
         if (suggestions.Length == 0)
         {
