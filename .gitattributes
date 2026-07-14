@@ -1,0 +1,16 @@
+# Normalize line endings. Without this, every commit from a Windows checkout emits
+# "LF will be replaced by CRLF" warnings, and the tree churns the moment a Linux or macOS
+# contributor appears. Text is stored LF in the repo; Git converts on checkout per platform.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF or they can misbehave.
+*.cmd    text eol=crlf
+*.bat    text eol=crlf
+*.ps1    text eol=crlf
+
+# Never touch these.
+*.png    binary
+*.jpg    binary
+*.ico    binary
+*.snk    binary
+*.nupkg  binary
