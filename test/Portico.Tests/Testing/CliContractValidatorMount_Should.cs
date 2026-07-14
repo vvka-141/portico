@@ -65,7 +65,7 @@ public sealed class CliContractValidatorMount_Should
         var notInvoked = new List<string>();
 
         new CliContractValidator<IDoubleMountedTool>("aws").Validate(
-            onNotInvoked: ex => notInvoked.Add(ex.Example),
+            onNotInvoked: (ex, _) => notInvoked.Add(ex.Example),
             onInvoked: ex => invoked.Add(ex.Example));
 
         Assert.Equal(["deploy --region eu-west-1"], invoked);

@@ -94,7 +94,7 @@ public sealed class CliTimeSpanOption_Should
     public void Dispatch_Every_Declared_Example()
     {
         var notDispatched = 0;
-        new CliContractValidator<ITool>().Validate(onNotInvoked: _ => notDispatched++);
+        new CliContractValidator<ITool>().Validate(onNotInvoked: (_, _) => notDispatched++);
 
         Assert.Equal(0, notDispatched);
     }

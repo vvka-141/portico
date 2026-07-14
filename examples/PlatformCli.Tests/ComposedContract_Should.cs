@@ -35,7 +35,10 @@ public sealed class ComposedContract_Should
     [Theory]
     [MemberData(nameof(ComposedExamples))]
     public void Dispatch_In_The_Composed_Surface(CliContractExample example) =>
-        Assert.True(example.Matched, $"Example did not dispatch: {example.Example}");
+        Assert.True(
+            example.Matched,
+            $"Example did not dispatch: {example.Example}{System.Environment.NewLine}" +
+            $"  Reason: {example.FailureReason}");
 
     [Fact]
     public void Send_A_Colliding_Route_To_The_Contract_That_Owns_Its_Mount()

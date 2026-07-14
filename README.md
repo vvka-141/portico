@@ -53,10 +53,17 @@ public static IEnumerable<object[]> Examples() =>
 [Theory]
 [MemberData(nameof(Examples))]
 public void Dispatch(CliContractExample example) =>
-    Assert.True(example.Matched, $"Example did not dispatch: {example.Example}");
+    Assert.True(example.Matched,
+        $"Example did not dispatch: {example.Example}\n  Reason: {example.FailureReason}");
 ```
 
-Rename a route, make an argument required — the example stops dispatching and the build goes red.
+Rename a route, make an argument required — the example stops dispatching and the build goes red,
+and it tells you why in the framework's own words:
+
+```
+Example did not dispatch: pay --amount abc
+  Reason: Value 'abc' for option '--amount' is invalid. abc is not a valid value for Decimal.
+```
 
 But dispatching is the floor, not the ceiling. Each example also reports **which handler it
 reached** and **what values were bound to it**, so an example can pin the whole contract:

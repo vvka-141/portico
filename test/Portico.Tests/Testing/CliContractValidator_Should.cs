@@ -27,7 +27,7 @@ public sealed class CliContractValidator_Should
         var notInvoked = new List<string>();
 
         new CliContractValidator<IDeployContract>().Validate(
-            onNotInvoked: ex => notInvoked.Add(ex.Example),
+            onNotInvoked: (ex, _) => notInvoked.Add(ex.Example),
             onInvoked: ex => invoked.Add(ex.Example));
 
         Assert.Equal(2, invoked.Count);
@@ -52,7 +52,7 @@ public sealed class CliContractValidator_Should
         var notInvoked = new List<string>();
 
         new CliContractValidator<IBrokenContract>().Validate(
-            onNotInvoked: ex => notInvoked.Add(ex.Example),
+            onNotInvoked: (ex, _) => notInvoked.Add(ex.Example),
             onInvoked: ex => invoked.Add(ex.Example));
 
         Assert.Single(invoked);
@@ -72,7 +72,7 @@ public sealed class CliContractValidator_Should
     public void Throw_When_T_Is_Not_An_Interface()
     {
         var ex = Assert.Throws<InvalidOperationException>(
-            () => new CliContractValidator<NotAnInterface>().Validate(_ => { }));
+            () => new CliContractValidator<NotAnInterface>().Validate((_, _) => { }));
         Assert.Contains("requires T to be an interface", ex.Message);
     }
 
@@ -86,7 +86,7 @@ public sealed class CliContractValidator_Should
     public void Throw_When_Contract_Has_No_Examples()
     {
         var ex = Assert.Throws<InvalidOperationException>(
-            () => new CliContractValidator<IContractWithoutExamples>().Validate(_ => { }));
+            () => new CliContractValidator<IContractWithoutExamples>().Validate((_, _) => { }));
         Assert.Contains("[CliCommandExample]", ex.Message);
     }
 
@@ -107,7 +107,7 @@ public sealed class CliContractValidator_Should
         var invoked = new List<string>();
 
         new CliContractValidator<IMultiMethodContract>().Validate(
-            onNotInvoked: ex => Assert.Fail($"Unexpected miss on '{ex.Example}'"),
+            onNotInvoked: (ex, reason) => Assert.Fail($"Unexpected miss on '{ex.Example}': {reason}"),
             onInvoked: ex => invoked.Add(ex.Example));
 
         Assert.Equal(2, invoked.Count);

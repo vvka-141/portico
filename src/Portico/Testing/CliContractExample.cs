@@ -30,6 +30,12 @@ namespace Portico.Testing;
 /// The values the framework bound to the handler's parameters, keyed by parameter name. Empty when
 /// nothing dispatched. A parameter the user did not supply appears with its default.
 /// </param>
+/// <param name="FailureReason">
+/// Why the example did not dispatch, in the framework's own words — <c>"Unrecognized option(s):
+/// --bogus"</c>, <c>"Value 'abc' for option '--amount' is invalid."</c> — or <see langword="null"/>
+/// when it did. Put it in the assertion message: a red test that says only <em>that</em> an example
+/// broke makes the reader go and find the <em>why</em> the framework already knew.
+/// </param>
 /// <example><code>
 /// public static IEnumerable&lt;object[]&gt; Examples() =&gt;
 ///     new CliContractValidator&lt;IMyCommands&gt;().Enumerate()
@@ -38,7 +44,7 @@ namespace Portico.Testing;
 /// [Theory]
 /// [MemberData(nameof(Examples))]
 /// public void Example_dispatches(CliContractExample e) =&gt;
-///     Assert.True(e.Matched, $"Example did not dispatch: {e.Example}");
+///     Assert.True(e.Matched, $"Example did not dispatch: {e.Example}\n  Reason: {e.FailureReason}");
 ///
 /// [Fact]
 /// public void Seed_example_binds_the_row_count()
@@ -55,4 +61,5 @@ public sealed record CliContractExample(
     string Description,
     bool Matched,
     string? Handler,
-    IReadOnlyDictionary<string, object?> Arguments);
+    IReadOnlyDictionary<string, object?> Arguments,
+    string? FailureReason);

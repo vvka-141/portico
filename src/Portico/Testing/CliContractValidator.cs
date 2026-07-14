@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -60,7 +61,13 @@ public sealed class CliContractValidator<T> where T : class
     /// <see cref="DispatchProxy"/>-backed application and reports which examples matched
     /// and which didn't.
     /// </summary>
-    /// <param name="onNotInvoked">Invoked for each example that failed to reach the proxy.</param>
+    /// <param name="onNotInvoked">
+    /// Invoked for each example that failed to reach the proxy, with <strong>the reason it
+    /// failed</strong> — the framework's own diagnostic ("Unrecognized option(s): --bogus",
+    /// "Value 'abc' for option '--amount' is invalid."). Put it in the assertion message: a red test
+    /// that says only <em>that</em> an example broke sends the reader hunting for the <em>why</em>
+    /// the framework already knew.
+    /// </param>
     /// <param name="onInvoked">Invoked for each example that successfully reached the proxy.</param>
     /// <param name="configureApplication">
     /// Optional additional configuration applied after the contract's DispatchProxy service is
@@ -71,13 +78,15 @@ public sealed class CliContractValidator<T> where T : class
     /// </param>
     /// <example><code>
     /// new CliContractValidator&lt;IMyCommands&gt;()
-    ///     .Validate(onNotInvoked: ex =&gt; Assert.Fail($"Example didn't dispatch: {ex.Example}"));
+    ///     .Validate(onNotInvoked: (ex, reason) =&gt;
+    ///         Assert.Fail($"Example didn't dispatch: {ex.Example}{Environment.NewLine}Reason: {reason}"));
     /// </code></example>
     public void Validate(
-        Action<CliCommandExampleAttribute> onNotInvoked,
+        Action<CliCommandExampleAttribute, string> onNotInvoked,
         Action<CliCommandExampleAttribute>? onInvoked = default,
         Action<ICliApplicationBuilder>? configureApplication = default)
     {
+        ThrowIf.ArgumentNull(onNotInvoked);
         onInvoked ??= (tc) => Debug.WriteLine($"Passed: {tc.Example}");
 
         foreach (var result in Run(configureApplication))
@@ -88,10 +97,13 @@ public sealed class CliContractValidator<T> where T : class
             }
             else
             {
-                onNotInvoked(result.Attribute);
+                onNotInvoked(result.Attribute, result.FailureReason ?? UnknownReason);
             }
         }
     }
+
+    private const string UnknownReason =
+        "the example did not reach a route, and the framework emitted no diagnostic.";
 
     /// <summary>
     /// Runs every <c>[CliCommandExample]</c> on <typeparamref name="T"/> and returns one plain
@@ -122,7 +134,8 @@ public sealed class CliContractValidator<T> where T : class
                 r.Attribute.Description,
                 r.Dispatch is not null,
                 r.Dispatch?.Handler,
-                r.Dispatch?.Arguments ?? EmptyArguments))
+                r.Dispatch?.Arguments ?? EmptyArguments,
+                r.Dispatch is null ? r.FailureReason ?? UnknownReason : null))
             .ToArray();
 
     private static readonly IReadOnlyDictionary<string, object?> EmptyArguments =
@@ -134,7 +147,7 @@ public sealed class CliContractValidator<T> where T : class
     /// <see cref="DispatchProxy"/>-backed application, and runs each example — pairing every
     /// attribute with the dispatch it produced, or <see langword="null"/> if it reached no route.
     /// </summary>
-    private IReadOnlyList<(CliCommandExampleAttribute Attribute, CliDispatch? Dispatch)> Run(
+    private IReadOnlyList<(CliCommandExampleAttribute Attribute, CliDispatch? Dispatch, string? FailureReason)> Run(
         Action<ICliApplicationBuilder>? configureApplication)
     {
         var type = typeof(T);
@@ -166,9 +179,19 @@ public sealed class CliContractValidator<T> where T : class
         T proxy = DispatchProxy.Create<T, CliRouteProxy>();
         var recorder = (CliRouteProxy)(object)proxy;
 
+        // The framework already knows why an example failed — it writes the diagnostic to its
+        // console. Capturing that console is what turns "example didn't dispatch" into an actionable
+        // failure (POR-29). It also stops the validator from spraying those diagnostics into the
+        // user's test log as a side effect of asking a question.
+        //
+        // WithConsole runs BEFORE configureApplication, so a caller who supplies their own console
+        // still wins — they just get no reason, which is their choice to make.
+        var console = new CapturingConsole();
+
         var app = CliApplication
             .Create(builder =>
             {
+                builder.WithConsole(console);
                 builder.AddCommands(proxy, _rootRoutes.Select(r => new CliRouteAttribute(r)));
                 configureApplication?.Invoke(builder);
             });
@@ -179,7 +202,7 @@ public sealed class CliContractValidator<T> where T : class
             ? string.Empty
             : string.Join(' ', _rootRoutes) + " ";
 
-        var results = new List<(CliCommandExampleAttribute, CliDispatch?)>(testCases.Length);
+        var results = new List<(CliCommandExampleAttribute, CliDispatch?, string?)>(testCases.Length);
         foreach (var testCase in testCases)
         {
             Debug.WriteLine(testCase.Example);
@@ -190,12 +213,59 @@ public sealed class CliContractValidator<T> where T : class
             // dispatch would mean the framework short-circuited (--help, --version), which is
             // not a route match and must not be reported as one.
             recorder.Clear();
+            console.Clear();
             int exitCode = app.Run($"program {mount}{testCase.Example}");
             var dispatch = exitCode == 0 ? recorder.Dispatch : null;
 
-            results.Add((testCase, dispatch));
+            results.Add((testCase, dispatch, dispatch is null ? ExplainFailure(console, exitCode) : null));
         }
         return results;
+    }
+
+    /// <summary>
+    /// Why an example failed to dispatch, in the framework's own words. stderr is where the
+    /// rejection is written; a zero exit with nothing dispatched means a help/version trigger
+    /// swallowed the example, which is a distinct mistake and worth naming as such.
+    /// </summary>
+    private static string ExplainFailure(CapturingConsole console, int exitCode)
+    {
+        var error = console.ErrorWriter.ToString().Trim();
+        if (error.Length > 0)
+        {
+            return error;
+        }
+
+        if (exitCode == CliExitException.SuccessExitCode)
+        {
+            return "the example exited 0 without reaching a handler — it was consumed by a built-in " +
+                   "trigger (--help, --version) rather than matching a route. An example must be a " +
+                   "command the contract answers.";
+        }
+
+        return $"the example exited {exitCode} without reaching a handler, and wrote no diagnostic.";
+    }
+
+    /// <summary>
+    /// The in-memory console the validated application writes to. Not a public type: a user
+    /// validating a contract is asking a question, and the answer belongs in the return value, not
+    /// in their test log.
+    /// </summary>
+    private sealed class CapturingConsole : ICliConsole
+    {
+        public StringWriter OutWriter { get; private set; } = new();
+        public StringWriter ErrorWriter { get; private set; } = new();
+
+        public TextWriter Out => OutWriter;
+        public TextWriter Error => ErrorWriter;
+        public TextReader In => TextReader.Null;
+
+        public void Clear()
+        {
+            OutWriter.Dispose();
+            ErrorWriter.Dispose();
+            OutWriter = new StringWriter();
+            ErrorWriter = new StringWriter();
+        }
     }
 
     /// <summary>
