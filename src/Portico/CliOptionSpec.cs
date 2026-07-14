@@ -22,8 +22,9 @@ internal sealed class CliOptionSpec
     private static readonly Regex OptionRegex = new(@"(?<=^[-]{1,2})[\w\?]+(?:[-]+[\w\?]+)*$");
 
     // Option aliases are exact dashed tokens (e.g. --name, -n), not patterns, so a matched name is
-    // just set membership — case-insensitive, ordinal, and free of the metacharacter hazard a
-    // `^(?:{aliases})$` regex carried (an alias like `-?` would otherwise mean "optional dash").
+    // just set membership — free of the metacharacter hazard a `^(?:{aliases})$` regex carried (an
+    // alias like `-?` would otherwise mean "optional dash"). Case handling is delegated to
+    // CliAliasComparer: -v and -V are DIFFERENT options; --verbose and --VERBOSE are the same one.
     private readonly HashSet<string> _aliasSet;
 
     private CliOptionSpec(
@@ -36,7 +37,7 @@ internal sealed class CliOptionSpec
         LongOptionNames = longOptionNames;
         ShortOptionNames = shortOptionNames;
         PipeSeparatedAliases = pipeSeparatedAliases;
-        _aliasSet = new HashSet<string>(aliases, StringComparer.OrdinalIgnoreCase);
+        _aliasSet = new HashSet<string>(aliases, CliAliasComparer.Instance);
     }
 
     /// <summary>Every alias, with its leading dashes, in declaration order (e.g. <c>--name</c>, <c>-n</c>).</summary>

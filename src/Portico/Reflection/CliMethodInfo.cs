@@ -86,7 +86,10 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
     /// </summary>
     private void RejectDuplicateOptionAliases()
     {
-        var seen = new Dictionary<string, string>(StringComparer.Ordinal);
+        // CliAliasComparer, not StringComparer.Ordinal: this guard MUST agree with the matcher in
+        // CliOptionSpec. When it used Ordinal and the matcher used OrdinalIgnoreCase, `-v` and `-V`
+        // passed this check as distinct options and then both matched the same token at dispatch.
+        var seen = new Dictionary<string, string>(CliAliasComparer.Instance);
         foreach (var parameter in _parameters)
         {
             if (parameter is CliOptionParameterInfo opt)

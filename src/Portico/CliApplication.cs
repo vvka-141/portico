@@ -597,11 +597,9 @@ public sealed partial class CliApplication
             {
                 // A route that declares this alias as its own option wins over the trigger (SOL-75).
                 if (DeclaredByRoute(matchedRoute, trigger)) continue;
-                var isShort = trigger.Length == 2;
-                var comparison = isShort ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
                 foreach (var option in invocation.Options)
                 {
-                    if (string.Equals(option.Name, trigger, comparison)) return true;
+                    if (CliAliasComparer.Instance.Equals(option.Name, trigger)) return true;
                 }
             }
             else if (matchedRoute is null &&
@@ -781,9 +779,7 @@ public sealed partial class CliApplication
             {
                 foreach (var alias in option.Aliases)
                 {
-                    var isShort = alias.Length == 2 && alias[0] == '-';
-                    var comparison = isShort ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-                    if (string.Equals(alias, token, comparison)) return true;
+                    if (CliAliasComparer.Instance.Equals(alias, token)) return true;
                 }
             }
             return false;
