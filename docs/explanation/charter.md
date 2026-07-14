@@ -117,16 +117,23 @@ gates, not nice-to-haves.
 > origin marked "✅ audited" and were **false for Portico when checked in July 2026**. A gate nobody
 > re-runs is decoration. Where a gate is not met, it now says so and names the ticket.
 
-- **⚠️ Analyzer coverage — NOT complete. Inherited as "✅ audited"; false.**
+- **✅ Analyzer coverage — complete for every attribute contract (POR-25).** It was inherited marked
+  "✅ audited" and was false; the two gaps it hid are now closed.
   Shipping today: `[CliRoute]` → POR001 (placeholder mismatch), POR002 (duplicate route), POR008
   (invalid return type); `[CliArgument]` → POR005 (unknown parameter), POR007 (duplicate argument);
-  `[CliOption]` → POR003 (malformed spec); `[CliCommandExample]` → POR004 (missing example); and the
+  `[CliOption]` → POR003 (malformed spec), **POR009 (duplicate alias)**, **POR010 (type that cannot
+  be built from a command-line string)**; `[CliCommandExample]` → POR004 (missing example); and the
   `CliOptions` **bundle** constructor contract → POR006.
 
-  **Known gaps (POR-25):** a duplicate option alias across two parameters, and a `[CliOption]` whose
-  type has no string `TypeConverter`. Both are *purely static* properties of the declaration, and
-  both currently fail only at `CliApplication.Create` — a runtime exception an agent sees only if it
-  happens to run the CLI, rather than a compile error it sees in its edit loop.
+  Every one of these is *decidable from the declaration alone*, which is the test for whether a rule
+  belongs here at all. Each has a runtime backstop at `CliApplication.Create` for builds without the
+  analyzer — the analyzer moves the failure into the edit loop, it does not replace the check.
+
+  **POR010 is deliberately conservative, and that is not a gap.** Whether an arbitrary *referenced*
+  type has a `TypeConverter` is a runtime fact — `TypeDescriptor`'s intrinsic table is invisible to
+  Roslyn — so the rule fires only for a type declared in the user's own compilation. At `Error`
+  severity a false positive would fail a build that works, which is strictly worse than the runtime
+  error it replaces. Silence where it cannot be certain is the correct behaviour, not a shortfall.
 
   **POR006 does NOT cover `CliMiddleware`** (POR-26). Middleware is user-constructed and cloned via
   `MemberwiseClone`, never `Activator.CreateInstance`d, so a constructor dependency is legitimate —
