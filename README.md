@@ -141,7 +141,6 @@ Honest concessions, because a comparison that concedes nothing is not worth read
 Portico is **0.x**. It is extracted from a framework with ~380 tests behind it, but it is honest
 about what is not finished:
 
-- The program name renders from the managed assembly, so errors say `admin.dll`, not `admin`.
 - Top-level `--help` lists every command's options inline instead of a `Commands:` summary.
 
 These are tracked and fixed in the open. If you hit something else, open an issue.

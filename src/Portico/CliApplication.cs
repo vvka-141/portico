@@ -89,7 +89,7 @@ public sealed partial class CliApplication
     /// </code></example>
     [DebuggerStepThrough]
     public Task<int> RunAsync(CancellationToken cancellationToken = default) =>
-        RunWithAutoCancelAsync(Environment.GetCommandLineArgs(), cancellationToken);
+        RunWithAutoCancelAsync(CliInvocation.ProcessArgv(), cancellationToken);
 
     /// <summary>
     /// Parses a whitespace-separated command line and dispatches it. Auto-wires Ctrl+C when
@@ -136,10 +136,10 @@ public sealed partial class CliApplication
                     nameof(args));
             }
         }
-        var envArgs = Environment.GetCommandLineArgs();
-        var exe = envArgs.Length > 0 ? envArgs[0] : "app";
+        // The name the user typed ("myapp"), not the managed assembly path ("myapp.dll") that
+        // Environment.GetCommandLineArgs()[0] hands back for an apphost-launched app.
         var full = new string[args.Length + 1];
-        full[0] = exe;
+        full[0] = CliInvocation.ProcessExecutableName();
         Array.Copy(args, 0, full, 1, args.Length);
         return RunWithAutoCancelAsync(full, cancellationToken);
     }

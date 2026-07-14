@@ -99,7 +99,58 @@ public sealed partial class CliInvocation : IFormattable
     /// var invocation = CliInvocation.FromArgs();
     /// </code></example>
     [DebuggerStepThrough]
-    public static CliInvocation FromArgs() => new(Environment.GetCommandLineArgs());
+    public static CliInvocation FromArgs() => new(ProcessArgv());
+
+    /// <summary>
+    /// The current process's argv, with argv[0] replaced by the name the user actually typed.
+    /// <para>
+    /// <see cref="Environment.GetCommandLineArgs"/>[0] is the path to the managed <b>.dll</b> for an
+    /// apphost-launched app, so echoing it back prints <c>myapp.dll</c> — a name the user never
+    /// typed and cannot run. <see cref="Environment.ProcessPath"/> is the apphost itself
+    /// (<c>myapp.exe</c>); stripping the extension yields <c>myapp</c>, which is what every other
+    /// CLI prints and what the user can paste back into their shell.
+    /// </para>
+    /// <para>
+    /// This applies ONLY to the process-derived path. A caller who supplies argv explicitly —
+    /// <c>CliTestHarness.Run("app.exe echo world")</c>, or <see cref="FromArgs(string[])"/> — keeps
+    /// the name they gave, verbatim. Their argv is not ours to reinterpret.
+    /// </para>
+    /// </summary>
+    internal static string[] ProcessArgv()
+    {
+        var argv = Environment.GetCommandLineArgs();
+        if (argv.Length == 0)
+        {
+            return [ProcessExecutableName()];
+        }
+
+        var copy = (string[])argv.Clone();
+        copy[0] = ProcessExecutableName();
+        return copy;
+    }
+
+    /// <summary>
+    /// The display name of the running executable, without a directory or a file extension.
+    /// </summary>
+    internal static string ProcessExecutableName()
+    {
+        // ProcessPath is null under some hosting shapes; fall back to argv[0], which at least
+        // names the right assembly even if it carries a .dll extension.
+        var path = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            var argv = Environment.GetCommandLineArgs();
+            path = argv.Length > 0 ? argv[0] : null;
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "app";
+        }
+
+        var name = Path.GetFileNameWithoutExtension(path);
+        return string.IsNullOrWhiteSpace(name) ? "app" : name;
+    }
 
     /// <summary>
     /// Parses a pre-tokenized argv-style array. Prefer this over <see cref="FromArgs(string)"/>

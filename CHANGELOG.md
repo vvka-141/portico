@@ -19,6 +19,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Errors and help now name the program the user typed.** An apphost-launched app used to render
+  its managed assembly — `Unknown command: admin.dll db migrat` — which is not a name anyone can
+  copy out of an error and run. The process-derived name now comes from `Environment.ProcessPath`
+  with the extension stripped. An explicitly supplied `argv[0]` (`CliInvocation.FromArgs(string[])`,
+  `CliTestHarness.Run("app.exe …")`) is still echoed verbatim; a caller's argv is not reinterpreted.
 - **Secrets no longer leak to stderr.** A mistyped command used to echo every option *value* —
   including connection strings and tokens — into the "Unknown command" error, on the default path
   with no middleware enabled. The unknown-command diagnostic now prints the executable and route
