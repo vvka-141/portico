@@ -54,6 +54,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **The analyzers now reach you if you install only an adapter package.** NuGet does not flow analyzer
+  assets transitively, so `dotnet add package Portico.DependencyInjection` (or `Portico.Hosting`) used
+  to give you the framework with POR001–POR010 **silently switched off** — a green build with none of
+  the compile-time checks. The adapters now declare their dependency on the core with
+  `PrivateAssets="none"`. Verified by consuming the packed `.nupkg`, not by reading the nuspec.
 - **A failing example now tells you why it failed.** `CliContractValidator<T>` knew the reason — the
   framework writes it out — and threw it away, so the signature feature produced a red test that said
   only *that* an example broke. `CliContractExample.FailureReason` now carries the framework's own

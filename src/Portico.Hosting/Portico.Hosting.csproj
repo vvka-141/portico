@@ -17,8 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Portico\Portico.csproj" />
-    <ProjectReference Include="..\Portico.DependencyInjection\Portico.DependencyInjection.csproj" />
+    <!-- PrivateAssets="none": analyzers are not transitive by default. See POR-53, and the note in
+         Portico.DependencyInjection.csproj. -->
+    <ProjectReference Include="..\Portico\Portico.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Portico.DependencyInjection\Portico.DependencyInjection.csproj"
+                      PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

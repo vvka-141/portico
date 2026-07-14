@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Portico;
@@ -42,5 +44,51 @@ public sealed class Portico_Package_Should
             external.Count == 0,
             $"The core Portico package must have zero dependencies, but it references: {string.Join(", ", external)}. " +
             "Anything needing Microsoft.Extensions.* belongs in Portico.DependencyInjection or Portico.Hosting.");
+    }
+
+    /// <summary>
+    /// Every adapter package must flow the analyzers from the core (POR-53).
+    /// </summary>
+    /// <remarks>
+    /// NuGet's default for a package dependency is <c>PrivateAssets="contentfiles;analyzers;build"</c>
+    /// — analyzer assets do <b>not</b> flow transitively. Without an explicit
+    /// <c>PrivateAssets="none"</c>, <c>dotnet add package Portico.DependencyInjection</c> gives you the
+    /// framework with POR001–POR010 silently switched off: a green build, and none of the compile-time
+    /// checks the README promises. Nothing observable breaks, which is exactly why it needs a test.
+    /// The end-to-end proof is consuming the packed <c>.nupkg</c>; this guards the setting that makes
+    /// it true.
+    /// </remarks>
+    [Theory]
+    [InlineData("src/Portico.DependencyInjection/Portico.DependencyInjection.csproj")]
+    [InlineData("src/Portico.Hosting/Portico.Hosting.csproj")]
+    public void FlowTheAnalyzersFromEveryAdapterPackage(string projectPath)
+    {
+        var csproj = File.ReadAllText(Path.Combine(RepositoryRoot(), projectPath));
+
+        var references = Regex.Matches(csproj, @"<ProjectReference\b[^>]*?/>", RegexOptions.Singleline)
+            .Select(match => match.Value)
+            .Where(reference => reference.Contains("Portico", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.NotEmpty(references);
+        Assert.All(references, reference =>
+            Assert.True(
+                reference.Contains("PrivateAssets=\"none\"", StringComparison.Ordinal),
+                $"{projectPath} references a Portico project without PrivateAssets=\"none\":{Environment.NewLine}" +
+                $"{reference}{Environment.NewLine}" +
+                "NuGet does not flow analyzer assets transitively, so a consumer who installs only this " +
+                "adapter would get the framework with the analyzers silently off (POR-53)."));
+    }
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return directory!.FullName;
     }
 }
