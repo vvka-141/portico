@@ -64,6 +64,14 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **`EnvironmentVariable` now works on flags and collections, and refuses maps out loud.** It was
+  honoured by scalar options and **silently inert** everywhere else — a containerized service set the
+  variable, nothing happened, and there was nothing to debug. A flag is now on unless the variable is
+  empty, `0`, `false` or `no` (set-but-empty is off: `docker run -e FOO` passes `FOO=`, and silently
+  enabling a flag because of that would be indefensible). A collection reads a comma-separated value.
+  A **map** now throws `CliConfigurationException` at `CliApplication.Create` — one variable cannot
+  carry key/value pairs without an encoding that breaks on the first value containing a separator, and
+  a loud refusal beats a quiet no-op.
 - **The analyzers now reach you if you install only an adapter package.** NuGet does not flow analyzer
   assets transitively, so `dotnet add package Portico.DependencyInjection` (or `Portico.Hosting`) used
   to give you the framework with POR001–POR010 **silently switched off** — a green build with none of

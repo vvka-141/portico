@@ -117,11 +117,37 @@ public class CliOptionAttribute : Attribute
 
     /// <summary>
     /// Name of an environment variable consulted when the option is absent from the command line.
-    /// The variable's string value is converted the same way a command-line value would be —
-    /// through the option's type converter. Applies to scalar options only; flags, collections,
-    /// and dictionaries ignore it. If both the command-line value and the environment variable
-    /// are present, the command line wins.
+    /// The command line always wins; the environment beats the default. Config layering for a
+    /// containerized service, without a config file.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Scalar</b> — the variable's value is converted exactly as a typed one would be, through the
+    /// option's type converter.
+    /// </para>
+    /// <para>
+    /// <b>Flag</b> (<see cref="CliFlag"/>) — the flag is on when the variable holds anything other
+    /// than an empty string, <c>0</c>, <c>false</c> or <c>no</c> (any case). Set-but-empty is off:
+    /// <c>docker run -e FOO</c> and an undefined variable in a compose file both pass <c>FOO=</c>, and
+    /// silently turning a flag on because of that would be indefensible.
+    /// </para>
+    /// <para>
+    /// <b>Collection</b> — comma-separated (<c>PORTICO_TAGS=a,b,c</c>). A value that itself contains a
+    /// comma cannot be expressed this way; pass it on the command line.
+    /// </para>
+    /// <para>
+    /// <b>Map</b> — <b>not supported, and it says so at startup.</b> One variable cannot carry
+    /// key/value pairs without nesting one separator inside another, and every such encoding breaks on
+    /// the first value that contains either. Setting this on a map option throws
+    /// <see cref="CliConfigurationException"/> from <see cref="CliApplication.Create"/> rather than
+    /// binding nothing at dispatch.
+    /// </para>
+    /// </remarks>
+    /// <example><code>
+    /// [CliOption("--token", EnvironmentVariable = "PORTICO_API_TOKEN")] string? token = null
+    /// [CliOption("--verbose", EnvironmentVariable = "PORTICO_VERBOSE")] CliFlag? verbose = null
+    /// [CliOption("--tag", EnvironmentVariable = "PORTICO_TAGS")] List&lt;string&gt;? tags = null
+    /// </code></example>
     public string? EnvironmentVariable { get; init; }
 
     /// <summary>

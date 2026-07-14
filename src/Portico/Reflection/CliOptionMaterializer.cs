@@ -60,6 +60,36 @@ internal abstract class CliOptionMaterializer
         $"If '{token}' is a positional argument, pass it after the '--' terminator (e.g. '… -- {token}').";
 
     /// <summary>
+    /// The value of the option's <c>EnvironmentVariable</c>, or <see langword="null"/> when the
+    /// attribute declares none or the variable is unset. Consulted only when the option is absent
+    /// from the command line — argv always wins.
+    /// </summary>
+    protected static string? EnvironmentValue(CliOptionAttribute attribute) =>
+        string.IsNullOrWhiteSpace(attribute.EnvironmentVariable)
+            ? null
+            : Environment.GetEnvironmentVariable(attribute.EnvironmentVariable!);
+
+    /// <summary>
+    /// Whether an environment variable's value turns a <b>flag</b> on. A flag carries no value on the
+    /// command line, so the environment has to answer a question argv never asks: what does "present"
+    /// mean when the mechanism is a string?
+    /// </summary>
+    /// <remarks>
+    /// Set-but-empty is <b>off</b>, and so are <c>0</c>, <c>false</c> and <c>no</c> (any case).
+    /// Everything else — including <c>1</c>, <c>true</c>, <c>yes</c>, and any other non-empty value —
+    /// is on. Two failure modes drove this: <c>docker run -e FOO</c> and a compose file with an
+    /// undefined variable both pass <c>FOO=</c>, so treating "set" as "on" would silently enable a
+    /// flag nobody asked for; and <c>FOO=false</c> meaning "on" would be indefensible in any
+    /// language (POR-54).
+    /// </remarks>
+    protected static bool IsEnvironmentFlagSet(string value) =>
+        value.Trim() is var trimmed &&
+        trimmed.Length > 0 &&
+        !string.Equals(trimmed, "0", StringComparison.Ordinal) &&
+        !string.Equals(trimmed, "false", StringComparison.OrdinalIgnoreCase) &&
+        !string.Equals(trimmed, "no", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The converter's own explanation of a failed conversion, with the internal parameter name
     /// stripped. A <see cref="TypeConverter"/> reports a bad value as an
     /// <see cref="ArgumentException"/>, whose <see cref="Exception.Message"/> appends
@@ -124,6 +154,22 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         Func<string, string, object> valueParser,
         bool isOptional)
     {
+        // A map option does not read the environment, and it says so at STARTUP rather than binding
+        // nothing at dispatch (POR-54). Declining is deliberate: one variable would have to carry
+        // key/value pairs, and every encoding for that (PORTICO_SHARD=eu=3,us=5) nests one separator
+        // inside another and breaks on the first value containing either. An encoding nobody can
+        // guess is worse than an honest refusal — and the refusal is loud, which is the actual bug
+        // being fixed here: the attribute used to be silently inert on this shape.
+        if (!string.IsNullOrWhiteSpace(attribute.EnvironmentVariable))
+        {
+            throw new CliConfigurationException(
+                $"Option '{attribute.DisplayAliases}' is a map, and EnvironmentVariable is not supported " +
+                $"on map options — one variable cannot carry key/value pairs without an encoding that " +
+                $"breaks on the first value containing a separator. Bind the map from the command line " +
+                $"(--opt[key] value), or take the environment value as a scalar option and parse it in " +
+                $"your handler, where you can choose the format.");
+        }
+
         _attribute = attribute;
         _factory = factory;
         _valueParser = valueParser;
@@ -455,6 +501,14 @@ internal sealed class CliFlagOptionMaterializer : CliOptionMaterializer
         }
 
         if (present) return _presentValue;
+
+        // Absent from argv: the environment gets its say (POR-54). A flag has no value to convert, so
+        // what the variable carries is a yes/no — see IsEnvironmentFlagSet for why `FOO=` is "no".
+        if (EnvironmentValue(_attribute) is { } envValue && IsEnvironmentFlagSet(envValue))
+        {
+            return _presentValue;
+        }
+
         if (_isRequired)
         {
             throw new CliOptionMaterializationException(
@@ -537,6 +591,25 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
 
         if (captures.Count == 0)
         {
+            // Absent from argv: the environment gets its say (POR-54). One variable has to carry
+            // several values, and a comma is the convention every operator already knows
+            // (PATH-style separators are platform-specific; whitespace collides with shell quoting).
+            // A value that itself contains a comma cannot be expressed this way — argv remains the
+            // escape hatch, and the docs say so rather than pretending otherwise.
+            if (EnvironmentValue(_attribute) is { } envValue)
+            {
+                var envItems = envValue
+                    .Split(',')
+                    .Select(item => item.Trim())
+                    .Where(item => item.Length > 0)
+                    .ToArray();
+
+                if (envItems.Length > 0)
+                {
+                    return _collectionFactory(ParseItems(envItems));
+                }
+            }
+
             if (_isRequired)
             {
                 throw new CliOptionMaterializationException(
@@ -569,12 +642,19 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
             }
         }
 
+        return _collectionFactory(ParseItems(rawValues));
+    }
+
+    /// <summary>Converts each raw token to the element type. Shared by the argv and environment paths
+    /// so a value from the environment is converted exactly as a typed one would be.</summary>
+    private object[] ParseItems(IReadOnlyList<string> rawValues)
+    {
         var parsed = new object[rawValues.Count];
         for (int i = 0; i < rawValues.Count; i++)
         {
             parsed[i] = _itemParser(rawValues[i]);
         }
-        return _collectionFactory(parsed);
+        return parsed;
     }
 
     public static CliOptionMaterializer? TryCreateMaterializer(
