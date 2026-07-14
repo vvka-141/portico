@@ -107,6 +107,32 @@ And when a user mistypes a command, Portico prints the route they typed — **ne
 values**. No route matched, so it has no way to know which of them was a password. In a container,
 stderr is the log stream; that is not a place to guess.
 
+## Several teams, one binary
+
+Each team ships its own contract — own routes, own examples, own tests. The platform team mounts them:
+
+```csharp
+CliApplication.Create(cfg => cfg
+    .AddCommands(new StorageTool(), [new CliRouteAttribute("storage")])
+    .AddCommands(new QueueTool(),   [new CliRouteAttribute("queue")]))
+    .Run(args);
+```
+
+```
+platform storage status --bucket invoices
+platform queue   status --queue orders
+```
+
+Both tools declare a route called `status`. Neither team had to know: the mount point disambiguates,
+not the route name. Composition itself is not novel — oclif and cobra have done it for years. What is
+unusual is that verification survives the mount: tell the validator where a contract hangs
+(`new CliContractValidator<IStorageTool>("storage")`) and every example is still executable, still
+run against the composed route table, still red when it stops dispatching.
+
+Sub-CLIs are .NET assemblies you reference — this is not a wrapper over the real `aws` or `az`, and
+there is no runtime plugin discovery. See [composing CLIs](docs/how-to/compose-clis.md) and the
+worked example in [`examples/PlatformCli`](examples/PlatformCli).
+
 ## It is an HTTP API without the H
 
 | ASP.NET Core | Portico |
@@ -171,7 +197,9 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 - [Extensibility](docs/explanation/extensibility.md) — what you can extend, and what is deliberately sealed
 - [AOT](docs/explanation/aot.md) — why not, and what would change our mind
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
+- [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
 - [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI
+- [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
 
 ## Licence
 

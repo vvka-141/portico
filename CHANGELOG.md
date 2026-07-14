@@ -16,6 +16,9 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- `docs/how-to/compose-clis.md` + `examples/PlatformCli` — mounting several independently-built
+  contracts into one binary, with the composed surface contract-tested by CI. Both mounted tools
+  declare a route called `status`; the mount point disambiguates them.
 
 ### Fixed
 
