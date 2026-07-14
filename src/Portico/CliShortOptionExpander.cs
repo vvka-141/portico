@@ -57,6 +57,14 @@ internal static class CliShortOptionExpander
         if (token[1] == '-') return null;               // --foo: long form
         if (registeredNames.Contains(token)) return null;    // user legitimately defined this name
 
+        // -f=bar / -f:bar — an explicit assignment, not a glued cluster. Pass it through so the
+        // invocation's assignment split reads the value as `bar`, which is what the framework has
+        // meant by this form since the port (CliInvocation_FromArgs_Should.Split_Option_Assignment_
+        // Syntax). Expanding it here instead would glue "=bar" on as the value, and the two entry
+        // paths — a real argv and a command-line string — would disagree about the same token
+        // (POR-56).
+        if (token[2] is '=' or ':') return null;
+
         // Token looks like -<char1><char2>... Try to expand char-by-char.
         // First char must be a known single-char short; others depend on the first's arity.
         var stem = token.Substring(1);
