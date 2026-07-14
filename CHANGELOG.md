@@ -19,6 +19,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Help no longer lies in a composed CLI.** A command mounted under a root route
+  (`AddCommands(tool, [new CliRouteAttribute("aws")])`) rendered its `[CliCommandExample]` verbatim —
+  `master deploy --region eu-west-1` — which exits 2 when pasted, because the real route is
+  `master aws deploy …`. Examples now carry the mount prefix. A type-level `[CliRoute]` prefix is
+  unaffected: that one is visible to the example's author and is still expected in the example text.
 - **A failed conversion now names the option that rejected the value** — `Value 'abc' for option
   '--amount' is invalid.`, not `The value 'abc' is invalid. (Parameter 'value')`. The internal
   parameter name no longer leaks into user-facing output, on any option shape.

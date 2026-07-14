@@ -64,15 +64,21 @@ internal static class CliHelpRenderer
         AppendArguments(sb, model);
         AppendOptions(sb, optionInfos);
 
-        // Examples
+        // Examples. The attribute text is authored against the contract, which cannot know the root
+        // route it was later mounted under — so the mount prefix is prepended here, or the printed
+        // example would exit 2 when pasted (POR-39).
         var examples = model.Examples;
         if (examples.Length > 0)
         {
+            var mount = model.MountPrefix.IsDefaultOrEmpty
+                ? string.Empty
+                : string.Join(' ', model.MountPrefix) + " ";
+
             sb.AppendLine();
             sb.AppendLine("Examples:");
             foreach (var ex in examples)
             {
-                sb.Append("  ").Append(executableName).Append(' ').AppendLine(ex.Example);
+                sb.Append("  ").Append(executableName).Append(' ').Append(mount).AppendLine(ex.Example);
                 if (!string.IsNullOrWhiteSpace(ex.Description))
                 {
                     sb.Append("      ").AppendLine(ex.Description);

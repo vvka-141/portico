@@ -74,6 +74,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator, IFormattable
             options: ComputeOptions().ToImmutableArray(),
             examples: [.. attributes.OfType<CliCommandExampleAttribute>()],
             literalPrefix: literalPrefix,
+            mountPrefix: [.. rootSegments.OfType<CliLiteralSegment>().Select(s => s.Text)],
             routeSignature: ComputeRouteSignature(_routeSegments));
     }
 
