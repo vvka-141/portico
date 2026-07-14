@@ -93,7 +93,7 @@ checking your CLI:
 | | |
 |---|---|
 | `POR001` | a `{placeholder}` in a route matches no parameter |
-| `POR002` | two methods declare the same route |
+| `POR002` | two methods on one type declare the same route |
 | `POR003` | a malformed `[CliOption]` spec |
 | `POR004` | a `[CliRoute]` with no `[CliCommandExample]` |
 | `POR005` | `[CliArgument]` names a parameter that does not exist |

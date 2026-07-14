@@ -9,7 +9,7 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------------------------------------------------------------------
 POR001  | Portico  | Error    | Route placeholder does not match any parameter
-POR002  | Portico  | Error    | Duplicate [CliRoute] signature
+POR002  | Portico  | Error    | Duplicate [CliRoute] signature on one type
 POR003  | Portico  | Error    | Malformed [CliOption] spec
 POR004  | Portico  | Warning  | Missing [CliCommandExample] on [CliRoute] method
 POR005  | Portico  | Error    | [CliArgument] references an unknown parameter

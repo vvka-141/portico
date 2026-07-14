@@ -56,8 +56,19 @@ public sealed class DuplicateRouteAnalyzer_Should
     }
 
     [Fact]
-    public async Task Flag_Duplicate_Across_Different_Classes()
+    public async Task Say_Nothing_About_The_Same_Route_On_Two_Different_Contracts()
     {
+        // POR-52. This test used to assert the OPPOSITE, and it was encoding a false positive: the
+        // analyzer was stricter than the framework it guards.
+        //
+        // Two contracts each declaring `status` are a legal, working program. They may be mounted
+        // under different root routes — the runtime dedups on the signature AFTER the mount is
+        // prepended, so `storage status` and `queue status` never collide (examples/PlatformCli ships
+        // exactly this) — or the application may simply register only one of them. The analyzer can
+        // see neither the mount nor the registration.
+        //
+        // An analyzer must never fail a build that works. The genuinely ambiguous case is still
+        // rejected at CliApplication.Create, where the registrations are visible.
         const string source = """
             using Portico;
 
@@ -77,7 +88,42 @@ public sealed class DuplicateRouteAnalyzer_Should
             """;
 
         var diags = await AnalyzerTestRunner.RunAsync(new DuplicateRouteAnalyzer(), source);
-        Assert.Single(diags.Where(x => x.Id == "POR002"));
+        Assert.Empty(diags.Where(x => x.Id == "POR002"));
+    }
+
+    [Fact]
+    public async Task Still_Flag_A_Duplicate_Inside_One_Contract()
+    {
+        // One type is one command surface. A route repeated there is unambiguously a mistake — there
+        // is no mount, and no registration choice, that could make it legal.
+        const string source = """
+            using Portico;
+
+            public sealed class A
+            {
+                [CliRoute("run")]
+                [CliCommandExample("run")]
+                public int RunOnce() => 0;
+
+                [CliRoute("run")]
+                [CliCommandExample("run")]
+                public int RunTwice() => 0;
+            }
+
+            public sealed class B
+            {
+                [CliRoute("run")]
+                [CliCommandExample("run")]
+                public int Run() => 0;
+            }
+            """;
+
+        var diags = await AnalyzerTestRunner.RunAsync(new DuplicateRouteAnalyzer(), source);
+
+        // Exactly one: A's internal duplicate. B's identical route is not the analyzer's business.
+        var diagnostic = Assert.Single(diags.Where(x => x.Id == "POR002"));
+        Assert.Contains("RunTwice", diagnostic.GetMessage());
+        Assert.DoesNotContain("class B", diagnostic.GetMessage());
     }
 
     [Fact]

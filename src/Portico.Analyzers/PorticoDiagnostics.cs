@@ -44,17 +44,19 @@ internal static class PorticoDiagnostics
     /// </summary>
     public static readonly DiagnosticDescriptor DuplicateRoute = new(
         id: "POR002",
-        title: "Duplicate [CliRoute] signature",
+        title: "Duplicate [CliRoute] signature on one type",
         messageFormat:
-            "Route '{0}' is declared by both '{1}' and '{2}'. Each route must be unique — " +
-            "rename one, or disambiguate by adding a subcommand prefix to one of the routes.",
+            "Route '{0}' is declared twice on the same type, by both '{1}' and '{2}'. One of them " +
+            "can never be reached — rename one, or give it a distinct subcommand prefix.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "Two or more [CliRoute] methods declare the same route signature. The framework " +
-            "throws CliConfigurationException.DuplicateRoute at Create time; the analyzer " +
-            "catches it earlier.",
+            "Two [CliRoute] methods on the same type declare the same route signature, so one of " +
+            "them is unreachable. Scoped to the declaring type on purpose: two different contracts " +
+            "may legally declare the same route and be mounted under different root routes (or only " +
+            "one of them registered), which the analyzer cannot see. The framework still rejects a " +
+            "genuine collision at CliApplication.Create, where the registrations are visible.",
         helpLinkUri: HelpBase + "por002",
         customTags: WellKnownDiagnosticTags.CompilationEnd);
 

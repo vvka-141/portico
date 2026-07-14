@@ -89,7 +89,7 @@ references the packages, mounts them, and runs the composed validation shown abo
 this repository is laid out that way — `Platform.Storage` and `Platform.Queue` are separate
 assemblies, and `PlatformCli` is the only thing that knows both exist.
 
-One caveat if you keep two contracts in the **same** assembly: the `POR002` analyzer reports a
-duplicate route when two types declare the same route string, because it cannot see the mounts that
-will separate them. Across assemblies — the arrangement above, and the one you want anyway — it does
-not fire.
+Keeping two contracts in the **same** assembly is fine too. `POR002` (duplicate route) is scoped to
+the declaring type precisely because of this: two contracts that each declare `status` are a legal
+program once they are mounted apart, and the analyzer says nothing about it. Separate assemblies are
+a packaging and ownership choice, not a workaround.
