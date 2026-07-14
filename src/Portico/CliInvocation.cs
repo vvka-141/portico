@@ -33,7 +33,11 @@ public sealed partial class CliInvocation : IFormattable
     [GeneratedRegex(@"^""[^""]*""$", RegexOptions.CultureInvariant)]
     private static partial Regex QuotedOnlyRegex();
 
-    [GeneratedRegex(@"(?:(?<!\\)""[^""]*(?<!\\)""|\S+)", RegexOptions.CultureInvariant)]
+    // A token is a run of quoted spans and unquoted non-space chars, GLUED TOGETHER: `--name="two
+    // words"` is ONE token, not `--name="two` followed by `words"`. The previous pattern alternated
+    // between a quoted span and \S+, so a quote that began mid-token was never seen as a quote and
+    // the value was torn in half at the space (POR-56).
+    [GeneratedRegex(@"(?:(?<!\\)""[^""]*(?<!\\)""|[^\s""]+)+", RegexOptions.CultureInvariant)]
     private static partial Regex ArgTokenizerRegex();
 
     // The key group allows an empty match (`[]`, `[^\[\]]*`) so that the malformed `--config[]`
@@ -174,7 +178,14 @@ public sealed partial class CliInvocation : IFormattable
 
     private CliInvocation(string[] args)
     {
-        var queue = new Queue<string>(args);
+        // `--name=value` is split HERE, not in the string tokenizer, because argv is the path a real
+        // shell takes: by the time a process starts, the shell has already removed the quotes and
+        // handed us one glued token. Splitting only in TokenizeFromString meant the GNU long form —
+        // `git --git-dir=/x`, `docker --filter=name=foo`, what users actually type — worked in
+        // Run(string) and failed for every real invocation (POR-56). A token with no separator, and
+        // any token that is not an option, passes through untouched, so this is safe to run over a
+        // command line the tokenizer already split.
+        var queue = new Queue<string>(ExpandOptionAssignments(args));
         ExecutableName = Path.GetFileName(
             queue.Dequeue()
                 .Trim('"')
@@ -332,21 +343,65 @@ public sealed partial class CliInvocation : IFormattable
         // Tokenizes whitespace-separated args, preserving double-quoted segments. No environment-
         // variable expansion: the host shell handles %VAR% (cmd.exe) / $VAR (POSIX) before a process
         // ever receives argv, and re-expanding here leads to platform-specific surprises.
+        //
+        // `--name=value` is NOT split here (POR-56). It is split in the constructor, which every path
+        // goes through — including argv, which this one does not touch. One choke point, and it is
+        // the one that sees a real shell's arguments.
         for (Match match = ArgTokenizerRegex().Match(commandLine); match.Success; match = match.NextMatch())
         {
-            foreach (var split in SplitOptionAssignment(match.Value))
-            {
-                yield return split;
-            }
+            yield return match.Value;
         }
     }
 
     /// <summary>
-    /// Splits tokens of the form <c>--name=value</c> or <c>-n:value</c> into two tokens so the
+    /// Splits every <c>--name=value</c> / <c>-n:value</c> token into its two parts, so the option
+    /// parser sees the same shape it would from a space-separated form.
+    /// </summary>
+    /// <remarks>
+    /// Stops at the POSIX <c>--</c> terminator: after it, <c>--name=x</c> is a positional argument
+    /// that merely looks like an option, and rewriting it would corrupt the very thing the terminator
+    /// exists to protect.
+    /// </remarks>
+    private static string[] ExpandOptionAssignments(string[] args)
+    {
+        var expanded = new List<string>(args.Length + 4);
+        var terminated = false;
+
+        foreach (var arg in args)
+        {
+            if (terminated)
+            {
+                expanded.Add(arg);
+                continue;
+            }
+
+            if (arg == EndOfOptionsToken)
+            {
+                terminated = true;
+                expanded.Add(arg);
+                continue;
+            }
+
+            expanded.AddRange(SplitOptionAssignment(arg));
+        }
+
+        return expanded.ToArray();
+    }
+
+    /// <summary>
+    /// Splits tokens of the form <c>--name=value</c> or <c>--name:value</c> into two tokens so the
     /// option-parsing loop sees them as "option" + "value". Honors the <c>[key]</c> map suffix:
     /// <c>--config[env]=prod</c> splits correctly into <c>--config[env]</c> and <c>prod</c>; an
     /// <c>=</c> or <c>:</c> appearing *inside* <c>[…]</c> is left alone.
     /// </summary>
+    /// <remarks>
+    /// Applies to the short form too (<c>-f=bar</c> → <c>-f</c> <c>bar</c>), which
+    /// <c>CliInvocation_FromArgs_Should.Split_Option_Assignment_Syntax</c> has pinned since the port.
+    /// That is the modern-parser reading (clap, System.CommandLine) rather than strict <c>getopt</c>,
+    /// where the value would be <c>=bar</c> — a settled decision, and not one to reopen inside a
+    /// ticket about the long form. POSIX short gluing (<c>-f bar</c> ≡ <c>-fbar</c>) is unaffected and
+    /// still handled by <see cref="CliShortOptionExpander"/>.
+    /// </remarks>
     private static IEnumerable<string> SplitOptionAssignment(string token)
     {
         if (token.Length < 2 || token[0] != '-')

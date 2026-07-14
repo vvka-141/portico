@@ -124,6 +124,24 @@ A bundle is constructed per invocation, so it needs a public parameterless const
 construct middleware yourself, and a constructor dependency is exactly how a container injects into
 it.)
 
+### Both option forms bind
+
+```
+admin db seed --rows 250        admin db seed --rows=250
+admin reindex --shard[eu] 3     admin reindex --shard[eu]=3
+admin drain --timeout "90 sec"  admin drain --timeout="90 sec"
+```
+
+The space form and the glued GNU form (`--opt=value`) are equivalent, for scalars, collections and
+maps alike. Everything after the **first** separator is the value, verbatim — `--filter=name=foo`
+binds `name=foo`, and a quoted value with spaces survives.
+
+After the POSIX `--` terminator, a token that looks like an option is a positional and is left exactly
+as typed: `echo -- --name=x` passes `--name=x` through as text.
+
+Short options glue POSIX-style (`-n5` ≡ `-n 5`), and `-n=5` is read as an assignment (`5`), not as the
+literal value `=5`.
+
 ## Routing
 
 ### Route ranking is a tie-breaker, not overload selection

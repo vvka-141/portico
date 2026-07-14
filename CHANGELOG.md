@@ -64,6 +64,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **`--opt=value` now binds.** The GNU long-option form that git, docker, curl and dotnet all accept
+  — and that users type without thinking — did not work **at all**: `myapp --name=x` exited 2 with
+  "unknown option" for an option plainly listed in `--help`. The assignment split lived in the string
+  tokenizer, which a real shell's argv never passes through, so it worked in `Run(string)` and failed
+  for every real invocation. It now happens where every path meets. Scalars, collections and maps all
+  take both forms; everything after the first separator is the value, verbatim (`--filter=name=foo`);
+  a quoted value with spaces survives; and after the `--` terminator a glued token is left alone.
 - **stderr is no longer a prompt-injection channel.** Everything the framework echoes back — the
   command line you typed, a value that failed to convert — is attacker-influenced input. It now has
   ANSI escapes and invisible codepoints stripped, so a crafted command line cannot rewrite a terminal
