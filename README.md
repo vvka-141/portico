@@ -238,6 +238,12 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 - [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI
 - [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) — how to build it, and the four rules that are not negotiable.
+Found a security problem? [SECURITY.md](SECURITY.md) — privately, never a public issue.
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+
 ## Licence
 
 [Apache-2.0](LICENSE).
