@@ -1,0 +1,57 @@
+name: CI
+
+# The always-green gate. Build, test, and pack on every push to main and every PR.
+# This workflow PUBLISHES NOTHING — tag-driven release to nuget.org lands with POR-6.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch makes the in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, test, pack
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # MinVer (POR-6) derives the version from tag history, so a shallow clone
+          # would silently produce the wrong version once it lands.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore portico.sln
+
+      # TreatWarningsAsErrors is on repo-wide, so a warning already fails this step.
+      - name: Build
+        run: dotnet build portico.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test portico.sln -c Release --no-build --verbosity normal
+
+      # Pack on every run, not just at release. A package that is only ever packed at
+      # release time breaks at release time — this proves the release path continuously.
+      - name: Pack
+        run: dotnet pack portico.sln -c Release --no-build -o ./artifacts
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
