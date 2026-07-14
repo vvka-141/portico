@@ -28,7 +28,23 @@ public static partial class CliCompletion
         System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
     private static partial System.Text.RegularExpressions.Regex PlaceholderStripRegex();
 
-    /// <summary>Dispatches to the shell-specific emitter.</summary>
+    /// <summary>
+    /// Writes a self-contained completion script for <paramref name="shell"/> to
+    /// <paramref name="output"/>. Most callers want <see cref="CliApplication.EmitCompletion"/>
+    /// instead, which supplies the route signatures from the application itself; this overload is for
+    /// emitting a script for routes you already have in hand.
+    /// </summary>
+    /// <param name="shell">The target shell (bash or zsh).</param>
+    /// <param name="executableName">The name the script completes for, as typed at the prompt.</param>
+    /// <param name="routeSignatures">
+    /// The route signatures to complete. Argument placeholders (<c>{name}</c>) are stripped — a shell
+    /// cannot autocomplete a value.
+    /// </param>
+    /// <param name="output">Where the script is written.</param>
+    /// <example><code>
+    /// // Wire it up as a hidden command, then: mytool completion bash &gt; /etc/bash_completion.d/mytool
+    /// CliCompletion.Emit(CliCompletionShell.Bash, "mytool", app.GetRouteSignatures(), Console.Out);
+    /// </code></example>
     public static void Emit(
         CliCompletionShell shell,
         string executableName,

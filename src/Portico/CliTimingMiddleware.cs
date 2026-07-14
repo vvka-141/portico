@@ -27,12 +27,28 @@ public sealed class CliTimingMiddleware : CliMiddleware
 
     private Stopwatch? _stopwatch;
 
+    /// <summary>Starts the clock, before the handler runs.</summary>
+    /// <param name="invocation">The matched invocation.</param>
+    /// <example><code>
+    /// CliApplication.Create(cfg =&gt; cfg
+    ///     .AddCommands(new MyTool())
+    ///     .UseMiddleware(new CliTimingMiddleware()));   // then: myapp db migrate --timing
+    /// </code></example>
     public override void OnExecutingAction(CliInvocation invocation)
     {
         _stopwatch = Stopwatch.StartNew();
         base.OnExecutingAction(invocation);
     }
 
+    /// <summary>
+    /// Stops the clock and, when <c>--timing</c> was passed, writes the elapsed wall-clock time to
+    /// stderr. Runs whether the command succeeded or failed — a slow failure is worth timing too.
+    /// Values of <c>Sensitive</c> options are redacted in the line.
+    /// </summary>
+    /// <param name="invocation">The invocation that just completed.</param>
+    /// <example><code>
+    /// // [timing] admin db migrate --connection-string *** ... 22 ms
+    /// </code></example>
     public override void OnActionExecuted(CliInvocation invocation)
     {
         _stopwatch?.Stop();

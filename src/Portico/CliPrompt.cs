@@ -24,6 +24,12 @@ public static class CliPrompt
     /// Thrown when <see cref="ICliConsole.In"/> returns end-of-stream before a valid answer
     /// is received — typically when input has been redirected to an empty file or stream.
     /// </exception>
+    /// <example><code>
+    /// if (!CliPrompt.GetYesNoAnswer(console, "Drop 12 tables. Continue?"))
+    /// {
+    ///     throw new CliExitException("Cancelled.") { ExitCode = 130 };
+    /// }
+    /// </code></example>
     public static bool GetYesNoAnswer(ICliConsole console, string message)
     {
         ThrowIf.ArgumentNull(console);
@@ -59,6 +65,9 @@ public static class CliPrompt
     /// <exception cref="InvalidOperationException">
     /// Thrown when input ends before any line is received <b>and</b> no default was supplied.
     /// </exception>
+    /// <example><code>
+    /// var env = CliPrompt.GetLine(console, "Target environment", defaultValue: "staging");
+    /// </code></example>
     public static string GetLine(ICliConsole console, string message, string? defaultValue = null)
     {
         ThrowIf.ArgumentNull(console);
@@ -99,6 +108,11 @@ public static class CliPrompt
     /// method and immediately wrap the value in your own `SecureString` or secret-vault type.
     /// The framework's job is UX plumbing, not key management.
     /// </remarks>
+    /// <example><code>
+    /// var password = CliPrompt.GetPassword(console, "Postgres password");
+    /// // Prefer an option marked Sensitive = true where the value can come from the environment;
+    /// // prompt only when it genuinely must be typed.
+    /// </code></example>
     public static string GetPassword(ICliConsole console, string message)
     {
         ThrowIf.ArgumentNull(console);

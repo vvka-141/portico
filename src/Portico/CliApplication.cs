@@ -36,6 +36,24 @@ public sealed partial class CliApplication
     //  Public entry points
     // ---------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Builds a CLI application from one or more command contracts. This is the framework's entry
+    /// point: register your services with <see cref="ICliApplicationBuilder.AddCommands(object)"/>,
+    /// add any middleware or version information, then <see cref="Run(string[])"/> the result.
+    /// Routing, binding and help are all derived from the attributes on the registered types —
+    /// there is nothing else to configure.
+    /// </summary>
+    /// <param name="initialize">
+    /// Configures the application. Runs once, immediately; the builder is not retained.
+    /// </param>
+    /// <returns>An immutable application, ready to run.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="initialize"/> is null.</exception>
+    /// <exception cref="CliConfigurationException">
+    /// The registered contracts are not a valid CLI — two methods declare the same route, a route
+    /// placeholder names no parameter, an option alias is declared twice, and so on. Thrown here,
+    /// at construction, rather than at dispatch: a misconfigured CLI should fail on startup, not on
+    /// the one command nobody tested.
+    /// </exception>
     /// <example><code>
     /// var app = CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool()));
     /// return app.Run(args);
