@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Portico.DependencyInjection</RootNamespace>
+    <AssemblyName>Portico.DependencyInjection</AssemblyName>
+    <PackageId>Portico.DependencyInjection</PackageId>
+    <Description>
+      Microsoft.Extensions.DependencyInjection adapter for Portico. Resolve your CLI command
+      contracts from an IServiceProvider, one scope per dispatched command. The core Portico
+      package stays dependency-free; this is the opt-in.
+    </Description>
+    <PackageTags>cli;command-line;dependency-injection;portico</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The ONLY dependency, and it is Abstractions on purpose: an adapter that pulled the full
+      DI implementation would force a container on consumers who already have one.
+    -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Portico\Portico.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Portico.DependencyInjection.Tests" />
+  </ItemGroup>
+
+</Project>

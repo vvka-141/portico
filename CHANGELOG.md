@@ -16,6 +16,15 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- **`Portico.DependencyInjection`** — the `Microsoft.Extensions.DependencyInjection` adapter.
+  `cfg.AddCommands<IAdminTool>(serviceProvider)` resolves your command contract from the container,
+  and `cfg.UseMiddleware<AuditMiddleware>(serviceProvider)` does the same for middleware. Each
+  dispatched command runs in its own `IServiceScope`, disposed when it completes — success, failure,
+  or cancellation — so `AddScoped` behaves the way a backend team expects rather than silently
+  resolving from the root. The factory stays lazy: nothing is constructed by `Create`, by `--help`,
+  or by an unknown command, and a dispatched route constructs only the command it reached. The core
+  `Portico` package still declares **no** dependencies; this one declares
+  `Microsoft.Extensions.DependencyInjection.Abstractions` and nothing else.
 - **XML docs on the whole public surface, enforced by a test.** `CliApplication.Create`, the
   `CliMiddleware` lifecycle hooks and `Clone`, and the `CliPrompt` / `CliCompletion` / `CliHelpBuilder`
   members now carry a `<summary>` and a usage `<example>`. A new public member that ships without them

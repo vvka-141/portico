@@ -155,7 +155,22 @@ If a feature is hard to explain through that analogy, it does not belong in Port
 | `Portico.Hosting` | Generic Host integration | `Microsoft.Extensions.Hosting` |
 
 The core has **zero** dependencies, and a test asserts it. The `Microsoft.Extensions.*` adapters are
-separate packages precisely so it stays that way. (The two adapter packages are in progress.)
+separate packages precisely so it stays that way. (`Portico.Hosting` is not built yet.)
+
+DI is one extension method, and the factory stays lazy — a `health` command never constructs the
+connection pool a `migrate` command needs:
+
+```csharp
+var services = new ServiceCollection()
+    .AddScoped<IAdminTool, AdminTool>()
+    .AddScoped<IDbConnection>(_ => new NpgsqlConnection(cs))
+    .BuildServiceProvider();
+
+CliApplication.Create(cfg => cfg.AddCommands<IAdminTool>(services)).Run(args);
+```
+
+Each dispatched command gets its own `IServiceScope`, disposed when the command finishes — whether it
+succeeded, threw, or was cancelled. `AddScoped` means what it means.
 
 ## What Portico is not
 
@@ -186,8 +201,8 @@ ConsoleAppFramework or System.CommandLine is the better destination instead.
 Portico is **0.x**. It is extracted from a framework with ~430 tests behind it, and it is honest
 about what is not finished:
 
-- The `Portico.DependencyInjection` and `Portico.Hosting` adapter packages are not built yet. The
-  core works without them; DI is opt-in and the opt-in is what is missing.
+- The `Portico.Hosting` adapter (Generic Host integration) is not built yet.
+  `Portico.DependencyInjection` is.
 - There is no `dotnet new` template.
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
