@@ -16,6 +16,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- **Two new analyzers close the last gaps in attribute-contract coverage.** `POR009` — two options on
+  one command declaring the same alias (parameters, bundle properties, or one of each), which used to
+  fail only at `CliApplication.Create`. `POR010` — a `[CliOption]` whose type cannot be built from a
+  command-line string. POR010 is deliberately conservative: it fires only for a type declared in your
+  own code, because whether a *referenced* type has a `TypeConverter` is a runtime fact Roslyn cannot
+  see, and a false positive at `Error` severity would fail a build that works. The runtime checks
+  remain as backstops for builds without the analyzer.
 - **`Portico.Hosting`** — Generic Host integration. `builder.Services.AddPorticoCommands<IAdminTool,
   AdminTool>()` then `await builder.Build().RunPorticoAsync(args)`, which returns the command's exit
   code for `Main` to return. **Graceful shutdown is one mechanism, not two**: the host's

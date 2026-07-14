@@ -352,10 +352,15 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
     {
         if (!attribute.CanAccept(declaredType, out var typeConverter))
         {
+            // The old message said "refer to the attribute's aliases to identify the problematic
+            // configuration", which asked the user to do the framework's job. It knows the option and
+            // it knows the type — so it says both, and what to do about it (POR-25).
             throw new CliConfigurationException(
-                $"The attribute of type '{attribute.GetType().Name}' cannot accept the declared type '{declaredType.FullName}'. " +
-                $"Refer to the attribute's aliases: '{attribute.DisplayAliases}' to identify the problematic configuration. " +
-                "Ensure the declared type is compatible with the attribute's requirements.");
+                $"Option '{attribute.DisplayAliases}' has type '{declaredType.Name}', which cannot be built from a " +
+                $"command-line string. Everything a user types is text, so an option's type needs a TypeConverter " +
+                $"that converts from string. Give '{declaredType.Name}' a [TypeConverter], or use a type that " +
+                $"already has one (a primitive, enum, string, TimeSpan, Guid, Uri, DateTime, or a collection of " +
+                $"those). Analyzer POR010 reports this at compile time.");
         }
 
 

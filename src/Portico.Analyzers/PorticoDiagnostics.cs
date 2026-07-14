@@ -188,4 +188,57 @@ internal static class PorticoDiagnostics
             "they can't carry an exit code and 'async void' is particularly hostile because " +
             "exceptions in it crash the process.",
         helpLinkUri: HelpBase + "por008");
+
+    /// <summary>
+    /// POR009: two <c>[CliOption]</c> declarations on one command — parameters, bundle properties,
+    /// or one of each — claim the same alias. At dispatch both would bind the same captured value,
+    /// which is almost never what the author meant. Rejected at
+    /// <c>CliApplication.Create</c>; the analyzer moves it into the edit loop.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicateOptionAlias = new(
+        id: "POR009",
+        title: "Two options on one command declare the same alias",
+        messageFormat:
+            "Option alias '{0}' is declared by both {1} and {2}. Each alias must be unique per " +
+            "command — two options binding the same alias would silently receive the same value at " +
+            "dispatch. Rename one, or give it a distinct alias.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description:
+            "An alias identifies exactly one option. When two [CliOption] declarations on the same " +
+            "command claim it, both bind the same captured value — silently shared state that " +
+            "almost never matches intent. Note that single-character short aliases are compared " +
+            "case-SENSITIVELY (so '-v' and '-V' are distinct, preserving the curl idiom), while " +
+            "longer aliases are compared case-insensitively (so '--name' and '--NAME' collide).",
+        helpLinkUri: HelpBase + "por009");
+
+    /// <summary>
+    /// POR010: a <c>[CliOption]</c> parameter or property whose type cannot be built from a
+    /// command-line string — no <c>TypeConverter</c> can produce it. The runtime rejects it at
+    /// <c>CliApplication.Create</c>; the analyzer catches it while the type is still on screen.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately conservative: it fires only for a type declared in the user's own compilation,
+    /// because whether an arbitrary <em>referenced</em> type has a converter is a runtime fact
+    /// (<c>TypeDescriptor</c>'s intrinsic table is not visible to Roslyn). A false positive here
+    /// would fail a build that works — worse than the runtime backstop it replaces.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor UnconvertibleOptionType = new(
+        id: "POR010",
+        title: "[CliOption] type cannot be built from a command-line string",
+        messageFormat:
+            "Option '{0}' has type '{1}', which cannot be converted from a command-line string. " +
+            "Everything a user types is a string: give '{1}' a [TypeConverter] that converts from " +
+            "string, or use a type that already has one (a primitive, enum, string, TimeSpan, Guid, " +
+            "Uri, DateTime, or a collection of those).",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description:
+            "A command-line value arrives as text. Portico binds it through TypeDescriptor, so an " +
+            "option's type must have a TypeConverter that can convert from string. A type of your " +
+            "own with no converter cannot be bound, and the framework rejects it at " +
+            "CliApplication.Create — this rule moves that failure to the build.",
+        helpLinkUri: HelpBase + "por010");
 }

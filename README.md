@@ -100,6 +100,8 @@ checking your CLI:
 | `POR006` | a `CliOptions` bundle with no public parameterless constructor |
 | `POR007` | one parameter targeted by two `[CliArgument]`s |
 | `POR008` | a `[CliRoute]` method that cannot return an exit code |
+| `POR009` | two options on one command declaring the same alias |
+| `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
 
 Stated precisely, because a vague boast is worse than none: **no other .NET CLI framework reports
 compile-time diagnostics for CLI attribute misuse.** Not "no competitor ships analyzers" — that would
