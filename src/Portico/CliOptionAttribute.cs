@@ -170,14 +170,26 @@ public class CliOptionAttribute : Attribute
     /// </code></example>
     public virtual bool CanAccept(Type optionType, out TypeConverter converter)
     {
+        // Unwrap for the special-cased types ONLY. `TimeSpan?` is the form an *optional* timeout
+        // must take, and an exact `== typeof(TimeSpan)` test misses it — so the human-readable
+        // converter ("30 seconds", "5 min", "PT30S") was silently absent from the very case that
+        // needs it most, leaving the BCL converter that accepts only "00:00:30".
+        //
+        // The default converter below is still resolved from the ORIGINAL type: for every other
+        // nullable (int?, bool?, an enum?) TypeDescriptor already returns a NullableConverter that
+        // handles null/empty correctly, and swapping that for the underlying type's converter would
+        // change behaviour well beyond this fix. CliArgumentAttribute.CanAccept unwraps wholesale;
+        // the option path carries collections and dictionaries too, so it stays conservative.
+        var effectiveType = Nullable.GetUnderlyingType(optionType) ?? optionType;
+
         converter = TypeDescriptor.GetConverter(optionType);
 
-        if (optionType == typeof(TimeSpan))
+        if (effectiveType == typeof(TimeSpan))
         {
             converter = new MultiFormatTimeSpanConverter();
             ThrowIf.False(converter.CanConvertFrom(typeof(string)));
         }
-        else if (optionType == typeof(CancellationToken))
+        else if (effectiveType == typeof(CancellationToken))
         {
             converter = new CliCancellationTokenTypeConverter();
             ThrowIf.False(converter.CanConvertFrom(typeof(string)));

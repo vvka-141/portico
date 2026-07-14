@@ -42,9 +42,9 @@ public sealed class AdminTool : IAdminTool
         return 0;
     }
 
-    public async Task<int> DrainAsync(TimeSpan timeout, CancellationToken cancellation)
+    public async Task<int> DrainAsync(TimeSpan? timeout, CancellationToken cancellation)
     {
-        var budget = timeout == TimeSpan.Zero ? TimeSpan.FromSeconds(15) : timeout;
+        var budget = timeout ?? TimeSpan.FromSeconds(15);
         Console.WriteLine($"draining, up to {budget.TotalSeconds:0}s...");
         await Task.Delay(10, cancellation);
         Console.WriteLine("drained.");

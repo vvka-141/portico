@@ -61,7 +61,8 @@ build goes red. **The documentation cannot drift from the code, because the docu
 test.** The analyzer (`POR004`) fails the build if a route ships with no example at all.
 
 This is not a hypothetical. Writing the worked example in this repo, that test caught a real bug in
-the framework on its first run ([POR-37](#known-rough-edges)) — which is exactly what it is for.
+the framework on its first run — `TimeSpan?` was not accepting `"30 seconds"`. It is fixed. That is
+exactly what the mechanism is for.
 
 ## Compile-time checks, not runtime surprises
 
@@ -142,7 +143,6 @@ about what is not finished:
 
 - The program name renders from the managed assembly, so errors say `admin.dll`, not `admin`.
 - Top-level `--help` lists every command's options inline instead of a `Commands:` summary.
-- `TimeSpan?` does not accept `"30 seconds"` (the non-nullable `TimeSpan` does).
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
 

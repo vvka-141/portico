@@ -49,10 +49,7 @@ public interface IAdminTool
     Task<int> DrainAsync(
         // A TimeSpan reads however an operator would type it: "30 seconds", "5 min", "1.5 hours",
         // "PT30S" or "00:00:30".
-        // NOTE: deliberately NOT `TimeSpan?` — the nullable form does not currently get the
-        // human-readable converter (POR-37). The contract validator caught that when this example
-        // was written, which is the whole point of it.
-        [CliOption("--timeout", "How long to wait for in-flight work")] System.TimeSpan timeout = default,
+        [CliOption("--timeout", "How long to wait for in-flight work")] System.TimeSpan? timeout = null,
         CancellationToken cancellation = default);
 
     /// <summary>Report service health. Exit 0 = healthy, 1 = unhealthy — usable from a HEALTHCHECK.</summary>
