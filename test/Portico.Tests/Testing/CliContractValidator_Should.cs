@@ -146,4 +146,71 @@ public sealed class CliContractValidator_Should
         Assert.Throws<InvalidOperationException>(
             () => new CliContractValidator<IContractWithoutExamples>().Enumerate());
     }
+
+    // --- The example is a contract, not a smoke test (POR-38) ---------------------------------
+    //
+    // `Matched` only says the example reached *some* route. On its own that is a routability
+    // check: an example could silently start dispatching to a different overload, or binding a
+    // different value, and still report a pass. Handler + Arguments are what make it a contract.
+
+    [Fact]
+    public void Report_Which_Handler_An_Example_Dispatched_To()
+    {
+        var results = new CliContractValidator<IMultiMethodContract>().Enumerate();
+
+        Assert.Equal(nameof(IMultiMethodContract.Init),
+            Assert.Single(results, r => r.Example == "init .").Handler);
+        Assert.Equal(nameof(IMultiMethodContract.Clean),
+            Assert.Single(results, r => r.Example == "clean").Handler);
+    }
+
+    [Fact]
+    public void Report_The_Values_Bound_To_The_Handler()
+    {
+        var results = new CliContractValidator<IDeployContract>().Enumerate();
+
+        var prod = Assert.Single(results, r => r.Example == "deploy prod");
+        Assert.Equal("prod", prod.Arguments["env"]);
+        Assert.Null(prod.Arguments["dryRun"]);            // the C# default, not supplied
+
+        var staging = Assert.Single(results, r => r.Example == "deploy staging --dry-run");
+        Assert.Equal("staging", staging.Arguments["env"]);
+        Assert.NotNull(staging.Arguments["dryRun"]);      // the flag was present
+    }
+
+    [Fact]
+    public void Report_No_Handler_And_No_Arguments_When_Nothing_Dispatched()
+    {
+        var miss = Assert.Single(
+            new CliContractValidator<IBrokenContract>().Enumerate(),
+            r => r.Example == "deploy bad too-many-segments");
+
+        Assert.False(miss.Matched);
+        Assert.Null(miss.Handler);
+        Assert.Empty(miss.Arguments);
+    }
+
+    public interface ISeedContract
+    {
+        [CliRoute("db seed")]
+        [CliCommandExample("db seed --rows 100")]
+        int Seed([CliOption("--rows")] int rows = 10);
+    }
+
+    // The binding is pinned by TYPE and VALUE, not just "it parsed". Retype `--rows` from int to
+    // string and the example still dispatches — `Matched` stays true and an exit-code-only
+    // validator stays green — but the bound value silently becomes "100" instead of 100. That
+    // change of contract is invisible without this assertion, and it is the whole of POR-38.
+    [Fact]
+    public void Pin_The_Bound_Value_By_Type_Not_Just_By_Parse()
+    {
+        var seed = Assert.Single(new CliContractValidator<ISeedContract>().Enumerate());
+
+        Assert.True(seed.Matched);
+        Assert.Equal(nameof(ISeedContract.Seed), seed.Handler);
+
+        // Assert.Equal(100, ...) on an object? is a boxed-int comparison: "100" would not satisfy it.
+        Assert.Equal(100, seed.Arguments["rows"]);
+        Assert.IsType<int>(seed.Arguments["rows"]);
+    }
 }
