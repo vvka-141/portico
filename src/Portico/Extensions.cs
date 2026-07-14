@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 
 namespace Portico;
@@ -63,6 +65,17 @@ internal static partial class Extensions
     }
 
     /// <summary>
+    /// Returns <paramref name="defaultValue"/> when <paramref name="self"/> is null, empty, or
+    /// whitespace.
+    /// </summary>
+    /// <example><code>
+    /// var description = attribute.Description.DefaultIfNullOrWhiteSpace(parameter.Name);
+    /// </code></example>
+    [return: NotNull]
+    public static string DefaultIfNullOrWhiteSpace(this string? self, string defaultValue) =>
+        string.IsNullOrWhiteSpace(self) ? defaultValue : self;
+
+    /// <summary>
     /// Wraps <paramref name="self"/> in double quotes. Idempotent: already-quoted input is
     /// returned unchanged.
     /// </summary>
@@ -92,4 +105,12 @@ internal static partial class Extensions
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhiteSpace();
+
+    /// <summary>
+    /// Determines whether a <see cref="TypeConverter"/> can convert a CLI operand — that is,
+    /// whether it can accept the string a user actually typed.
+    /// </summary>
+    public static bool SupportsCliOperandConversion(this TypeConverter converter) =>
+        converter is StringConverter ||
+        converter.CanConvertFrom(typeof(string));
 }
