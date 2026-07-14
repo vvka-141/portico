@@ -1,0 +1,162 @@
+# Analyzer rules
+
+Portico ships Roslyn analyzers **inside the package**. One `dotnet add package Portico` and your
+build starts checking your CLI — no separate analyzer package, no configuration. Every rule below is
+decidable from your declarations alone; that is the test for whether a rule belongs here at all.
+
+**Every rule has a runtime backstop.** The framework re-checks each of these at
+`CliApplication.Create` and throws `CliConfigurationException` on startup. The analyzer does not
+replace that check — it moves the failure into your edit loop, where you can fix it without running
+anything.
+
+| Rule | Severity | What it catches |
+|---|---|---|
+| [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter |
+| [POR002](#por002) | Error | Two methods **on one type** declare the same route |
+| [POR003](#por003) | Error | A malformed `[CliOption]` alias spec |
+| [POR004](#por004) | Warning | A `[CliRoute]` with no `[CliCommandExample]` |
+| [POR005](#por005) | Error | `[CliArgument]` names a parameter that does not exist |
+| [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor |
+| [POR007](#por007) | Error | One parameter targeted by two `[CliArgument]`s |
+| [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code |
+| [POR009](#por009) | Error | Two options on one command declaring the same alias |
+| [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
+
+---
+
+## POR001
+
+**Route placeholder does not match any parameter.**
+
+```csharp
+[CliRoute("deploy {target}")]           // ← {target}
+int Deploy(string environment) => 0;    // ← but the parameter is 'environment'
+```
+
+A `{name}` token in a route is bound to the parameter of the same name. Rename the placeholder, or
+rename the parameter. There is nothing else the framework could bind it to.
+
+## POR002
+
+**Two methods on the same type declare the same route.**
+
+One type is one command surface, so a repeated route there is unambiguous — one of the two methods
+can never be reached.
+
+**The rule is scoped to the declaring type on purpose.** Two *different* contracts that each declare
+`status` are a legal program: they may be [mounted](../how-to/compose-clis.md) under different root
+routes (`storage status` and `queue status` never collide), or your application may register only one
+of them. The analyzer can see neither the mount nor the registration, so it says nothing — and the
+runtime, which sees both, still rejects a genuine collision at `CliApplication.Create`.
+
+## POR003
+
+**Malformed `[CliOption]` spec.**
+
+```csharp
+[CliOption("verbose")]     // ← no dashes: this is not an alias
+[CliOption("--a b")]       // ← whitespace inside an alias
+[CliOption("--x|")]        // ← trailing pipe
+```
+
+The spec is a pipe-separated alias list: `"--verbose"`, `"--verbose|-v"`, `"-v"`.
+
+## POR004
+
+**A `[CliRoute]` with no `[CliCommandExample]`.** *(Warning, not Error.)*
+
+An example is not a comment. `CliContractValidator<T>` runs every one of them through the real
+pipeline, so a route without an example is a route nothing tests — and a command your users have no
+worked invocation for. This is the one rule that is a warning: it flags a missing *test*, not a
+broken program.
+
+## POR005
+
+**`[CliArgument]` names a parameter that does not exist.**
+
+```csharp
+[CliRoute("copy")]
+[CliArgument("sourcePath")]              // ← no such parameter
+int Copy(string source, string target) => 0;
+```
+
+## POR006
+
+**A `CliOptions` bundle needs a public parameterless constructor.**
+
+The framework constructs a bundle per invocation with `Activator.CreateInstance`, so it cannot supply
+constructor arguments.
+
+**This does not apply to `CliMiddleware`**, even though it inherits from `CliOptions`. Middleware is
+constructed by *you* and cloned per dispatch, never `Activator`-constructed — so a constructor
+dependency is legitimate, and is exactly how a DI container injects into it.
+
+## POR007
+
+**One parameter targeted by two `[CliArgument]`s.**
+
+Each positional argument binds one parameter. Two attributes claiming the same one is a declaration
+the framework cannot honour.
+
+## POR008
+
+**A `[CliRoute]` method must return `int` or `Task<int>`.**
+
+A command's exit code is its result — `0` success, `1` runtime error, `2` usage error, `130`
+cancelled. `void`, `async void` and non-generic `Task` cannot carry one, and `async void` is worse
+than useless: an exception inside it crashes the process.
+
+Throw `CliExitException` for error paths.
+
+## POR009
+
+**Two options on one command declare the same alias.**
+
+```csharp
+int Deploy(
+    [CliOption("--name")] string service,
+    [CliOption("--name")] string cluster) => 0;    // ← both bind --name
+```
+
+Both would receive the same captured value at dispatch: silently shared state that almost never
+matches intent. The rule covers direct parameters, the properties of a `CliOptions` bundle, and
+collisions *between* the two — the case worth having a compiler for, since the two declarations live
+in different files.
+
+**Case follows the framework's rule:** a single-character short alias is case-**sensitive**, so `-v`
+and `-V` are different options (the `curl -v` / `curl -V` idiom). Longer aliases are
+case-**insensitive**, so `--name` and `--NAME` collide.
+
+## POR010
+
+**A `[CliOption]` type that cannot be built from a command-line string.**
+
+```csharp
+public sealed class Money { public decimal Amount; }   // no TypeConverter
+
+int Pay([CliOption("--money")] Money money) => 0;      // ← POR010
+```
+
+Everything a user types is text. Portico binds it through `TypeDescriptor`, so an option's type needs
+a `TypeConverter` that converts from string. Give the type a `[TypeConverter]`, or use one that
+already has a converter — a primitive, an enum, `string`, `TimeSpan`, `Guid`, `Uri`, `DateTime`, or a
+collection or `string`-keyed map of those.
+
+**The rule is deliberately conservative.** It fires only for a type declared in *your own* code,
+because whether a *referenced* type has a converter is a runtime fact — `TypeDescriptor` carries an
+intrinsic table Roslyn cannot see, and a converter can also arrive from a provider registered at
+startup. At `Error` severity, a false positive would fail a build that works, which is strictly worse
+than the runtime error it replaces. Where it cannot be certain, it stays silent and the runtime check
+catches the rest.
+
+---
+
+## Suppressing a rule
+
+These are ordinary Roslyn diagnostics. Suppress one the ordinary way — `#pragma warning disable
+POR004`, an `.editorconfig` entry (`dotnet_diagnostic.POR004.severity = none`), or a
+`[SuppressMessage]` attribute.
+
+If you find yourself suppressing a rule routinely, that is worth an
+[issue](https://github.com/vvka-141/portico/issues): either the rule is wrong, or it is badly
+explained, and both are our bug rather than yours.
