@@ -88,6 +88,8 @@ A CLI is an HTTP API without the H.
 
 - **Not a Spectre.Console replacement.** We don't own presentation (tables, progress bars, prompts beyond Y/N).
   Users can compose with Spectre.Console for rendering — we stay focused on routing + binding + contract testing.
+  This split is not a cop-out: **Azure Functions Core Tools** ships on System.CommandLine *plus*
+  Spectre.Console — a first-party CLI using a router and a renderer together, exactly as prescribed here.
 - **Not a REPL / interactive shell framework.** One command, one invocation, one exit code.
 - **No custom DSL file formats.** No `.cli.json` schemas. C# is the schema.
 - **No attempt at Windows-only features by default.** POSIX-friendly first; Windows-idiomatic bits are opt-in.
