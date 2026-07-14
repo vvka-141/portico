@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>admin</AssemblyName>
+    <RootNamespace>AdminCli</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Portico\Portico.csproj" />
+    <!--
+      Analyzers do NOT flow through a plain ProjectReference — they reach consumers via the nupkg
+      (analyzers/dotnet/cs/). Without this second reference the example would silently skip POR004,
+      and "the sample that proves the positioning" would be the one project not checked by the
+      framework's own rules. A NuGet consumer gets this for free from `dotnet add package Portico`.
+    -->
+    <ProjectReference Include="..\..\src\Portico.Analyzers\Portico.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

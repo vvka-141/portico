@@ -24,6 +24,12 @@ csharp_style_namespace_declarations = file_scoped:warning
 [test/**.cs]
 dotnet_diagnostic.CA2007.severity = none
 
+# The worked example is a console APPLICATION, not library code. A console app has no
+# synchronization context, so ConfigureAwait(false) is inert there — and sprinkling it through the
+# welcome-mat sample would teach a newcomer that Portico demands ceremony it does not demand.
+[examples/**.cs]
+dotnet_diagnostic.CA2007.severity = none
+
 # Roslyn analyzers and code fixes target the compiler host, not a runtime
 # synchronization context; CA2007 is not meaningful there.
 [src/Portico.Analyzers/**.cs]
