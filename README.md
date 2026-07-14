@@ -154,8 +154,8 @@ If a feature is hard to explain through that analogy, it does not belong in Port
 | `Portico.DependencyInjection` | `IServiceProvider` adapter | `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `Portico.Hosting` | Generic Host integration | `Microsoft.Extensions.Hosting` |
 
-The core has **zero** dependencies, and a test asserts it. The `Microsoft.Extensions.*` adapters are
-separate packages precisely so it stays that way. (`Portico.Hosting` is not built yet.)
+The core has **zero** dependencies, and a test asserts it against the packed `.nupkg`. The
+`Microsoft.Extensions.*` adapters are separate packages precisely so it stays that way.
 
 DI is one extension method, and the factory stays lazy — a `health` command never constructs the
 connection pool a `migrate` command needs:
@@ -171,6 +171,19 @@ CliApplication.Create(cfg => cfg.AddCommands<IAdminTool>(services)).Run(args);
 
 Each dispatched command gets its own `IServiceScope`, disposed when the command finishes — whether it
 succeeded, threw, or was cancelled. `AddScoped` means what it means.
+
+Your service already has a host. Its admin CLI should reuse it, not rebuild it:
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton<IMigrator, Migrator>();
+builder.Services.AddPorticoCommands<IAdminTool, AdminTool>();
+
+return await builder.Build().RunPorticoAsync(args);   // the command's exit code, returned from Main
+```
+
+Graceful shutdown is the host's: Ctrl+C and SIGTERM go through `IHostApplicationLifetime`, and
+Portico stands down rather than installing a second handler to race it.
 
 ## What Portico is not
 
@@ -201,9 +214,10 @@ ConsoleAppFramework or System.CommandLine is the better destination instead.
 Portico is **0.x**. It is extracted from a framework with ~430 tests behind it, and it is honest
 about what is not finished:
 
-- The `Portico.Hosting` adapter (Generic Host integration) is not built yet.
-  `Portico.DependencyInjection` is.
 - There is no `dotnet new` template.
+- Installing *only* an adapter package (`Portico.DependencyInjection` / `Portico.Hosting`) does not
+  bring the analyzers with it — NuGet does not flow analyzer assets transitively. Add `Portico`
+  itself as well until this is fixed.
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
 

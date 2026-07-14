@@ -27,10 +27,11 @@ internal static class CliDispatchScope
     private static readonly AsyncLocal<IServiceScope?> Current = new();
 
     /// <summary>
-    /// Resolves <typeparamref name="T"/> from the current dispatch's scope, opening one on first use.
-    /// Two commands resolved during one dispatch share the scope — which is the point of a scope.
+    /// Resolves <paramref name="contractType"/> from the current dispatch's scope, opening one on
+    /// first use. Two commands resolved during one dispatch share the scope — which is the point of
+    /// a scope.
     /// </summary>
-    public static T Resolve<T>(IServiceProvider services) where T : class
+    public static object Resolve(Type contractType, IServiceProvider services)
     {
         var scope = Current.Value;
         if (scope is null)
@@ -39,7 +40,7 @@ internal static class CliDispatchScope
             Current.Value = scope;
         }
 
-        return scope.ServiceProvider.GetRequiredService<T>();
+        return scope.ServiceProvider.GetRequiredService(contractType);
     }
 
     /// <summary>

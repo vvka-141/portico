@@ -65,9 +65,30 @@ public static class CliApplicationBuilderExtensions
     public static ICliApplicationBuilder AddCommands<T>(
         this ICliApplicationBuilder builder,
         IServiceProvider services,
-        IEnumerable<CliRouteAttribute> rootRoutes) where T : class
+        IEnumerable<CliRouteAttribute> rootRoutes) where T : class =>
+        builder.AddCommands(typeof(T), services, rootRoutes);
+
+    /// <summary>
+    /// The non-generic form of <see cref="AddCommands{T}(ICliApplicationBuilder, IServiceProvider,
+    /// IEnumerable{CliRouteAttribute})"/>, for callers that discover contract types at run time —
+    /// <c>Portico.Hosting</c> registers the contracts collected from the service collection this way.
+    /// </summary>
+    /// <param name="builder">The application builder.</param>
+    /// <param name="contractType">The command contract's type, as registered in the container.</param>
+    /// <param name="services">The provider to resolve from.</param>
+    /// <param name="rootRoutes">The route prefix this contract is mounted under; empty for none.</param>
+    /// <returns>The builder, for chaining.</returns>
+    /// <example><code>
+    /// cfg.AddCommands(typeof(IAdminTool), serviceProvider, []);
+    /// </code></example>
+    public static ICliApplicationBuilder AddCommands(
+        this ICliApplicationBuilder builder,
+        Type contractType,
+        IServiceProvider services,
+        IEnumerable<CliRouteAttribute> rootRoutes)
     {
         ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(contractType);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(rootRoutes);
 
@@ -76,7 +97,7 @@ public static class CliApplicationBuilderExtensions
         // Registering it twice is harmless: closing an already-closed scope is a no-op.
         builder.UseMiddleware(new CliServiceScopeMiddleware());
 
-        return builder.AddCommands(() => CliDispatchScope.Resolve<T>(services), rootRoutes);
+        return builder.AddCommands(contractType, () => CliDispatchScope.Resolve(contractType, services), rootRoutes);
     }
 
     /// <summary>

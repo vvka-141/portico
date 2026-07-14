@@ -16,6 +16,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- **`Portico.Hosting`** — Generic Host integration. `builder.Services.AddPorticoCommands<IAdminTool,
+  AdminTool>()` then `await builder.Build().RunPorticoAsync(args)`, which returns the command's exit
+  code for `Main` to return. **Graceful shutdown is one mechanism, not two**: the host's
+  `IHostApplicationLifetime` owns Ctrl+C and SIGTERM, and because the token it hands over can be
+  cancelled, the core deliberately skips its own SIGINT/SIGTERM wiring instead of racing it. A
+  cancelled command still exits 130. The CLI is not modelled as an `IHostedService` — a CLI is one
+  command, one invocation, one exit code.
 - **`Portico.DependencyInjection`** — the `Microsoft.Extensions.DependencyInjection` adapter.
   `cfg.AddCommands<IAdminTool>(serviceProvider)` resolves your command contract from the container,
   and `cfg.UseMiddleware<AuditMiddleware>(serviceProvider)` does the same for middleware. Each
