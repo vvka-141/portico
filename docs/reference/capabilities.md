@@ -21,6 +21,12 @@ Config layering without a config file, declared on the option itself.
 The command line wins over the environment; the environment wins over the default. An operator sets
 `PORTICO_API_TOKEN` once in the container and stops typing it.
 
+**Scalar options only, today.** `EnvironmentVariable` on a `CliFlag?`, a collection or a map is
+**silently inert** — the option takes its default as though the variable were unset, with no
+diagnostic. The fallback lives in the scalar materializer and nowhere else. If you are configuring a
+containerized service from the environment, this is the edge you will hit; it is pinned by
+`CliEnvironmentFallback_Should` and tracked as a bug rather than hidden.
+
 ### `DefaultValue` — the string form
 
 ```csharp
