@@ -21,6 +21,7 @@ internal sealed class CliRouteModel
         ImmutableArray<ICliOptionMemberInfo> options,
         ImmutableArray<CliCommandExampleAttribute> examples,
         ImmutableArray<string> literalPrefix,
+        ImmutableArray<string> mountPrefix,
         string routeSignature)
     {
         Name = name;
@@ -30,6 +31,7 @@ internal sealed class CliRouteModel
         Options = options;
         Examples = examples;
         LiteralPrefix = literalPrefix;
+        MountPrefix = mountPrefix;
         RouteSignature = routeSignature;
         MinSegmentCount = ComputeMinSegmentCount(segments, parameters);
         RejectNonTrailingOptionalArguments(name, parameters, MinSegmentCount);
@@ -118,6 +120,15 @@ internal sealed class CliRouteModel
 
     /// <summary>Literal segments up to the first argument slot (help-path matching + suggestions).</summary>
     public ImmutableArray<string> LiteralPrefix { get; }
+
+    /// <summary>
+    /// The root-route segments this command was mounted under (<c>AddCommands(instance, rootRoutes)</c>),
+    /// empty when it was registered at the root. A <c>[CliCommandExample]</c> is authored against the
+    /// contract, which cannot know its mount — so help must prepend this prefix to keep the example
+    /// copy-pasteable (POR-39). The type-level <c>[CliRoute]</c> prefix is NOT part of it: that one is
+    /// visible to the example's author and is expected to be spelled out in the example itself.
+    /// </summary>
+    public ImmutableArray<string> MountPrefix { get; }
 
     /// <summary>Canonical signature: literals verbatim, argument slots as <c>{argName}</c>.</summary>
     public string RouteSignature { get; }
