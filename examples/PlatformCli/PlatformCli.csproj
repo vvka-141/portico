@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>platform</AssemblyName>
+    <RootNamespace>PlatformCli</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Platform.Storage\Platform.Storage.csproj" />
+    <ProjectReference Include="..\Platform.Queue\Platform.Queue.csproj" />
+    <ProjectReference Include="..\..\src\Portico\Portico.csproj" />
+  </ItemGroup>
+
+</Project>
