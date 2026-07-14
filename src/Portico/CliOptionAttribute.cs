@@ -124,6 +124,23 @@ public class CliOptionAttribute : Attribute
     /// </summary>
     public string? EnvironmentVariable { get; init; }
 
+    /// <summary>
+    /// Marks the option's value as a secret. Its value is replaced with <c>***</c> everywhere the
+    /// framework renders the command line — trace/timing output, and option-conversion errors.
+    /// The value still binds normally; only the rendering changes.
+    /// <para>
+    /// Marking is explicit, never inferred from the option's name. A heuristic that guesses right
+    /// most of the time teaches users to trust it, and the times it guesses wrong put a credential
+    /// in a log.
+    /// </para>
+    /// </summary>
+    /// <example><code>
+    /// [CliRoute("db migrate")]
+    /// [CliCommandExample("db migrate --connection-string \"Host=db\"")]
+    /// int Migrate([CliOption("--connection-string", Sensitive = true)] string connectionString);
+    /// </code></example>
+    public bool Sensitive { get; init; }
+
 
     /// <summary>
     /// Returns a string representation of the option specification.

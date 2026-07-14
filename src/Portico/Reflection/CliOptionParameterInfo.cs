@@ -64,6 +64,8 @@ internal sealed class CliOptionParameterInfo : CliParameterInfo, ICliOptionMembe
 
     public bool IsFlagArity => CliFlag.IsFlagType(ParameterType, out _);
 
+    public bool IsSensitive => _optionAttribute.Sensitive;
+
     public override bool IsOptional { get; }
 
     public override object? DefaultValue { get; }

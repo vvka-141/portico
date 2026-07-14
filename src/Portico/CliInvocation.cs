@@ -226,6 +226,39 @@ public sealed partial class CliInvocation : IFormattable
     public ImmutableArray<string> Segments { get; }
 
     /// <summary>
+    /// Capture names whose values must never be rendered. Populated at dispatch from the matched
+    /// route's <c>[CliOption(Sensitive = true)]</c> members — which is why it can only ever be
+    /// filled once a route HAS matched. When no route matches, the option metadata does not exist
+    /// and the framework cannot know what is secret; the unknown-command path therefore renders no
+    /// option values at all rather than guessing.
+    /// </summary>
+    private readonly HashSet<string> _redactedOptionNames = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The placeholder rendered in place of a sensitive option's value.</summary>
+    internal const string Redacted = "***";
+
+    /// <summary>
+    /// Marks every capture matching a sensitive option member so <see cref="ToString(string?, IFormatProvider?)"/>
+    /// renders <c>***</c> in place of its value.
+    /// </summary>
+    internal void RedactSensitiveOptions(IEnumerable<Reflection.ICliOptionMemberInfo> options)
+    {
+        foreach (var option in options)
+        {
+            if (!option.IsSensitive) continue;
+            foreach (var capture in Options)
+            {
+                if (option.IsMatch(capture.Name))
+                {
+                    _redactedOptionNames.Add(capture.Name);
+                }
+            }
+        }
+    }
+
+    private bool IsRedacted(string optionName) => _redactedOptionNames.Contains(optionName);
+
+    /// <summary>
     /// True iff the token should be treated as the start of a new option (and not as a value of
     /// the previous one). A leading dash is the basic signal — but a token like <c>-5</c>,
     /// <c>-1.5</c>, <c>-.5</c> is a negative number and must be passed through as a value, not
@@ -354,17 +387,21 @@ public sealed partial class CliInvocation : IFormattable
                 .Select(grp => new
                 {
                     Name = grp.Key,
-                    Values = grp
-                        .AsEnumerable()
-                        .SelectMany(values => values)
-                        .Select(QuoteIfHasWhiteSpaces)
-                        .Join(" ")
+                    Values = IsRedacted(grp.Key)
+                        ? Redacted
+                        : grp
+                            .AsEnumerable()
+                            .SelectMany(values => values)
+                            .Select(QuoteIfHasWhiteSpaces)
+                            .Join(" ")
                 })
                 .ForEach(o => builder.Append($" {o.Name} {o.Values}"));
 
             Options
                 .OfType<CliKeyValueOptionCapture>()
-                .ForEach(o => builder.Append($" {o.Name}[{QuoteIfHasWhiteSpaces(o.Key)}] {QuoteIfHasWhiteSpaces(o.Value)}"));
+                .ForEach(o => builder.Append(
+                    $" {o.Name}[{QuoteIfHasWhiteSpaces(o.Key)}] " +
+                    (IsRedacted(o.Name) ? Redacted : QuoteIfHasWhiteSpaces(o.Value))));
         }
 
 

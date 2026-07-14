@@ -475,7 +475,16 @@ public sealed partial class CliApplication
 
     private void OnActionNotFound(CliInvocation invocation)
     {
-        var header = $"Unknown command: {invocation}.";
+        // Deliberately renders the executable and route segments ONLY — never the option values.
+        // No route matched, so there is no option metadata and the framework cannot know which
+        // values are secrets. Echoing them would put a --connection-string or --token into stderr,
+        // which in a container is the log stream. The values add nothing to a "did you mean"
+        // diagnostic anyway; the segments are what the user mistyped.
+        var typed = invocation.Segments
+            .Prepend(invocation.ExecutableName)
+            .Select(token => token.HasWhiteSpaces() ? token.Quote() : token)
+            .Join(" ");
+        var header = $"Unknown command: {typed}.";
         var suggestions = GetSuggestions(invocation).ToArray();
         if (suggestions.Length == 0)
         {

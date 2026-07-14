@@ -33,6 +33,12 @@ internal static class CliMethodInvoker
 
         var globalOptionsBundles = context.ToGlobalOptionBundles(invocation);
 
+        // A route HAS matched, so the option metadata exists and we know which values are secret.
+        // Must run before OnExecutingAction: middleware (e.g. CliTimingMiddleware) renders the
+        // invocation, and by then the redaction has to already be in place.
+        invocation.RedactSensitiveOptions(
+            model.Options.Concat(globalOptionsBundles.SelectMany(bundle => bundle.GetOptions())));
+
         // Arm the cleanup BEFORE invoking OnExecutingAction. If a bundle's OnExecutingAction throws
         // partway through (e.g. after CliTraceListener has been attached to Trace.Listeners), the
         // finally block must still run OnActionExecuted so the listener is detached.

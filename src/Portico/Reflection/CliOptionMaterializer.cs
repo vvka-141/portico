@@ -135,7 +135,9 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                         catch (Exception ex)
                         {
                             throw new CliOptionMaterializationException(
-                                $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
+                                attribute.Sensitive
+                                    ? $"Value for key '{key}' of option '{attribute.DisplayAliases}' is invalid."
+                                    : $"Value '{value}' for key '{key}' of option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
                                 ex);
                         }
                     }
@@ -323,13 +325,19 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
                     .GetNames(declaredType)
                     .Join(", ");
                 throw new CliOptionMaterializationException(
-                    $"The value '{value}' is invalid. Expected: {expectedValueCsv}. {ex.Message}",
+                    attribute.Sensitive
+                        ? $"The value is invalid. Expected: {expectedValueCsv}."
+                        : $"The value '{value}' is invalid. Expected: {expectedValueCsv}. {ex.Message}",
                     ex);
             }
             catch (Exception ex)
             {
+                // A sensitive option echoes neither the value nor ex.Message — the inner exception
+                // text embeds the value too ("'hunter2' is not a valid value for Int32").
                 throw new CliOptionMaterializationException(
-                    $"The value '{value}' is invalid. {ex.Message}",
+                    attribute.Sensitive
+                        ? "The value is invalid."
+                        : $"The value '{value}' is invalid. {ex.Message}",
                     ex);
             }
         }
@@ -546,7 +554,9 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
             catch (Exception ex)
             {
                 throw new CliOptionMaterializationException(
-                    $"Value '{raw}' for option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
+                    attribute.Sensitive
+                        ? $"Value for option '{attribute.DisplayAliases}' is invalid."
+                        : $"Value '{raw}' for option '{attribute.DisplayAliases}' is invalid. {ex.Message}",
                     ex);
             }
         }

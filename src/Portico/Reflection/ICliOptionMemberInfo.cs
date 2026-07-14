@@ -24,6 +24,12 @@ internal interface ICliOptionMemberInfo
     /// </summary>
     bool IsFlagArity => false;
 
+    /// <summary>
+    /// True iff the option is declared <c>Sensitive = true</c>. The framework renders its value as
+    /// <c>***</c> instead of echoing it. Default <c>false</c>.
+    /// </summary>
+    bool IsSensitive => false;
+
 
     public sealed bool IsIn(CliInvocation invocation)
     {
