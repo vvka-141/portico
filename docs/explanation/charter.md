@@ -97,7 +97,12 @@ A CLI is an HTTP API without the H.
 ## 6. Success metrics for 1.0
 
 - Every `NotImplementedException` on the hot path is gone. (Holds: there is not one in `src/`.)
-- A `dotnet new portico-cli` template scaffolds a runnable project in under 30 seconds.
+- ✅ **`dotnet new portico-cli` scaffolds a runnable project in under 30 seconds** (POR-23, shipped as
+  `Portico.Templates`). It scaffolds more than "runnable": the project builds with zero warnings under
+  the analyzers, and its `CliContractValidator<T>` test is **already green**. That is the point — the
+  template's job is to put the examples-are-tests loop in front of a new user before they have read a
+  word of documentation. A CI job scaffolds from the packed template and builds and tests the result on
+  every push, so this gate cannot rot.
   **Not yet decided** — whether to ship a template at all is an open question, tracked as POR-23.
   If the answer is "no template", this metric is struck rather than left as an aspiration nobody owns.
 - AOT is explicitly out of scope for 1.0 — the framework uses reflection for route

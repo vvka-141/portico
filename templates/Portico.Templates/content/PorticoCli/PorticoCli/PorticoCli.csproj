@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- A CLI's contract is checked at compile time. Let a warning stop you here, not in production. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The analyzers (POR001-POR010) ship inside this package. Nothing else to install. -->
+    <PackageReference Include="Portico" Version="PORTICO_VERSION" />
+  </ItemGroup>
+
+</Project>

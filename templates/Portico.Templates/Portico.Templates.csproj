@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageId>Portico.Templates</PackageId>
+    <Title>Portico CLI template</Title>
+    <Description>
+      dotnet new portico-cli — a runnable Portico CLI with one route, one executable example, and a
+      passing contract test. The point is the loop: `dotnet test` runs your help examples through the
+      real pipeline, so they cannot drift from the CLI you shipped.
+    </Description>
+    <PackageTags>dotnet-new;templates;cli;command-line;portico</PackageTags>
+
+    <TargetFramework>net10.0</TargetFramework>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+
+    <!--
+      A template package carries no assemblies. Everything below keeps the SDK from treating it as a
+      library: nothing to compile, nothing to reference, no doc file to generate.
+    -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!--
+      The repo turns symbol packages on for its libraries. A template package has no assemblies, so
+      the .snupkg pack fails with NU5017 ("no dependencies nor content") — and it fails AFTER writing
+      a perfectly good .nupkg, which makes it look like a warning when it is a build failure.
+    -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <IncludeSource>false</IncludeSource>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      PackagePath is explicit: ContentTargetFolders alone would nest these at content/content/…,
+      and `dotnet new` would then find no template at all. The package must lay the files out as
+      content/PorticoCli/… — verified by unzipping the nupkg and by scaffolding from it.
+    -->
+    <Content Include="content\**\*"
+             Exclude="content\**\bin\**;content\**\obj\**"
+             PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Remove="**\*" />
+  </ItemGroup>
+
+</Project>

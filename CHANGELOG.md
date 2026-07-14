@@ -16,6 +16,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.
 - `examples/AdminCli` — a worked backend admin CLI, contract-tested by CI.
+- **`Portico.Templates`** — `dotnet new portico-cli` scaffolds a runnable CLI with one route, one
+  executable example, and a **passing contract test**. The point is the loop, not the boilerplate: the
+  scaffold builds with zero warnings under the analyzers, and `dotnet test` runs its help examples
+  through the real pipeline on the first try. A CI job installs the packed template, scaffolds, builds
+  and tests it on every push.
 - **Two new analyzers close the last gaps in attribute-contract coverage.** `POR009` — two options on
   one command declaring the same alias (parameters, bundle properties, or one of each), which used to
   fail only at `CliApplication.Create`. `POR010` — a `[CliOption]` whose type cannot be built from a

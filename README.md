@@ -41,6 +41,13 @@ That is the whole framework: a plain C# method, one route attribute, one example
 dotnet add package Portico
 ```
 
+Or start from the template — a runnable CLI whose contract test is already green:
+
+```
+dotnet new install Portico.Templates
+dotnet new portico-cli -n MyCli && cd MyCli && dotnet test
+```
+
 ---
 
 ## Your examples are tests
@@ -251,10 +258,15 @@ ConsoleAppFramework or System.CommandLine is the better destination instead.
 
 ## Known rough edges
 
-Portico is **0.x**. It is extracted from a framework with ~430 tests behind it, and it is honest
+Portico is **0.x**. It is extracted from a framework with ~530 tests behind it, and it is honest
 about what is not finished:
 
-- There is no `dotnet new` template.
+- **No machine-readable command manifest yet.** An agent learns the surface by reading `--help`,
+  which is honest and verified but not structured.
+- **A literal route beside a catch-all is not a supported shape.** `db migrate` alongside
+  `db {command}` is ambiguous, and Portico refuses to guess rather than silently preferring the
+  literal. Deliberate, and [documented](docs/reference/capabilities.md#a-literal-route-beside-a-catch-all-is-not-a-supported-shape).
+- **No AOT.** Reflection is deliberate; see [the decision](docs/explanation/aot.md).
 
 These are tracked and fixed in the open. If you hit something else, open an issue.
 

@@ -47,6 +47,39 @@ jobs:
       - name: Pack
         run: dotnet pack portico.sln -c Release --no-build -o ./artifacts
 
+      # The template's promise is a GREEN examples-are-tests loop in front of a new user in under a
+      # minute. The only way to know it still holds is to be that user: install the packed template,
+      # scaffold, and build+test the result against the packages this run just produced. A scaffold
+      # that emitted POR004 on first build, or shipped a red contract test, would be the worst
+      # possible first impression — and nothing else in this workflow would notice (POR-23).
+      - name: Smoke-test the dotnet new template
+        run: |
+          set -euo pipefail
+          version=$(ls artifacts/Portico.Templates.*.nupkg | sed -E 's/.*Portico\.Templates\.(.*)\.nupkg/\1/')
+          echo "Scaffolding against Portico $version"
+
+          dotnet new install "artifacts/Portico.Templates.$version.nupkg"
+
+          scaffold="$RUNNER_TEMP/scaffold"
+          mkdir -p "$scaffold" && cd "$scaffold"
+          dotnet new portico-cli -n SmokeCli --porticoVersion "$version"
+          cd SmokeCli
+
+          cat > nuget.config <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <add key="local" value="$GITHUB_WORKSPACE/artifacts" />
+            </packageSources>
+          </configuration>
+          XML
+
+          # TreatWarningsAsErrors is on inside the template, and the analyzers ship in the package:
+          # a warning here IS a failure.
+          dotnet build -c Release
+          dotnet test  -c Release --no-build
+          dotnet run --project SmokeCli -c Release --no-build -- greet --name Ada
+
       - name: Upload packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
