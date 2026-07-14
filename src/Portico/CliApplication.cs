@@ -414,13 +414,13 @@ public sealed partial class CliApplication
                 helpMatches[0].ShowHelp(invocation);
                 return CliExitException.SuccessExitCode;
             }
-            DisplayGeneralHelp();
+            DisplayGeneralHelp(invocation);
             return CliExitException.SuccessExitCode;
         }
 
         if (invocation.Segments.Length == 0 && invocation.Options.Length == 0)
         {
-            DisplayGeneralHelp();
+            DisplayGeneralHelp(invocation);
             return CliExitException.SuccessExitCode;
         }
 
@@ -479,17 +479,12 @@ public sealed partial class CliApplication
             : DefaultHelpSignalRegex().IsMatch(token);
     }
 
-    private void DisplayGeneralHelp()
-    {
-        var output = _console.Out;
-        var first = true;
-        foreach (var action in _actions)
-        {
-            if (!first) output.WriteLine();
-            output.WriteLine(action.GetGeneralHelp());
-            first = false;
-        }
-    }
+    // Top-level help: what commands exist, not what every option of every command is (POR-31).
+    private void DisplayGeneralHelp(CliInvocation invocation) =>
+        _console.Out.WriteLine(
+            Reflection.CliHelpRenderer.RenderOverview(
+                [.. _actions.Select(a => a.RouteModel)],
+                invocation.ExecutableName));
 
     private void OnActionNotFound(CliInvocation invocation)
     {
@@ -780,8 +775,7 @@ public sealed partial class CliApplication
 
         public string MethodDescription => method.ToString();
 
-        [DebuggerStepThrough]
-        public string GetGeneralHelp() => method.ToGeneralHelpString();
+        public Reflection.CliRouteModel RouteModel => method.RouteModel;
 
         public IEnumerable<ICliOptionMemberInfo> GetOptionInfos() => method.GetOptions();
 

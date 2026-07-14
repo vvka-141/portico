@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -14,30 +15,71 @@ namespace Portico.Reflection;
 internal static class CliHelpRenderer
 {
     /// <summary>
-    /// Renders the compact per-route summary shown in general help (app invoked with no args or
-    /// bare <c>--help</c>). One block per route: Signature / Description / Arguments / Options.
-    /// Skips the Usage line and Examples block (those live in per-command help).
+    /// Renders top-level help: a <c>Commands:</c> listing, and nothing else. This is the summary half
+    /// of the two-level model every CLI a user has met — git, docker, dotnet, kubectl — implements.
+    /// Detail belongs to <c>app &lt;command&gt; --help</c> (<see cref="RenderCommandHelp"/>); dumping
+    /// every command's full option list here is what POR-31 fixed.
     /// </summary>
-    public static string RenderGeneralHelp(CliRouteModel model)
+    /// <remarks>
+    /// A single-command CLI gets that command's full help instead. A <c>Commands:</c> list of one,
+    /// followed by "run 'app &lt;command&gt; --help' for more information", is a menu with one item —
+    /// it makes the user type a second command to learn what the tool they already invoked does.
+    /// </remarks>
+    public static string RenderOverview(IReadOnlyList<CliRouteModel> models, string executableName)
+    {
+        if (models.Count == 1)
+        {
+            return RenderCommandHelp(models[0], executableName);
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("Usage: ").Append(executableName).AppendLine(" <command> [options]");
+
+        if (models.Count == 0)
+        {
+            // No routes registered. Say so, rather than printing an empty Commands: header.
+            sb.AppendLine();
+            sb.AppendLine("This application declares no commands.");
+            return sb.ToString();
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Commands:");
+
+        var rows = models
+            .Select(m => (Signature: CommandSignature(m), Description: SummaryDescription(m)))
+            .ToList();
+        var colWidth = Math.Max(rows.Max(r => r.Signature.Length) + 2, 20);
+        foreach (var row in rows)
+        {
+            AppendRow(sb, row.Signature, row.Description, colWidth);
+        }
+
+        sb.AppendLine();
+        sb.Append("Run '").Append(executableName).AppendLine(" <command> --help' for more information on a command.");
+
+        return sb.ToString();
+    }
+
+    // The route as the user types it: literals verbatim, argument slots as <NAME> / [NAME]. No
+    // options — the whole point of the summary is that options live one level down.
+    private static string CommandSignature(CliRouteModel model)
     {
         var sb = new StringBuilder();
-
-        // Signature: literals verbatim, required argument slots as <NAME>, optional ones as [NAME].
         for (var i = 0; i < model.Segments.Length; ++i)
         {
             if (sb.Length > 0) sb.Append(' ');
             sb.Append(SignatureToken(model.Segments[i], i, model));
         }
-        var optionInfos = model.Options;
-        if (optionInfos.Length > 0) sb.Append(" [options]");
-        sb.AppendLine();
-
-        AppendDescription(sb, model);
-        AppendArguments(sb, model);
-        AppendOptions(sb, optionInfos);
-
         return sb.ToString();
     }
+
+    // CliRouteModel.Description falls back to the method name when no [Description] is declared.
+    // Echoing "MigrateAsync" back at the user is noise, not documentation — leave the column blank.
+    private static string SummaryDescription(CliRouteModel model) =>
+        string.Equals(model.Description, model.Name, StringComparison.Ordinal)
+            ? string.Empty
+            : model.Description;
 
     /// <summary>
     /// Renders the rich per-command help block shown in response to <c>app cmd --help</c>.
@@ -126,10 +168,24 @@ internal static class CliHelpRenderer
         var colWidth = Math.Max(args.Max(a => a.CliArgumentName.Length) + 2, 18);
         foreach (var arg in args)
         {
-            sb.Append("  ")
-                .Append(arg.CliArgumentName.ToUpperInvariant().PadRight(colWidth))
-                .AppendLine(arg.Description);
+            AppendRow(sb, arg.CliArgumentName.ToUpperInvariant(), arg.Description, colWidth);
         }
+    }
+
+    /// <summary>
+    /// One "  label      description" row. The label is padded to the column, but a row with no
+    /// description is NOT — padding it would emit trailing whitespace, which shows up in diffs, in
+    /// `cat -A`, and in every test that compares help output (POR-31).
+    /// </summary>
+    private static void AppendRow(StringBuilder sb, string label, string? description, int colWidth)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            sb.Append("  ").AppendLine(label);
+            return;
+        }
+
+        sb.Append("  ").Append(label.PadRight(colWidth)).AppendLine(description);
     }
 
     private static void AppendOptions(StringBuilder sb, ImmutableArray<ICliOptionMemberInfo> optionInfos)
@@ -146,9 +202,7 @@ internal static class CliHelpRenderer
         var colWidth = Math.Max(rows.Max(r => r.Label.Length) + 2, 20);
         foreach (var row in rows)
         {
-            sb.Append("  ")
-                .Append(row.Label.PadRight(colWidth))
-                .AppendLine(row.Desc);
+            AppendRow(sb, row.Label, row.Desc, colWidth);
         }
     }
 

@@ -28,6 +28,12 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Top-level `--help` now lists your commands.** It used to concatenate the full detail of every
+  command — usage line, arguments, every option — into one wall, with no command list and no
+  descriptions. It now prints the `Commands:` summary every CLI a user has met (git, docker, dotnet,
+  kubectl) prints, with each route's `[Description]`, and points at `app <command> --help` for the
+  detail. A **single-command** CLI still shows that command's full help: a menu of one is not a menu.
+  Help lines no longer carry trailing whitespace.
 - **A composed CLI can now verify its examples.** `CliContractValidator<T>` registered the
   contract's proxy unmounted, so it passed examples that the real, composed application rejects with
   exit 2. It now takes the root routes the contract ships under —
