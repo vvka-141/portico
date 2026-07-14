@@ -176,6 +176,11 @@ Honest concessions, because a comparison that concedes nothing is not worth read
   builder-and-lambda shape is the reason people leave it.
 - **Not a REPL, not a DSL, not a config-file format.** One command, one invocation, one exit code.
 
+[Cocona](https://github.com/mayuki/Cocona) — the framework closest to Portico's shape — was archived
+by its author on 14 December 2025. If you are coming from it, there is a
+[migration guide](docs/how-to/migrate-from-cocona.md), and it is explicit about when
+ConsoleAppFramework or System.CommandLine is the better destination instead.
+
 ## Known rough edges
 
 Portico is **0.x**. It is extracted from a framework with ~380 tests behind it, but it is honest
@@ -198,6 +203,7 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 - [AOT](docs/explanation/aot.md) — why not, and what would change our mind
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
+- [Migrating from Cocona](docs/how-to/migrate-from-cocona.md) — the concept mapping, and when another framework is the better move
 - [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI
 - [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
 
