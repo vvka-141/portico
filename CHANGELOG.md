@@ -43,6 +43,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   `CliMiddleware` lifecycle hooks and `Clone`, and the `CliPrompt` / `CliCompletion` / `CliHelpBuilder`
   members now carry a `<summary>` and a usage `<example>`. A new public member that ships without them
   fails the build (`Portico_XmlDocGate_Should`) — the surface an agent reads cannot silently decay.
+- `docs/reference/capabilities.md` — the whole shipped surface (env-var fallback, map options,
+  `Sensitive`, `CliFlag?` vs `bool`, human-readable durations, route ranking, completion, bundles),
+  every entry backed by an executable test in `CliCapabilities_Should`.
+- `docs/reference/analyzer-rules.md` — the ten rules, at the anchors every POR00x diagnostic has
+  always linked to. The page did not exist, so every analyzer message pointed at a 404.
 - `docs/explanation/alternatives.md` — what each competing .NET CLI framework is better at, with
   versions and the date the landscape was checked, and the one claim Portico makes stated precisely
   enough to be falsified.
