@@ -43,6 +43,47 @@ public sealed class CliMapOption_Should
         return (app.Run(commandLine), console, svc);
     }
 
+    // --- Short-alias map binding: -e[key] must behave exactly like --env[key] (POR-58) --------
+    // The short form runs through CliShortOptionExpander; the long form does not. Both entry
+    // points (a command-line string and an argv array) are exercised — the string path and the
+    // argv path preprocess independently, and only argv is what a real shell hands the process.
+
+    [Fact]
+    public void Map_Short_Alias_Binds_Like_Long_Form_On_The_String_Path()
+    {
+        var (exit, _, svc) = Run(new ConfigService(), "app.exe config -e[region] eu");
+
+        Assert.Equal(0, exit);
+        Assert.NotNull(svc.Env);
+        Assert.Equal("eu", svc.Env!["region"]);
+    }
+
+    [Fact]
+    public void Map_Short_Alias_Binds_Like_Long_Form_On_The_Argv_Path()
+    {
+        var console = new StringCliConsole();
+        var svc = new ConfigService();
+        var app = CliApplication.Create(cfg => cfg.WithConsole(console).AddCommands(svc));
+
+        // Run(string[]) omits the exe name by convention — the framework prepends it.
+        var exit = app.Run(["config", "-e[region]", "eu"]);
+
+        Assert.Equal(0, exit);
+        Assert.NotNull(svc.Env);
+        Assert.Equal("eu", svc.Env!["region"]);
+    }
+
+    [Fact]
+    public void Map_Short_Alias_Binds_Multiple_Keyed_Values()
+    {
+        var (exit, _, svc) = Run(new DeployService(), "app.exe deploy -p[web] 8080 -p[api] 9090");
+
+        Assert.Equal(0, exit);
+        Assert.NotNull(svc.Ports);
+        Assert.Equal(8080, svc.Ports!["web"]);
+        Assert.Equal(9090, svc.Ports!["api"]);
+    }
+
     // --- Malformed value → usage-error boundary (exit 2, rich message) -----------------------
 
     [Fact]

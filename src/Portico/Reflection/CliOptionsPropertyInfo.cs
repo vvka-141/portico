@@ -53,6 +53,8 @@ internal sealed class CliOptionsPropertyInfo : PropertyInfoDecorator,  ICliOptio
 
     public bool IsFlagArity => CliFlag.IsFlagType(PropertyType, out _);
 
+    public bool IsMapArity => PropertyType.GetGenericDictionaryArgumentTypes().Any();
+
     public bool IsSensitive => _optionAttribute.Sensitive;
 
     public static bool IsBundleProperty(PropertyInfo propertyInfo)
