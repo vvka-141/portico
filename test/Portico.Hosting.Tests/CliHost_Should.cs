@@ -214,6 +214,36 @@ public sealed class CliHost_Should
         }
     }
 
+    /// <summary>An IHostedService that faults during startup — the scenario RunPorticoAsync's own
+    /// remarks anticipate. Registered AFTER a recording worker so the worker starts first.</summary>
+    private sealed class FaultingHostedService : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("hosted service failed to start");
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Stop_Already_Started_Hosted_Services_When_Startup_Faults()
+    {
+        // POR-62. StartAsync used to run OUTSIDE the try/finally, so a startup fault skipped StopAsync
+        // and left an already-started IHostedService running. The recording worker starts first; the
+        // faulting one throws next — StopAsync must still run on the worker.
+        var worker = new RecordingHostedService();
+        using var host = Builder(services =>
+        {
+            services.AddSingleton<IHostedService>(worker);           // starts first
+            services.AddSingleton<IHostedService, FaultingHostedService>(); // faults next
+        }).Build();
+
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(
+            () => host.RunPorticoAsync(["db", "migrate"]));
+
+        Assert.True(worker.Started, "the recording worker should have started before the fault");
+        Assert.True(worker.Stopped, "StopAsync must run even though a later service faulted at startup");
+    }
+
     [Fact]
     public async Task Say_So_When_No_Contract_Was_Registered()
     {
