@@ -16,6 +16,8 @@ public sealed class CliConfigurationException : Exception
     {
     }
 
+    // Used by CliOptionDefaultResolver to preserve the underlying conversion failure as
+    // InnerException when a [CliOption] default value cannot be converted.
     [DebuggerNonUserCode]
     public CliConfigurationException(string message, Exception innerException) : base(message, innerException)
     {

@@ -60,9 +60,6 @@ public sealed partial class CliInvocation : IFormattable
     /// <exception cref="ArgumentNullException">
     /// Thrown when the <paramref name="commandLine"/> is <c>null</c>, empty, or consists solely of white-space characters.
     /// </exception>
-    /// <exception cref="CliInvocationFormatException">
-    /// Thrown when the command line format is invalid or when the executable name cannot be extracted properly.
-    /// </exception>
     /// <remarks>
     /// The <see cref="FromArgs(string)"/> method processes the input command line string through a series of transformation steps to extract the executable name,
     /// environment variables, quoted strings, keyed options, and other options. It ensures that the command line adheres to the expected format

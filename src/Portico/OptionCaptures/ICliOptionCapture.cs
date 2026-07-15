@@ -1,9 +1,11 @@
 namespace Portico;
 
 /// <summary>
-/// Shared interface for every kind of parsed option on a <see cref="CliInvocation"/>. The
-/// framework's route matcher and option materializer work against this contract so new capture
-/// shapes can be added without touching downstream code.
+/// The root contract of the option-capture family: <see cref="Name"/>, common to every parsed
+/// option shape. Implemented by the base record <see cref="CliOptionCapture"/> (so all six concrete
+/// captures carry it) and extended by the shape-specific <see cref="ICliCollectionCapture"/> and
+/// <see cref="ICliMapOptionCapture"/>, which downstream code discriminates on. Centralising
+/// <see cref="Name"/> here is what lets those sub-interfaces expose it without redeclaring it.
 /// </summary>
 public interface ICliOptionCapture
 {

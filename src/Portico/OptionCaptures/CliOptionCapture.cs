@@ -6,7 +6,7 @@ namespace Portico;
 /// downstream code discriminates by concrete type or by the <see cref="ICliOptionCapture"/>
 /// family of interfaces.
 /// </summary>
-public abstract record CliOptionCapture
+public abstract record CliOptionCapture : ICliOptionCapture
 {
     protected internal CliOptionCapture(string name)
     {
