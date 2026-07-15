@@ -63,12 +63,12 @@ public class CliArgumentAttribute : Attribute
     public string ParameterName { get; set; }
 
     /// <summary>
-    /// Gets or sets a description of the parameter, which can be used to generate help text in CLI applications.
+    /// Gets a description of the parameter, used to generate help text in CLI applications.
     /// </summary>
     public string Description { get; }
 
     /// <summary>
-    /// Gets or sets the role of the argument in the command, indicating its purpose or usage context.
+    /// Gets or sets the display name shown for this argument in help output (e.g. <c>&lt;PATH&gt;</c>).
     /// </summary>
     /// <remarks>
     /// Display name used in help output (e.g. <c>&lt;PATH&gt;</c>). For method-level placement

@@ -11,6 +11,7 @@ namespace Portico;
 /// </summary>
 public sealed class CliConfigurationException : Exception
 {
+    /// <summary>Creates the exception with a message describing the invalid configuration.</summary>
     [DebuggerNonUserCode]
     public CliConfigurationException(string message) : base(message)
     {

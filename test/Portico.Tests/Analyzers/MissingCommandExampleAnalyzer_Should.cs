@@ -22,9 +22,9 @@ public class Svc
 """;
 
         var diags = await AnalyzerTestRunner.RunAsync(new MissingCommandExampleAnalyzer(), source);
-        var sol004 = diags.Where(d => d.Id == "POR004").ToArray();
-        Assert.Single(sol004);
-        Assert.Contains("Init", sol004[0].GetMessage());
+        var por004 = diags.Where(d => d.Id == "POR004").ToArray();
+        Assert.Single(por004);
+        Assert.Contains("Init", por004[0].GetMessage());
     }
 
     [Fact]

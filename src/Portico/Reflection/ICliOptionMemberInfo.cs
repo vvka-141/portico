@@ -17,10 +17,11 @@ internal interface ICliOptionMemberInfo
     string Description { get; }
 
     /// <summary>
-    /// True iff this option's declared type is a flag-arity type (<see cref="CliFlag"/>, its
-    /// nullable variant, <see cref="bool"/>, or <c>bool?</c>). The short-option preprocessor uses
-    /// this to decide whether a combined token like <c>-abc</c> can be safely split. Default
-    /// <c>false</c>; implementations that know their declared type override.
+    /// True iff this option's declared type is a flag-arity type — <see cref="CliFlag"/> or its
+    /// nullable variant <c>CliFlag?</c> (see <c>CliFlag.IsFlagType</c>). <see cref="bool"/> is NOT
+    /// flag-arity: it routes through the scalar materializer. The short-option preprocessor uses this
+    /// to decide whether a combined token like <c>-abc</c> can be safely split. Default <c>false</c>;
+    /// implementations that know their declared type override.
     /// </summary>
     bool IsFlagArity => false;
 

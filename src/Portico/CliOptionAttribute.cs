@@ -90,12 +90,12 @@ public class CliOptionAttribute : Attribute
     public IReadOnlyList<string> Aliases { get; }
 
     /// <summary>
-    /// List of short option names.
+    /// Short alias names (declared with a single <c>-</c>), dash-stripped (e.g. <c>v</c> for <c>-v</c>).
     /// </summary>
     public IReadOnlyList<string> ShortOptionNames { get; }
 
     /// <summary>
-    /// List of long option names.
+    /// Long alias names (declared with <c>--</c>), dash-stripped (e.g. <c>verbose</c> for <c>--verbose</c>).
     /// </summary>
     public IReadOnlyList<string> LongOptionNames { get; }
 
