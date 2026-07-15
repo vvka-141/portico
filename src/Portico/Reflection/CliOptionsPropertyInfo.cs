@@ -34,7 +34,11 @@ internal sealed class CliOptionsPropertyInfo : PropertyInfoDecorator,  ICliOptio
             .Union([_optionAttribute.Description])
             .First();
         Aliases = [.. _optionAttribute.Aliases];
-        _materializer = CliOptionMaterializer.CreateOrThrow(_optionAttribute, property.PropertyType, IsOptional, null);
+        // Pass the resolved DefaultValue, not null: the materializer returns it verbatim when the
+        // option is omitted. Hardcoding null meant a bundle property's [CliOption(DefaultValue = X)]
+        // never bound — the bundle kept its Activator-created type default while help still printed
+        // "(default: X)". Mirrors the parameter path (CliOptionParameterInfo). POR-59.
+        _materializer = CliOptionMaterializer.CreateOrThrow(_optionAttribute, property.PropertyType, IsOptional, DefaultValue);
     }
 
 
