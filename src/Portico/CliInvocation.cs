@@ -462,19 +462,19 @@ public sealed partial class CliInvocation : IFormattable
         {
             Options
                 .OfType<CliFlagOptionCapture>()
-                .Select(o => o.Name.ToLower())
+                .Select(o => o.Name.ToLowerInvariant())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ForEach(o => builder.Append($" {o}"));
 
             Options
                 .OfType<ICliCollectionCapture>()
-                .Select(o => o.Name.ToLower())
+                .Select(o => o.Name.ToLowerInvariant())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ForEach(o => builder.Append($" {o} .."));
 
             Options
                 .OfType<ICliMapOptionCapture>()
-                .Select(o => o.Name.ToLower())
+                .Select(o => o.Name.ToLowerInvariant())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ForEach(o => builder.Append($" {o}[..] .."));
         }
@@ -483,7 +483,7 @@ public sealed partial class CliInvocation : IFormattable
             string QuoteIfHasWhiteSpaces(string value) => value.HasWhiteSpaces() ? value.Quote() : value;
             Options
                 .OfType<CliFlagOptionCapture>()
-                .Select(o => o.Name.ToLower())
+                .Select(o => o.Name.ToLowerInvariant())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ForEach(o => builder.Append($" {o}"));
 
@@ -504,10 +504,25 @@ public sealed partial class CliInvocation : IFormattable
                 .ForEach(o => builder.Append($" {o.Name} {o.Values}"));
 
             Options
-                .OfType<CliKeyValueOptionCapture>()
-                .ForEach(o => builder.Append(
-                    $" {o.Name}[{QuoteIfHasWhiteSpaces(o.Key)}] " +
-                    (IsRedacted(o.Name) ? Redacted : QuoteIfHasWhiteSpaces(o.Value))));
+                .OfType<ICliMapOptionCapture>()
+                .ForEach(o =>
+                {
+                    var head = $" {o.Name}[{QuoteIfHasWhiteSpaces(o.Key)}]";
+                    switch (o)
+                    {
+                        case CliKeyValueOptionCapture kv:
+                            builder.Append($"{head} {(IsRedacted(kv.Name) ? Redacted : QuoteIfHasWhiteSpaces(kv.Value))}");
+                            break;
+                        case CliKeyCollectionOptionCapture kc:
+                            builder.Append($"{head} {(IsRedacted(kc.Name)
+                                ? Redacted
+                                : kc.Values.Select(QuoteIfHasWhiteSpaces).Join(" "))}");
+                            break;
+                        case CliKeyFlagOptionCapture:
+                            builder.Append(head); // keyed flag: presence only, no value
+                            break;
+                    }
+                });
         }
 
 
