@@ -648,7 +648,10 @@ public sealed partial class CliApplication
                          .Where(a => a.Length == 2 && a[0] == '-' && a[1] != '-')
                          .Select(a => a[1]))
             {
-                var thisArity = info.IsFlagArity ? CliShortOptionArity.Flag : CliShortOptionArity.Scalar;
+                var thisArity =
+                    info.IsFlagArity ? CliShortOptionArity.Flag :
+                    info.IsMapArity ? CliShortOptionArity.Map :
+                    CliShortOptionArity.Scalar;
                 if (arity.TryGetValue(shortChar, out var existing))
                 {
                     if (existing != thisArity) conflicting.Add(shortChar);

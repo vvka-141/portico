@@ -19,6 +19,8 @@ namespace Portico;
 ///     legitimately declared a multi-char short <c>-foo</c> and types <c>-foo</c>).</description></item>
 ///   <item><description>Tokens where any character is not a known single-char short — we refuse
 ///     to guess and let the downstream "unrecognized option" error fire.</description></item>
+///   <item><description>Tokens whose short is a map option (<c>-e[region] eu</c>) — the
+///     <c>[key]</c> suffix must reach the tokenizer intact, so the token is never split.</description></item>
 /// </list>
 /// </summary>
 internal static class CliShortOptionExpander
@@ -72,6 +74,14 @@ internal static class CliShortOptionExpander
         // If the first character isn't a known short, bail — we refuse to guess.
         if (!schema.TryGetArity(stem[0], out var firstArity)) return null;
 
+        // Map first char (-e[region] eu) → leave the whole token for the tokenizer, which
+        // understands the bracket-key syntax. Splitting here would tear the [key] off the option
+        // and it would never bind (POR-58).
+        if (firstArity == CliShortOptionArity.Map)
+        {
+            return null;
+        }
+
         // Scalar first char → entire rest is its value: -n5 → -n 5.
         if (firstArity == CliShortOptionArity.Scalar)
         {
@@ -85,6 +95,10 @@ internal static class CliShortOptionExpander
         {
             var c = stem[i];
             if (!schema.TryGetArity(c, out var arity)) return null;
+
+            // A map short mid-cluster carries a [key] we cannot represent in a split — leave the
+            // whole token intact for the tokenizer (POR-58).
+            if (arity == CliShortOptionArity.Map) return null;
 
             if (arity == CliShortOptionArity.Scalar)
             {
