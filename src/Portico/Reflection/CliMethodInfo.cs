@@ -80,10 +80,12 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
 
     /// <summary>
     /// Verify that no option alias is declared twice across the method's direct
-    /// <c>[CliOption]</c> parameters + bundle-parameter properties. Two parameters with the
-    /// same alias would both bind to the same capture at dispatch time, producing
-    /// silently-shared state that almost never matches user intent. Middleware aliases live
-    /// in a separate global pool and are checked per-application, not per-method.
+    /// <c>[CliOption]</c> parameters + bundle-parameter properties, <em>and</em> that none collides
+    /// with a middleware-declared global option. Two options sharing an alias would both bind to the
+    /// same capture at dispatch time, producing silently-shared state that almost never matches user
+    /// intent — and a route option shadowing a global <c>-v</c> is the same hazard across the local /
+    /// global boundary. Global-vs-global collisions are out of scope here (they are a per-application
+    /// concern, not a per-method one).
     /// </summary>
     private void RejectDuplicateOptionAliases()
     {
@@ -91,6 +93,19 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         // CliOptionSpec. When it used Ordinal and the matcher used OrdinalIgnoreCase, `-v` and `-V`
         // passed this check as distinct options and then both matched the same token at dispatch.
         var seen = new Dictionary<string, string>(CliAliasComparer.Instance);
+
+        // Seed with the middleware-declared global options so a route option that reuses a global
+        // alias is caught (POR-65). Seeded directly (no self-collision check) — two globals sharing an
+        // alias is a per-application concern this per-method guard does not own.
+        foreach (var global in _context.GlobalOptions)
+        {
+            if (global.Aliases.IsDefaultOrEmpty) continue;
+            foreach (var alias in global.Aliases)
+            {
+                seen[alias] = $"global option '{global.Name}' (declared by middleware)";
+            }
+        }
+
         foreach (var parameter in _parameters)
         {
             if (parameter is CliOptionParameterInfo opt)
