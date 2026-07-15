@@ -70,8 +70,11 @@ internal sealed class CliArgumentParameterInfo : CliParameterInfo
                 return ArgumentDefaultValue;
             }
 
+            // Argument name is developer-supplied, but sanitize on the same choke-point principle as
+            // the option path — every framework-composed error string on this boundary goes through
+            // CliSanitizer (POR-60, parity with CliOptionMaterializationException).
             throw new CliExitException(
-                $"Missing positional argument <{CliArgumentName.ToUpperInvariant()}>.")
+                CliSanitizer.Sanitize($"Missing positional argument <{CliArgumentName.ToUpperInvariant()}>."))
             { ExitCode = CliExitException.UsageErrorExitCode };
         }
 
@@ -83,8 +86,12 @@ internal sealed class CliArgumentParameterInfo : CliParameterInfo
         }
         catch (Exception e)
         {
+            // rawValue and e.Message are both attacker-influenced (argv). Sanitize the whole composed
+            // message so an argument error cannot carry ANSI escapes / zero-width / control characters
+            // to the terminal — the parity gap the POR-48 sanitizer doc warned about (POR-60).
             throw new CliExitException(
-                $"Argument <{CliArgumentName.ToUpperInvariant()}>: value '{rawValue}' could not be converted. {e.Message}")
+                CliSanitizer.Sanitize(
+                    $"Argument <{CliArgumentName.ToUpperInvariant()}>: value '{rawValue}' could not be converted. {e.Message}"))
             { ExitCode = CliExitException.UsageErrorExitCode };
         }
 
