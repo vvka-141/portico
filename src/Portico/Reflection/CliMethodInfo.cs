@@ -314,6 +314,25 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             var position = positionByAttribute.TryGetValue(attribute, out var p) ? p : -1;
             result[parameter] = (attribute, position);
         }
+
+        // Every method-level [CliArgument(name, …)] already contributed a CliArgumentSegment to the
+        // route (ExtractRouteParts), so one that resolves to no parameter leaves the route demanding a
+        // positional token that binds to nothing. Fail loudly at build/startup, mirroring the sibling
+        // placeholder guard in ResolveRoutePlaceholders — the analyzer assumes this backstop. POR-63.
+        foreach (var methodArg in attributes.OfType<CliArgumentAttribute>())
+        {
+            if (parameters.Any(methodArg.References)) continue;
+
+            var parameterList = parameters.Length == 0
+                ? "(method takes no parameters)"
+                : string.Join(", ", parameters.Select(p => p.Name));
+            throw new CliConfigurationException(
+                $"Method '{DeclaringType?.FullName}.{Name}' declares [CliArgument(\"{methodArg.ParameterName}\", …)] " +
+                $"but no parameter '{methodArg.ParameterName}' exists on the method. " +
+                $"Available parameters: {parameterList}. " +
+                $"Either rename the argument to match a parameter, or add the parameter.");
+        }
+
         return result;
     }
 
