@@ -16,14 +16,14 @@ internal sealed record CliContext
         IEnumerable<CliMiddleware> globalOptionBundles,
         ICliConsole console)
     {
-        RootRoutes = rootRoutes;
+        RootRoutes = [..rootRoutes];
         _globalOptionBundles = [..globalOptionBundles];
         _console = console;
         GlobalOptions = [.. _globalOptionBundles.SelectMany(bundle => bundle.GetOptions()).Distinct()];
     }
 
 
-    public IEnumerable<CliRouteAttribute> RootRoutes { get; }
+    public ImmutableArray<CliRouteAttribute> RootRoutes { get; }
 
     public CliMiddleware[] ToGlobalOptionBundles(CliInvocation invocation)
     {

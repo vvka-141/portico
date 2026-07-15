@@ -1369,8 +1369,8 @@ public sealed class CliApplication_Should
         Assert.Equal("second", svc.B);
     }
 
-#pragma warning disable SOL007 // Intentional duplicate: this fixture verifies the runtime guard
-                               // is still a safety net for builds without the analyzer. SOL007 now
+#pragma warning disable POR007 // Intentional duplicate: this fixture verifies the runtime guard
+                               // is still a safety net for builds without the analyzer. POR007 now
                                // catches the same mistake at compile time (see CliArgumentAnalyzers).
     public sealed class DuplicateArgService
     {
@@ -1379,7 +1379,7 @@ public sealed class CliApplication_Should
         [CliArgument(nameof(x), "method-level")]
         public int Go([CliArgument("parameter-level")] string x) => 0;
     }
-#pragma warning restore SOL007
+#pragma warning restore POR007
 
     [Fact]
     public void Reject_Duplicate_Argument_Declaration_At_ConfigTime()

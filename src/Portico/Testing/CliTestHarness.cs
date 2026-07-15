@@ -235,5 +235,6 @@ public sealed record CliTestRunResult(int ExitCode, string StandardOut, string S
 /// </summary>
 public sealed class CliTestAssertionException : Exception
 {
+    /// <summary>Creates the exception with the assertion-failure <paramref name="message"/>.</summary>
     public CliTestAssertionException(string message) : base(message) { }
 }

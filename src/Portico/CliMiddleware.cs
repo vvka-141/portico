@@ -44,6 +44,10 @@ public abstract class CliMiddleware : CliOptions, ICloneable
     private readonly ImmutableArray<CliOptionsPropertyInfo> _options;
 
 
+    /// <summary>
+    /// Initializes the middleware, discovering its <c>[CliOption]</c> properties so they surface as
+    /// global options across every route.
+    /// </summary>
     public CliMiddleware()
     {
         _options =

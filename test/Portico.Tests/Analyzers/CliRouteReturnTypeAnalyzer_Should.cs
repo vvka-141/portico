@@ -60,9 +60,9 @@ public sealed class CliRouteReturnTypeAnalyzer_Should
             """;
 
         var diags = await AnalyzerTestRunner.RunAsync(new CliRouteReturnTypeAnalyzer(), source);
-        var sol008 = diags.Single(d => d.Id == "POR008");
-        Assert.Contains("Run", sol008.GetMessage());
-        Assert.Contains("void", sol008.GetMessage());
+        var por008 = diags.Single(d => d.Id == "POR008");
+        Assert.Contains("Run", por008.GetMessage());
+        Assert.Contains("void", por008.GetMessage());
     }
 
     [Fact]
@@ -100,8 +100,8 @@ public sealed class CliRouteReturnTypeAnalyzer_Should
             """;
 
         var diags = await AnalyzerTestRunner.RunAsync(new CliRouteReturnTypeAnalyzer(), source);
-        var sol008 = diags.Single(d => d.Id == "POR008");
-        Assert.Contains("System.Threading.Tasks.Task", sol008.GetMessage());
+        var por008 = diags.Single(d => d.Id == "POR008");
+        Assert.Contains("System.Threading.Tasks.Task", por008.GetMessage());
     }
 
     [Fact]

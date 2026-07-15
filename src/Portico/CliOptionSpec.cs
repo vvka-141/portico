@@ -69,7 +69,11 @@ internal sealed class CliOptionSpec
                 nameof(specification));
         }
 
-        var names = new HashSet<string>(StringComparer.Ordinal);
+        // aliases preserves declaration order (what Aliases documents and CliOptionSpec_Should pins);
+        // seen is only the dedup guard. Building Aliases from the HashSet directly would have leaned on
+        // undocumented CLR enumeration order (POR-67).
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var aliases = new List<string>();
         var longNames = new List<string>();
         var shortNames = new List<string>();
 
@@ -82,11 +86,12 @@ internal sealed class CliOptionSpec
                 throw new ArgumentException($"Invalid parameter name option: {capture}", nameof(specification));
             }
 
-            if (!names.Add(capture.Value))
+            if (!seen.Add(capture.Value))
             {
                 throw new ArgumentException($"Duplicate option name detected: '{value}'", nameof(specification));
             }
 
+            aliases.Add(capture.Value);
             if (capture.Value.StartsWith("--")) longNames.Add(value);
             else shortNames.Add(value);
         }
@@ -105,7 +110,7 @@ internal sealed class CliOptionSpec
             .Join("|");
 
         return new CliOptionSpec(
-            names.ToArray().AsReadOnly(),
+            aliases.AsReadOnly(),
             longNames.AsReadOnly(),
             shortNames.AsReadOnly(),
             pipeSeparated);

@@ -11,7 +11,7 @@ public sealed class CliArgumentAnalyzers_Should
     // ── POR005: [CliArgument] references an unknown parameter ──────────────
 
     [Fact]
-    public async Task SOL005_Report_When_Method_Level_Argument_Targets_Unknown_Parameter()
+    public async Task POR005_Report_When_Method_Level_Argument_Targets_Unknown_Parameter()
     {
         var source = """
 using Portico;
@@ -27,15 +27,15 @@ public class Svc
 
         var diags = await AnalyzerTestRunner.RunAsync(new CliArgumentParameterAnalyzer(), source);
 
-        var sol005 = diags.Where(d => d.Id == "POR005").ToArray();
-        Assert.Single(sol005);
-        Assert.Contains("src", sol005[0].GetMessage());
-        Assert.Contains("Copy", sol005[0].GetMessage());
-        Assert.Contains("dest", sol005[0].GetMessage());
+        var por005 = diags.Where(d => d.Id == "POR005").ToArray();
+        Assert.Single(por005);
+        Assert.Contains("src", por005[0].GetMessage());
+        Assert.Contains("Copy", por005[0].GetMessage());
+        Assert.Contains("dest", por005[0].GetMessage());
     }
 
     [Fact]
-    public async Task SOL005_Not_Report_When_Method_Level_Argument_Targets_Existing_Parameter()
+    public async Task POR005_Not_Report_When_Method_Level_Argument_Targets_Existing_Parameter()
     {
         var source = """
 using Portico;
@@ -55,7 +55,7 @@ public class Svc
     // ── POR007: parameter targeted by more than one [CliArgument] ──────────
 
     [Fact]
-    public async Task SOL007_Report_When_Method_And_Parameter_Level_Target_Same_Parameter()
+    public async Task POR007_Report_When_Method_And_Parameter_Level_Target_Same_Parameter()
     {
         var source = """
 using Portico;
@@ -71,14 +71,14 @@ public class Svc
 
         var diags = await AnalyzerTestRunner.RunAsync(new DuplicateCliArgumentAnalyzer(), source);
 
-        var sol007 = diags.Where(d => d.Id == "POR007").ToArray();
-        Assert.Single(sol007);
-        Assert.Contains("path", sol007[0].GetMessage());
-        Assert.Contains("Init", sol007[0].GetMessage());
+        var por007 = diags.Where(d => d.Id == "POR007").ToArray();
+        Assert.Single(por007);
+        Assert.Contains("path", por007[0].GetMessage());
+        Assert.Contains("Init", por007[0].GetMessage());
     }
 
     [Fact]
-    public async Task SOL007_Report_When_Two_Parameter_Level_Attributes_Target_Same_Parameter()
+    public async Task POR007_Report_When_Two_Parameter_Level_Attributes_Target_Same_Parameter()
     {
         var source = """
 using Portico;
@@ -93,13 +93,13 @@ public class Svc
 
         var diags = await AnalyzerTestRunner.RunAsync(new DuplicateCliArgumentAnalyzer(), source);
 
-        var sol007 = diags.Where(d => d.Id == "POR007").ToArray();
-        Assert.Single(sol007);
-        Assert.Contains("path", sol007[0].GetMessage());
+        var por007 = diags.Where(d => d.Id == "POR007").ToArray();
+        Assert.Single(por007);
+        Assert.Contains("path", por007[0].GetMessage());
     }
 
     [Fact]
-    public async Task SOL007_Not_Report_When_Each_Parameter_Targeted_Once()
+    public async Task POR007_Not_Report_When_Each_Parameter_Targeted_Once()
     {
         var source = """
 using Portico;

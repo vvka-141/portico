@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// POR003 — flags <c>[CliOption]</c> / <c>[CliArgument]</c> attributes whose first-position
+/// POR003 — flags <c>[CliOption]</c> attributes whose first-position
 /// string argument isn't a valid pipe-separated alias list. Valid forms:
 /// <c>"--verbose"</c>, <c>"--verbose|-v"</c>, <c>"-t"</c>. Invalid forms: empty strings,
 /// whitespace, names without dashes, tokens that are nothing but dashes, trailing / leading

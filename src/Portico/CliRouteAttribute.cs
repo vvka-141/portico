@@ -45,6 +45,7 @@ public sealed class CliRouteAttribute : Attribute
     /// </summary>
     public string RouteSignature { get; }
 
+    /// <summary>The route's whitespace-split tokens (e.g. <c>["db", "migrate"]</c> for <c>"db migrate"</c>).</summary>
     public ImmutableArray<string> Segments { get; }
 
     /// <example><code>new CliRouteAttribute("db migrate").ToString() // "db migrate"</code></example>

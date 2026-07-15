@@ -8,7 +8,7 @@ namespace Portico;
 public sealed class CliCodeFixes_Should
 {
     [Fact]
-    public async Task SOL004_Insert_CliCommandExample_Stub_That_Compiles()
+    public async Task POR004_Insert_CliCommandExample_Stub_That_Compiles()
     {
         var source = """
 using Portico;
@@ -31,7 +31,7 @@ public class Svc
     }
 
     [Fact]
-    public async Task SOL006_Insert_Public_Parameterless_Constructor_That_Compiles()
+    public async Task POR006_Insert_Public_Parameterless_Constructor_That_Compiles()
     {
         var source = """
 using Portico;
