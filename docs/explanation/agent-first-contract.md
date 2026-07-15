@@ -13,7 +13,7 @@ each ✅ is a behaviour with a test behind it, named.
 | Never hang waiting for a human who is not there | ✅ shipped | `CliPrompt` |
 | Exit codes are a stable enumeration | ✅ shipped, now documented | `CliExitException` |
 | stderr is not a prompt-injection channel | ✅ **new** | `CliSanitizer` |
-| Ground truth about the real surface | 🟡 partial | verified `--help`; a manifest is [POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41) |
+| Ground truth about the real surface | 🟡 partial | verified `--help` shipped; machine-readable emission sanctioned by [POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41), not yet built |
 | Structured output (`--json`) | ❌ **declined** | see below |
 | Typed error envelopes | ❌ declined for now | see below |
 
@@ -78,10 +78,11 @@ An agent learns a CLI by reading `--help`. Portico's help is unusually trustwort
 it are **executed against the real contract**, so they cannot be stale — but it is prose, not a
 manifest.
 
-Whether Portico should emit a machine-readable manifest is a **Charter question**, not an engineering
-one (§5 rejects DSL *input* formats; a manifest is derived *output* — close enough to the line that it
-must be settled explicitly). It is [POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41), and
-it is deliberately unanswered here.
+Whether Portico should emit a machine-readable manifest was a **Charter question**, not an engineering
+one (§5 rejects DSL *input* formats; a manifest is derived *output*). It was settled by
+[POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41) on 2026-07-15: **emission is
+permitted** — read-only, hard-scoped, no schema ingestion and no MCP server mode. See Charter §5.
+The manifest itself is not yet built.
 
 ## ❌ Structured output (`--json`) — declined
 

@@ -91,7 +91,14 @@ A CLI is an HTTP API without the H.
   This split is not a cop-out: **Azure Functions Core Tools** ships on System.CommandLine *plus*
   Spectre.Console — a first-party CLI using a router and a renderer together, exactly as prescribed here.
 - **Not a REPL / interactive shell framework.** One command, one invocation, one exit code.
-- **No custom DSL file formats.** No `.cli.json` schemas. C# is the schema.
+- **No custom DSL file formats _as input_.** No `.cli.json` schema that *defines* the CLI and
+  competes with C# as the source of truth. C# is the schema. **Emitting the command surface as
+  machine-readable _output_ is permitted** (POR-41, decided 2026-07-15). A manifest derived from the
+  attributes does not compete with "C# is the schema" — it *is* that schema serialized, and it
+  cannot drift because there is no second source of truth. The boundary is hard: read-only emission
+  of the surface Portico already models, no schema *ingestion*, no MCP server mode, no plugin
+  loading. The moment an emitted artefact is read back to *alter* behaviour it has become input, and
+  this permission does not cover it.
 - **No attempt at Windows-only features by default.** POSIX-friendly first; Windows-idiomatic bits are opt-in.
 
 ## 6. Success metrics for 1.0
