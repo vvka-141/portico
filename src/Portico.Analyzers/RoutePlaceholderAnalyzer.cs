@@ -23,11 +23,17 @@ public sealed class RoutePlaceholderAnalyzer : DiagnosticAnalyzer
 {
     private const string CliRouteAttributeFullName = "Portico.CliRouteAttribute";
 
-    // Must match the regex used at runtime in CliMethodInfo.PlaceholderRegex so analyzer and
-    // runtime stay in lock-step. Kept verbatim — DO NOT diverge.
+    // Mirrors the runtime's CliMethodInfo.PlaceholderRegex EXACTLY: anchored (^...$), matched
+    // against a single whitespace-split token — NOT run unanchored over the whole route string.
+    // The runtime treats "{id}" as a placeholder only when it is the entire token, so "user{id}"
+    // is a literal it routes fine; an unanchored scan here reported POR001 on that and failed a
+    // working build (POR-61). The analyzer cannot reference the framework (netstandard2.0 → net10.0),
+    // so the algorithm is reproduced, not shared — keep both in lock-step by hand.
     private static readonly Regex PlaceholderRegex = new(
-        @"\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}",
-        RegexOptions.Compiled);
+        @"^\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly Regex RouteTokenSeparator = new(@"\s+", RegexOptions.Compiled);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
         ImmutableArray.Create(PorticoDiagnostics.RoutePlaceholderMismatch);
@@ -61,8 +67,15 @@ public sealed class RoutePlaceholderAnalyzer : DiagnosticAnalyzer
 
                 var routeString = literal.Token.ValueText;
 
-                foreach (Match match in PlaceholderRegex.Matches(routeString))
+                // Tokenize-then-anchor-match, exactly as CliMethodInfo.ExtractRouteParts does at
+                // runtime: split on whitespace, trim, and treat a token as a placeholder only when
+                // it is ENTIRELY {name}.
+                foreach (var token in RouteTokenSeparator.Split(routeString))
                 {
+                    if (string.IsNullOrWhiteSpace(token)) continue;
+                    var match = PlaceholderRegex.Match(token.Trim());
+                    if (!match.Success) continue;
+
                     var placeholderName = match.Groups["name"].Value;
                     if (parameterNames.Contains(placeholderName)) continue;
 
