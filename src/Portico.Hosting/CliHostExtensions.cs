@@ -162,9 +162,13 @@ public static class CliHostExtensions
 
         var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
 
-        await host.StartAsync().ConfigureAwait(false);
         try
         {
+            // StartAsync is INSIDE the try: if an IHostedService faults during startup (the scenario
+            // the <remarks> above anticipates), StopAsync must still run so any service that already
+            // started is shut down and disposed rather than leaked. Host.StopAsync tolerates a
+            // partially-started host. POR-62.
+            await host.StartAsync().ConfigureAwait(false);
             return await app.RunAsync(args, lifetime.ApplicationStopping).ConfigureAwait(false);
         }
         finally
