@@ -41,7 +41,6 @@ internal interface ICliOptionMemberInfo
 
     public sealed bool IsIn(CliInvocation invocation)
     {
-        //Debug.WriteLine(Name);
         foreach (var option in invocation.Options)
         {
             if (IsMatch(option.Name))

@@ -24,25 +24,16 @@ internal static class CodeFixHelpers
     /// Returns a new <see cref="MethodDeclarationSyntax"/> with <paramref name="attribute"/> prepended
     /// to its attribute list, preserving the original layout. The doc comment + indentation that
     /// previously belonged to the first existing attribute list is transferred to the new attribute,
-    /// and the previously-first attribute list keeps only its indent. When the method has no existing
-    /// attributes, the method's own leading trivia (typically the doc comment + indent) is moved onto
-    /// the new attribute list.
+    /// and the previously-first attribute list keeps only its indent.
     /// </summary>
+    /// <remarks>
+    /// The method is expected to already carry at least one attribute list — POR004's fix only runs on
+    /// a <c>[CliRoute]</c> method, which by definition has one. A no-attribute overload was removed as
+    /// unreachable (POR-66); re-add it when a fix actually needs to attribute a bare method.
+    /// </remarks>
     internal static MethodDeclarationSyntax PrependAttribute(MethodDeclarationSyntax method, AttributeSyntax attribute)
     {
         var newList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(attribute));
-
-        if (method.AttributeLists.Count == 0)
-        {
-            // No existing attributes: hoist the method's leading trivia onto the new list and strip
-            // it from the method.
-            return method
-                .WithLeadingTrivia(SyntaxFactory.TriviaList())
-                .WithAttributeLists(SyntaxFactory.SingletonList(
-                    newList
-                        .WithLeadingTrivia(method.GetLeadingTrivia())
-                        .WithTrailingTrivia(SyntaxFactory.ElasticCarriageReturnLineFeed)));
-        }
 
         var firstExisting = method.AttributeLists[0];
         var (docAndComments, indent) = SplitLeadingTrivia(firstExisting.GetLeadingTrivia());

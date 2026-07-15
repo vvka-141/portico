@@ -30,13 +30,6 @@ internal sealed class CliAliasComparer : IEqualityComparer<string>
     /// <summary>A single-char short alias: one leading dash and exactly one character (e.g. <c>-v</c>).</summary>
     private static bool IsSingleCharShort(string alias) => alias.Length == 2 && alias[0] == '-';
 
-    /// <summary>
-    /// The comparison that applies to <paramref name="alias"/>: ordinal for a single-char short
-    /// alias, ordinal-ignore-case for anything longer.
-    /// </summary>
-    public static StringComparison ComparisonFor(string alias) =>
-        IsSingleCharShort(alias) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-
     public bool Equals(string? x, string? y)
     {
         if (x is null || y is null) return ReferenceEquals(x, y);
