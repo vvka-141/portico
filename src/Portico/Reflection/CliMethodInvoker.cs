@@ -77,6 +77,15 @@ internal static class CliMethodInvoker
                     }
                     return 0;
                 }
+                case ValueTask<int> intValueTask:
+                    return await intValueTask.ConfigureAwait(false);
+                case ValueTask valueTask:
+                    // Defense-in-depth: POR008 forbids a ValueTask return, but if the analyzer is
+                    // suppressed the handler must still be AWAITED — falling to `default: return 0`
+                    // would report success for unfinished async work. Mirrors the non-generic Task
+                    // fallback above (also more permissive than POR008 on purpose). POR-64.
+                    await valueTask.ConfigureAwait(false);
+                    return 0;
                 case int exitCode:
                     return exitCode;
                 default:
