@@ -57,6 +57,45 @@ public sealed class CliCapabilities_Should
         }
     }
 
+    // capabilities.md claims a collection's environment value is comma-separated while argv is not.
+    // Pin that documented divergence here — this suite is what tells us the page has started lying.
+    public sealed class EnvCollectionTool
+    {
+        public List<string>? Seen;
+
+        [CliRoute("tag")]
+        [CliCommandExample("tag")]
+        public int Tag(
+            [CliOption("--tag", "labels", EnvironmentVariable = "PORTICO_TEST_TAGS")] List<string>? tags = null)
+        {
+            Seen = tags;
+            return 0;
+        }
+    }
+
+    [Fact]
+    public void Split_A_Collection_Environment_Value_On_Commas_But_Not_Argv()
+    {
+        var tool = new EnvCollectionTool();
+        var app = CliApplication.Create(cfg => cfg.WithConsole(new StringCliConsole()).AddCommands(tool));
+
+        Environment.SetEnvironmentVariable("PORTICO_TEST_TAGS", "Smith, John");
+        try
+        {
+            // Environment: comma is the separator, so a comma-bearing value becomes two elements.
+            Assert.Equal(0, app.Run("app tag"));
+            Assert.Equal(["Smith", "John"], tool.Seen);
+
+            // argv: no split, so the same value is one element — the documented divergence.
+            Assert.Equal(0, app.Run("app tag --tag \"Smith, John\""));
+            Assert.Equal(["Smith, John"], tool.Seen);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PORTICO_TEST_TAGS", null);
+        }
+    }
+
     // --- DefaultValue (the string form, distinct from a C# default) ---------------------------
 
     public sealed class DefaultTool

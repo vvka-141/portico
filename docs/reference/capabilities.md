@@ -28,12 +28,19 @@ never asks:
 |---|---|---|
 | scalar | `PORTICO_API_TOKEN=abc` | converted exactly as a typed value would be |
 | `CliFlag?` | `PORTICO_VERBOSE=1` | on unless the value is empty, `0`, `false` or `no` (any case) |
-| collection | `PORTICO_TAGS=a,b,c` | comma-separated; a value containing a comma must come from argv |
+| collection | `PORTICO_TAGS=a,b,c` | comma-separated (see below); a value containing a comma must come from argv |
 | **map** | — | **not supported, and it throws at startup** |
 
 **Set-but-empty is off.** `docker run -e FOO` and an undefined variable in a compose file both pass
 `FOO=`, so treating "the variable exists" as "the flag is on" would silently enable a flag nobody
 asked for — on the most common container idiom there is.
+
+**A collection's comma is an environment-only separator.** One variable has no other way to carry a
+list, so `PORTICO_TAGS=a,b,c` binds three elements. argv does not split — you repeat the flag
+(`--tag a --tag b`), and `--tag "Smith, John"` is one element. The consequence is that the two
+channels disagree for a value containing a comma: `--tag "Smith, John"` is one element, but
+`PORTICO_TAGS=Smith, John` is two, and there is no way to escape it. If an element can contain a
+comma, take it from the command line, or take the whole thing as a scalar and split it yourself.
 
 **The map case is declined, loudly.** One variable cannot carry key/value pairs without nesting one
 separator inside another (`PORTICO_SHARD=eu=3,us=5`), and every such encoding breaks on the first
