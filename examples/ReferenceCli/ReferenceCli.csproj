@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>fleet</AssemblyName>
+    <RootNamespace>ReferenceCli</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Portico\Portico.csproj" />
+    <!--
+      The reference CLI is the corpus that proves every capability works. It MUST be checked by the
+      framework's own analyzers, or a route could ship without an example (POR004) and the corpus
+      would model the mistake it exists to prevent. Analyzers do not flow through a plain
+      ProjectReference — a NuGet consumer gets them from `dotnet add package Portico`; in-repo we wire
+      the analyzer project explicitly, exactly as AdminCli does.
+    -->
+    <ProjectReference Include="..\..\src\Portico.Analyzers\Portico.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
