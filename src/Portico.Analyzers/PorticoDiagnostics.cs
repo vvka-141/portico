@@ -25,9 +25,9 @@ internal static class PorticoDiagnostics
         id: "POR001",
         title: "Route placeholder does not match any parameter",
         messageFormat:
-            "Route placeholder '{{{0}}}' on '{1}' does not match any parameter. " +
-            "Available parameters: {2}. " +
-            "Rename the placeholder or add a parameter with this name.",
+            "Route placeholder '{{{0}}}' on '{1}' binds to a parameter of the same name, but '{1}' " +
+            "has none called '{0}'. Available parameters: {2}. Rename the placeholder to one of those, " +
+            "or add a parameter '{0}'.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -91,8 +91,9 @@ internal static class PorticoDiagnostics
         id: "POR004",
         title: "Missing [CliCommandExample] on [CliRoute] method",
         messageFormat:
-            "Method '{0}' is decorated with [CliRoute] but has no [CliCommandExample]. " +
-            "Add at least one example — it both documents the command and drives CliContractValidator<T> tests.",
+            "Method '{0}' is decorated with [CliRoute] but has no [CliCommandExample]. Add one — " +
+            "e.g. [CliCommandExample(\"<the command as a user would type it>\")] — it both documents " +
+            "the command and becomes an executable CliContractValidator<T> test.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
