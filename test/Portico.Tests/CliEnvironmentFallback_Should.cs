@@ -142,6 +142,31 @@ public sealed class CliEnvironmentFallback_Should
         Assert.Null(tool.Items);
     }
 
+    // POR-73. The comma is the collection separator on the ENV path only. A value that legitimately
+    // contains a comma survives argv (one element) but is split by the environment (two). The split
+    // is necessary — one variable has no other way to carry a list — and the divergence is a
+    // documented limitation (docs/reference/capabilities.md, CliOptionAttribute.EnvironmentVariable),
+    // NOT a promise that the two channels agree. These two tests pin both halves so the contract is
+    // executable rather than merely written down.
+    [Fact]
+    public void Split_A_Comma_In_A_Value_On_The_Environment_Path()
+    {
+        var tool = Run("app run", ("POR_T_ITEMS", "Smith, John"));
+
+        // The environment cannot express an element containing the separator — it becomes two.
+        Assert.Equal(["Smith", "John"], tool.Items);
+    }
+
+    [Fact]
+    public void Keep_A_Comma_In_A_Value_On_The_Command_Line_Path()
+    {
+        var tool = Run("app run --item \"Smith, John\"");
+
+        // argv does NOT split on commas, so the same value is one element here. Do not "reconcile"
+        // the two paths by splitting argv — it would corrupt every value that contains a comma.
+        Assert.Equal(["Smith, John"], tool.Items);
+    }
+
     // --- Map: declined, LOUDLY ------------------------------------------------------------------
 
     public sealed class MapTool
