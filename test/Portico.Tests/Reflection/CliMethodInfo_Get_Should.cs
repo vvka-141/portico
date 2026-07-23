@@ -15,12 +15,11 @@ public sealed class CliMethodInfo_Get_Should
 
     public interface IPgUpTestCase
     {
-        [CliRoute("init")]
-        [CliArgument(nameof(projectDir), "Project directory path", Name = "ProjectDir")]
+        [CliRoute("init {projectDir}")]
         [CliCommandExample("init .")]
         [CliCommandExample("init /src/database --template basic")]
         public void Initialize(
-            string projectDir,
+            [CliArgument("Project directory path", Name = "ProjectDir")] string projectDir,
             [CliOption("--verbose")] CliFlag? verbose);
 
         internal static void Test()

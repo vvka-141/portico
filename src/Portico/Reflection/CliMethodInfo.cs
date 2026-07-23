@@ -37,23 +37,17 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         var parameters = base.GetParameters();
         var attributes = GetCustomAttributes(true).OfType<Attribute>().ToList();
 
-        RejectMultipleRouteAttributes(attributes);
-
         var rootSegments = BuildRootSegments(_context);
         var typePrefixSegments = BuildTypePrefixSegments(method, registeredType);
-        var parameterLevelArgs = ResolveParameterLevelArguments(parameters, attributes);
+        var parameterLevelArgs = ResolveParameterLevelArguments(parameters);
         var resolvedRouteParts = ResolveRoutePlaceholders(parameters, attributes, parameterLevelArgs, out var placeholderArgs);
 
         // After placeholder resolution, no CliPlaceholderSegment instances remain — _routeSegments
-        // is exclusively CliLiteralSegment + CliArgumentSegment.
-        _routeSegments = [
-            ..rootSegments,
-            ..typePrefixSegments,
-            ..resolvedRouteParts,
-            ..parameterLevelArgs.Select(a => (CliRouteSegment)new CliArgumentSegment(a))
-        ];
+        // is exclusively CliLiteralSegment + CliArgumentSegment. Every argument segment came from a
+        // {placeholder} in a [CliRoute]: the route string is the command's path, in full.
+        _routeSegments = [..rootSegments, ..typePrefixSegments, ..resolvedRouteParts];
 
-        var argumentByParameter = MapArgumentsToParameters(parameters, attributes, placeholderArgs, parameterLevelArgs);
+        var argumentByParameter = MapArgumentsToParameters(parameters, placeholderArgs);
 
         _parameters = [.. BuildParameterInfos(parameters, argumentByParameter)];
         RejectDuplicateOptionAliases();
@@ -142,17 +136,6 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         }
     }
 
-    private void RejectMultipleRouteAttributes(IReadOnlyList<Attribute> attributes)
-    {
-        var routeAttributes = attributes.OfType<CliRouteAttribute>().ToList();
-        if (routeAttributes.Count <= 1) return;
-        throw new CliConfigurationException(
-            $"Method '{DeclaringType?.FullName}.{Name}' declares {routeAttributes.Count} [CliRoute] attributes. " +
-            "Only one [CliRoute] per method is supported — multiple attributes previously flattened into a single " +
-            "concatenated route and did not behave as aliases. If you need route aliases, pick one canonical route " +
-            "for now; first-class alias syntax is on the roadmap.");
-    }
-
     private static IReadOnlyList<CliRouteSegment> BuildRootSegments(CliContext context) =>
         context.RootRoutes
             .SelectMany(r => Regex.Split(r.RouteSignature, @"\s+"))
@@ -182,13 +165,12 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     }
 
     /// <summary>
-    /// Discover parameter-level <c>[CliArgument(description)]</c> attributes, resolve each to its
-    /// parameter's name via reflection, and reject conflicts with method-level
-    /// <c>[CliArgument(nameof(x), …)]</c> for the same parameter.
+    /// Discover <c>[CliArgument(description)]</c> attributes on the method's parameters and resolve
+    /// each to its parameter's name via reflection. These describe arguments; they never declare
+    /// route position — <see cref="ResolveRoutePlaceholders"/> matches each to a <c>{placeholder}</c>
+    /// and rejects any that matches none.
     /// </summary>
-    private List<CliArgumentAttribute> ResolveParameterLevelArguments(
-        ParameterInfo[] parameters,
-        IReadOnlyList<Attribute> attributes)
+    private List<CliArgumentAttribute> ResolveParameterLevelArguments(ParameterInfo[] parameters)
     {
         var result = new List<CliArgumentAttribute>();
         foreach (var parameter in parameters)
@@ -208,35 +190,28 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             var attr = paramAttrs[0];
             var resolvedName = parameter.Name ?? string.Empty;
 
-            var conflicting = attributes
-                .OfType<CliArgumentAttribute>()
-                .FirstOrDefault(a => a.ParameterName == resolvedName);
-            if (conflicting is not null)
-            {
-                throw new CliConfigurationException(
-                    $"Parameter '{resolvedName}' on '{DeclaringType?.FullName}.{Name}' is declared by both a " +
-                    $"parameter-level and a method-level [CliArgument]. Pick one.");
-            }
-
-            // ParameterName / Name are open for internal writes so the parameter-level ctor can be
-            // name-less and still plumb through the routing code.
+            // ParameterName / Name are open for internal writes so the ctor can be name-less and
+            // still plumb through the routing code. Name is only defaulted, never overwritten — an
+            // author who wrote [CliArgument("desc", Name = "PATH")] chose that display form.
             attr.ParameterName = resolvedName;
-            attr.Name = resolvedName;
+            if (string.IsNullOrWhiteSpace(attr.Name)) attr.Name = resolvedName;
             result.Add(attr);
         }
         return result;
     }
 
     /// <summary>
-    /// Walk <c>{name}</c> placeholders in the route signature and replace each with a synthesized
-    /// <see cref="CliArgumentSegment"/> bound to the matching parameter. Throws at Create time
-    /// when a placeholder doesn't match any parameter or when the same parameter is declared twice
-    /// (placeholder + <c>[CliArgument]</c> attribute).
+    /// Walk <c>{name}</c> placeholders in the route signature and replace each with a
+    /// <see cref="CliArgumentSegment"/> bound to the matching parameter. Throws at Create time when a
+    /// placeholder matches no parameter, or when a <c>[CliArgument]</c> matches no placeholder.
     /// </summary>
     /// <remarks>
-    /// Runtime detection is the interim answer; the Roslyn analyzer (rule SOL001) promotes the
-    /// same check to compile-time. The runtime check stays — it's the defense for users who build
-    /// without the analyzer installed.
+    /// The route string is the command's path in full — every argument segment originates here, from
+    /// a <c>{placeholder}</c>, never from an attribute's position or a parameter's ordinal. A
+    /// <c>[CliArgument]</c> on a placeholder-bound parameter supplies the description and display
+    /// name and is consumed into the segment; one that matches no placeholder is a configuration
+    /// error. The Roslyn analyzers promote both checks to compile time (POR001, POR005); these
+    /// runtime checks stay as the defense for users who build without the analyzers installed.
     /// </remarks>
     private List<CliRouteSegment> ResolveRoutePlaceholders(
         ParameterInfo[] parameters,
@@ -244,14 +219,6 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         List<CliArgumentAttribute> parameterLevelArgs,
         out List<CliArgumentAttribute> placeholderArgs)
     {
-        // Method-level [CliArgument(nameof(x), …)] on the same param as a placeholder is a
-        // genuine conflict (two routing declarations). Parameter-level [CliArgument(description)]
-        // is NOT a conflict — it augments the synthesized argument with a description and is
-        // consumed into the placeholder below.
-        var methodLevelArgNames = new HashSet<string>(
-            attributes.OfType<CliArgumentAttribute>().Select(a => a.ParameterName),
-            StringComparer.Ordinal);
-
         placeholderArgs = new List<CliArgumentAttribute>();
         var parts = ExtractRouteParts(attributes).ToList();
         for (int i = 0; i < parts.Count; i++)
@@ -270,30 +237,54 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
                     $"Either rename the placeholder, or add the parameter.");
             }
 
-            if (methodLevelArgNames.Contains(placeholder.Name))
+            // Reuse the parameter's own [CliArgument] when it has one — that instance already carries
+            // the author's description and any Name override. Synthesize only when it has none.
+            var declared = parameterLevelArgs.FirstOrDefault(a => a.ParameterName == placeholder.Name);
+            if (declared is not null)
             {
-                throw new CliConfigurationException(
-                    $"Method '{DeclaringType?.FullName}.{Name}': parameter '{placeholder.Name}' is " +
-                    $"declared by both a route placeholder '{{{placeholder.Name}}}' and a method-level " +
-                    $"[CliArgument] attribute. Pick one — the placeholder alone is enough for routing; " +
-                    $"use a parameter-level [CliArgument(\"description\")] on the parameter itself if " +
-                    $"you want to add a description to a placeholder-bound argument.");
+                parameterLevelArgs.Remove(declared);
             }
 
-            // If the placeholder-bound parameter carries a parameter-level [CliArgument(description)],
-            // consume it — its role is description augmentation, not routing.
-            var paramLevel = parameterLevelArgs.FirstOrDefault(a => a.ParameterName == placeholder.Name);
-            var description = paramLevel?.Description ?? placeholder.Name;
-            if (paramLevel is not null)
+            var argument = declared ?? new CliArgumentAttribute(placeholder.Name)
             {
-                parameterLevelArgs.Remove(paramLevel);
-            }
+                ParameterName = placeholder.Name,
+                Name = placeholder.Name
+            };
 
-            var synthesized = new CliArgumentAttribute(placeholder.Name, description);
-            placeholderArgs.Add(synthesized);
-            parts[i] = new CliArgumentSegment(synthesized);
+            placeholderArgs.Add(argument);
+            parts[i] = new CliArgumentSegment(argument);
         }
+
+        RejectArgumentsWithoutAPlaceholder(parameterLevelArgs, attributes);
         return parts;
+    }
+
+    /// <summary>
+    /// Every <c>[CliArgument]</c> left unconsumed describes a parameter the route declares no
+    /// <c>{placeholder}</c> for. Before POR-70 such an attribute silently appended a segment to the
+    /// route, so a command's path depended on C# parameter order and was invisible in its route
+    /// string. It is now a configuration error, and the message carries the corrected route.
+    /// </summary>
+    private void RejectArgumentsWithoutAPlaceholder(
+        List<CliArgumentAttribute> unconsumed,
+        IReadOnlyList<Attribute> attributes)
+    {
+        if (unconsumed.Count == 0) return;
+
+        var route = attributes.OfType<CliRouteAttribute>().FirstOrDefault()?.RouteSignature ?? string.Empty;
+        var names = unconsumed.Select(a => a.ParameterName).ToList();
+        var corrected = $"{route} {names.Select(n => $"{{{n}}}").Join(" ")}".Trim();
+
+        var subject = names.Count == 1
+            ? $"parameter '{names[0]}' carries [CliArgument] but the route \"{route}\" " +
+              $"declares no {{{names[0]}}} placeholder"
+            : $"parameters {names.Select(n => $"'{n}'").Join(", ")} carry [CliArgument] but the " +
+              $"route \"{route}\" declares no {names.Select(n => $"{{{n}}}").Join(", ")} placeholders";
+
+        throw new CliConfigurationException(
+            $"Method '{DeclaringType?.FullName}.{Name}': {subject}. " +
+            $"A command's path is declared entirely by [CliRoute] — put the argument in the route: " +
+            $"[CliRoute(\"{corrected}\")]. [CliArgument] only describes an argument the route already declares.");
     }
 
     /// <summary>
@@ -303,9 +294,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     /// </summary>
     private Dictionary<ParameterInfo, (CliArgumentAttribute Attribute, int Position)> MapArgumentsToParameters(
         ParameterInfo[] parameters,
-        IReadOnlyList<Attribute> attributes,
-        IReadOnlyList<CliArgumentAttribute> placeholderArgs,
-        IReadOnlyList<CliArgumentAttribute> parameterLevelArgs)
+        IReadOnlyList<CliArgumentAttribute> placeholderArgs)
     {
         var positionByAttribute = new Dictionary<CliArgumentAttribute, int>();
         for (int i = 0; i < _routeSegments.Length; i++)
@@ -316,36 +305,12 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             }
         }
 
-        var allArgAttrs = attributes
-            .OfType<CliArgumentAttribute>()
-            .Concat(placeholderArgs)
-            .Concat(parameterLevelArgs);
-
         var result = new Dictionary<ParameterInfo, (CliArgumentAttribute, int)>();
-        foreach (var attribute in allArgAttrs)
+        foreach (var attribute in placeholderArgs)
         {
             var parameter = parameters.FirstOrDefault(attribute.References);
             if (parameter is null) continue;
-            var position = positionByAttribute.TryGetValue(attribute, out var p) ? p : -1;
-            result[parameter] = (attribute, position);
-        }
-
-        // Every method-level [CliArgument(name, …)] already contributed a CliArgumentSegment to the
-        // route (ExtractRouteParts), so one that resolves to no parameter leaves the route demanding a
-        // positional token that binds to nothing. Fail loudly at build/startup, mirroring the sibling
-        // placeholder guard in ResolveRoutePlaceholders — the analyzer assumes this backstop. POR-63.
-        foreach (var methodArg in attributes.OfType<CliArgumentAttribute>())
-        {
-            if (parameters.Any(methodArg.References)) continue;
-
-            var parameterList = parameters.Length == 0
-                ? "(method takes no parameters)"
-                : string.Join(", ", parameters.Select(p => p.Name));
-            throw new CliConfigurationException(
-                $"Method '{DeclaringType?.FullName}.{Name}' declares [CliArgument(\"{methodArg.ParameterName}\", …)] " +
-                $"but no parameter '{methodArg.ParameterName}' exists on the method. " +
-                $"Available parameters: {parameterList}. " +
-                $"Either rename the argument to match a parameter, or add the parameter.");
+            result[parameter] = (attribute, positionByAttribute[attribute]);
         }
 
         return result;
@@ -519,11 +484,11 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     private static partial Regex PlaceholderRegex();
 
     /// <summary>
-    /// Tokenizes method attributes into a sequence of <see cref="CliRouteSegment"/>s. Literal
-    /// tokens become <see cref="CliLiteralSegment"/>, <c>{name}</c> placeholders become
-    /// <see cref="CliPlaceholderSegment"/> (to be resolved later), and method-level
-    /// <see cref="CliArgumentAttribute"/>s become <see cref="CliArgumentSegment"/> in their
-    /// source-ordered position. The output preserves attribute order so positional routing works.
+    /// Tokenizes the method's <see cref="CliRouteAttribute"/> into a sequence of
+    /// <see cref="CliRouteSegment"/>s: literal tokens become <see cref="CliLiteralSegment"/> and
+    /// <c>{name}</c> placeholders become <see cref="CliPlaceholderSegment"/>, resolved later by
+    /// <see cref="ResolveRoutePlaceholders"/>. Only the route string contributes segments — no other
+    /// attribute does, so the order attributes happen to be declared in cannot move a path segment.
     /// </summary>
     private static IReadOnlyList<CliRouteSegment> ExtractRouteParts(IReadOnlyList<Attribute> attributes)
     {
@@ -543,11 +508,6 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
                                 ? new CliPlaceholderSegment(ph.Groups["name"].Value)
                                 : new CliLiteralSegment(r);
                         });
-                }
-
-                if (attribute is CliArgumentAttribute argument)
-                {
-                    return [new CliArgumentSegment(argument)];
                 }
 
                 return [];

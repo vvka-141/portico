@@ -11,10 +11,9 @@ public sealed class CliCompletion_Should
 {
     public interface IDemoCommands
     {
-        [CliRoute("init")]
-        [CliArgument(nameof(path), "project path")]
+        [CliRoute("init {path}")]
         [CliCommandExample("init .")]
-        int Init(string path);
+        int Init([CliArgument("project path")] string path);
 
         [CliRoute("db migrate")]
         [CliCommandExample("db migrate")]

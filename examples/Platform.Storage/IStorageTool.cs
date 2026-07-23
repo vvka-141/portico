@@ -22,6 +22,6 @@ public interface IStorageTool
     [CliRoute("purge {bucket}")]
     [CliCommandExample("purge invoices --older-than \"30 days\"")]
     int Purge(
-        [CliArgument(nameof(bucket), "which bucket to purge")] string bucket,
+        [CliArgument("which bucket to purge")] string bucket,
         [CliOption("--older-than", "Delete objects older than this")] System.TimeSpan? olderThan = null);
 }

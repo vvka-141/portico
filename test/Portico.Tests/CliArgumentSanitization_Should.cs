@@ -13,9 +13,9 @@ public sealed class CliArgumentSanitization_Should
 {
     public interface ITool
     {
-        [CliRoute("square")]
+        [CliRoute("square {n}")]
         [CliCommandExample("square 5")]
-        int Square([CliArgument(nameof(n), "the number to square")] int n);
+        int Square([CliArgument("the number to square")] int n);
 
         [CliRoute("scale")]
         [CliCommandExample("scale --by 2")]

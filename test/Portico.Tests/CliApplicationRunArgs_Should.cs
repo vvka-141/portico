@@ -15,10 +15,9 @@ public sealed class CliApplicationRunArgs_Should
     {
         public int Observed { get; private set; } = -1;
 
-        [CliRoute("count")]
-        [CliArgument(nameof(n), "how many")]
+        [CliRoute("count {n}")]
         [CliCommandExample("count 3")]
-        public int Count(int n)
+        public int Count([CliArgument("how many")] int n)
         {
             Observed = n;
             return 0;

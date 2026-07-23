@@ -23,8 +23,8 @@ A CLI is an HTTP API without the H.
 
 | HTTP                          | Portico                              |
 | ----------------------------- | ------------------------------------------------- |
-| `[Route("api/projects/{id}")]`| `[CliRoute("projects get")]`                      |
-| Route parameter `{id}`        | `[CliArgument(nameof(id), …)]`                    |
+| `[Route("api/projects/{id}")]`| `[CliRoute("projects get {id}")]`                 |
+| `[FromRoute] string id`       | `[CliArgument("which project")] string id`        |
 | `[FromQuery] string format`   | `[CliOption("--format")]`                         |
 | `?cfg[env]=prod`              | `--cfg[env] prod` (map option)                    |
 | `[FromBody] RequestDto`       | `CliOptions`                                 |
@@ -132,7 +132,7 @@ gates, not nice-to-haves.
 - **✅ Analyzer coverage — complete for every attribute contract (POR-25).** It was inherited marked
   "✅ audited" and was false; the two gaps it hid are now closed.
   Shipping today: `[CliRoute]` → POR001 (placeholder mismatch), POR002 (duplicate route), POR008
-  (invalid return type); `[CliArgument]` → POR005 (unknown parameter), POR007 (duplicate argument);
+  (invalid return type); `[CliArgument]` → POR005 (no matching placeholder), POR007 (duplicate argument);
   `[CliOption]` → POR003 (malformed spec), **POR009 (duplicate alias)**, **POR010 (type that cannot
   be built from a command-line string)**; `[CliCommandExample]` → POR004 (missing example); and the
   `CliOptions` **bundle** constructor contract → POR006.

@@ -9,10 +9,9 @@ public sealed class CliTestHarness_Should
 {
     public sealed class EchoService
     {
-        [CliRoute("echo")]
-        [CliArgument(nameof(message), "message to echo")]
+        [CliRoute("echo {message}")]
         [CliCommandExample("echo hello")]
-        public int Echo(string message)
+        public int Echo([CliArgument("message to echo")] string message)
         {
             Console.Out.WriteLine(message);
             return 0;

@@ -8,9 +8,10 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// POR005 — reports a method-level <c>[CliArgument(parameterName, description)]</c> whose
-/// <c>parameterName</c> does not match any parameter on the decorated method (usually a stale
-/// <c>nameof(...)</c> after a rename). The <c>[CliArgument]</c> analogue of POR001.
+/// POR005 — reports a <c>[CliArgument]</c> on a parameter the method's <c>[CliRoute]</c> declares no
+/// <c>{placeholder}</c> for. The mirror image of POR001, which reports a placeholder with no
+/// parameter; together they pin the rule that a command's path is declared entirely by its route
+/// string.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class CliArgumentParameterAnalyzer : DiagnosticAnalyzer
@@ -30,37 +31,33 @@ public sealed class CliArgumentParameterAnalyzer : DiagnosticAnalyzer
         var method = (MethodDeclarationSyntax)context.Node;
         if (method.AttributeLists.Count == 0) return;
 
-        var parameterNames = method.ParameterList.Parameters
-            .Select(p => p.Identifier.ValueText)
-            .ToImmutableHashSet();
+        // No literal route to compare against — a non-CLI method, or a route the analyzer cannot
+        // evaluate. Stay silent and let the runtime check decide; an analyzer must never fail a
+        // build that works.
+        var literal = CliRouteFacts.TryGetRouteLiteral(context, method);
+        if (literal is null) return;
 
-        foreach (var attribute in method.AttributeLists.SelectMany(al => al.Attributes))
+        var route = literal.Token.ValueText;
+        var placeholders = CliRouteFacts.Placeholders(route).ToImmutableHashSet();
+
+        foreach (var parameter in method.ParameterList.Parameters)
         {
-            if (!CliArgumentAttributeFacts.TryGetMethodLevelParameterName(
-                    context, attribute, out var parameterNameExpression))
+            var parameterName = parameter.Identifier.ValueText;
+            if (placeholders.Contains(parameterName)) continue;
+
+            foreach (var attribute in parameter.AttributeLists.SelectMany(al => al.Attributes))
             {
-                continue;
+                if (!CliArgumentAttributeFacts.IsCliArgument(context, attribute)) continue;
+
+                context.ReportDiagnostic(Diagnostic.Create(
+                    PorticoDiagnostics.CliArgumentParameterMismatch,
+                    attribute.GetLocation(),
+                    method.Identifier.ValueText,
+                    parameterName,
+                    route,
+                    $"{route} {{{parameterName}}}".Trim()));
+                break;
             }
-
-            var constant = context.SemanticModel.GetConstantValue(parameterNameExpression, context.CancellationToken);
-            if (!constant.HasValue || constant.Value is not string target)
-            {
-                // Non-constant parameter name — cannot resolve, leave it to the runtime check.
-                continue;
-            }
-
-            if (parameterNames.Contains(target)) continue;
-
-            var available = parameterNames.Count == 0
-                ? "(method takes no parameters)"
-                : string.Join(", ", parameterNames.OrderBy(n => n));
-
-            context.ReportDiagnostic(Diagnostic.Create(
-                PorticoDiagnostics.CliArgumentParameterMismatch,
-                parameterNameExpression.GetLocation(),
-                method.Identifier.ValueText,
-                target,
-                available));
         }
     }
 }

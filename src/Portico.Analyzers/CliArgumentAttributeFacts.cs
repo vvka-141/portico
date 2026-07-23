@@ -5,9 +5,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// Shared semantic predicates for <c>Portico.CliArgumentAttribute</c>, used by the
-/// POR005 and POR007 analyzers so both recognise the attribute (and its method-level constructor)
-/// identically.
+/// Shared semantic predicate for <c>Portico.CliArgumentAttribute</c>, used by the POR005 and POR007
+/// analyzers so both recognise the attribute (and its subclasses) identically.
 /// </summary>
 internal static class CliArgumentAttributeFacts
 {
@@ -20,40 +19,6 @@ internal static class CliArgumentAttributeFacts
     {
         var symbol = context.SemanticModel.GetSymbolInfo(attribute, context.CancellationToken).Symbol;
         return DerivesFromCliArgument(symbol?.ContainingType);
-    }
-
-    /// <summary>
-    /// True if <paramref name="attribute"/> uses the method-level
-    /// <c>CliArgumentAttribute(string parameterName, string description)</c> constructor; on success
-    /// <paramref name="parameterNameExpression"/> is the argument expression bound to
-    /// <c>parameterName</c> (typically a <c>nameof(...)</c> or a string literal).
-    /// </summary>
-    public static bool TryGetMethodLevelParameterName(
-        SyntaxNodeAnalysisContext context,
-        AttributeSyntax attribute,
-        out ExpressionSyntax parameterNameExpression)
-    {
-        parameterNameExpression = null!;
-
-        if (context.SemanticModel.GetSymbolInfo(attribute, context.CancellationToken).Symbol
-                is not IMethodSymbol ctor)
-        {
-            return false;
-        }
-
-        if (!DerivesFromCliArgument(ctor.ContainingType)) return false;
-
-        // Method-level constructor: (string parameterName, string description).
-        if (ctor.Parameters.Length != 2 || ctor.Parameters[0].Name != "parameterName")
-        {
-            return false;
-        }
-
-        var arguments = attribute.ArgumentList?.Arguments;
-        if (arguments is not { Count: >= 1 }) return false;
-
-        parameterNameExpression = arguments.Value[0].Expression;
-        return true;
     }
 
     private static bool DerivesFromCliArgument(INamedTypeSymbol? type)

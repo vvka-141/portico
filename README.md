@@ -115,9 +115,9 @@ checking your CLI:
 | `POR002` | two methods on one type declare the same route |
 | `POR003` | a malformed `[CliOption]` spec |
 | `POR004` | a `[CliRoute]` with no `[CliCommandExample]` |
-| `POR005` | `[CliArgument]` names a parameter that does not exist |
+| `POR005` | `[CliArgument]` has no matching route placeholder |
 | `POR006` | a `CliOptions` bundle with no public parameterless constructor |
-| `POR007` | one parameter targeted by two `[CliArgument]`s |
+| `POR007` | one parameter carrying two `[CliArgument]`s |
 | `POR008` | a `[CliRoute]` method that cannot return an exit code |
 | `POR009` | two options on one command declaring the same alias |
 | `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
