@@ -154,4 +154,104 @@ public sealed class CliRouteOwnsPath_Should
         Assert.Equal(0, app.Run("app ping example.com"));
         Assert.Equal("example.com", svc.Seen);
     }
+
+    // POR-71 — the type-level [CliRoute] prefix -----------------------------------------------
+
+    [CliRoute("tenant {tenant}")]
+    public interface ITenantTool
+    {
+        [CliRoute("status")]
+        [CliCommandExample("tenant acme status")]
+        int Status(string tenant);
+    }
+
+    public sealed class TenantTool : ITenantTool
+    {
+        public string? Tenant { get; private set; }
+
+        public int Status(string tenant)
+        {
+            Tenant = tenant;
+            return 0;
+        }
+    }
+
+    [Fact]
+    public void Bind_A_Placeholder_Declared_On_The_Type_Level_Route()
+    {
+        var svc = new TenantTool();
+        var app = CliApplication.Create(cfg => cfg.AddCommands(svc));
+
+        // Before POR-71 the prefix's {tenant} became a LITERAL, so this exited 2 with
+        // "Unknown command" while GetRouteSignatures() still advertised "tenant {tenant} status".
+        Assert.Equal(["tenant {tenant} status"], app.GetRouteSignatures());
+        Assert.Equal(0, app.Run("app tenant acme status"));
+        Assert.Equal("acme", svc.Tenant);
+    }
+
+    [Fact]
+    public void Bind_A_Type_Level_Placeholder_To_An_Argument_Not_An_Option()
+    {
+        // The user-visible symptom of the old bug was "The required option '--tenant' is missing":
+        // with no argument segment produced, BuildParameterInfos fell through to the option branch.
+        var methods = Reflection.CliMethodInfo.Get(typeof(TenantTool), Reflection.CliContext.Empty);
+        var parameters = Assert.Single(methods).GetParameters();
+
+        Assert.Single(parameters.OfType<Reflection.CliArgumentParameterInfo>());
+        Assert.Empty(parameters.OfType<Reflection.CliOptionParameterInfo>());
+    }
+
+    [CliRoute("org {orgId}")]
+    public interface IUnboundPrefixTool
+    {
+        [CliRoute("status")]
+        [CliCommandExample("org acme status")]
+        int Status();
+    }
+
+    public sealed class UnboundPrefixTool : IUnboundPrefixTool
+    {
+        public int Status() => 0;
+    }
+
+    [Fact]
+    public void Reject_A_Type_Level_Placeholder_That_Matches_No_Parameter()
+    {
+        var ex = Assert.Throws<CliConfigurationException>(() =>
+            CliApplication.Create(cfg => cfg.AddCommands(new UnboundPrefixTool())));
+
+        Assert.Contains("{orgId}", ex.Message);
+        Assert.Contains("no parameter 'orgId'", ex.Message);
+        // The message must point at the TYPE-level prefix. Naming only the method would send the
+        // author to a route string that does not contain the placeholder.
+        Assert.Contains("type-level [CliRoute] prefix", ex.Message);
+        Assert.Contains("Status", ex.Message);
+    }
+
+    // POR-71 — the mount prefix ----------------------------------------------------------------
+
+    [Fact]
+    public void Refuse_A_Placeholder_In_A_Mount_Prefix()
+    {
+        // A mount grafts a tool authored elsewhere under a path; its commands have no parameter for
+        // the mount's placeholder. Silently compiling it to a literal produced a route whose only
+        // dispatchable form required typing "{region}" at the prompt.
+        var ex = Assert.Throws<CliConfigurationException>(() => CliApplication.Create(cfg =>
+            cfg.AddCommands(new UndescribedPlaceholderService(), [new CliRouteAttribute("cloud {region}")])));
+
+        Assert.Contains("Mount prefix \"cloud {region}\"", ex.Message);
+        Assert.Contains("literal segments only", ex.Message);
+    }
+
+    [Fact]
+    public void Accept_A_Literal_Mount_Prefix()
+    {
+        var svc = new UndescribedPlaceholderService();
+        var app = CliApplication.Create(cfg =>
+            cfg.AddCommands(svc, [new CliRouteAttribute("cloud eu")]));
+
+        Assert.Equal(["cloud eu ping {host}"], app.GetRouteSignatures());
+        Assert.Equal(0, app.Run("app cloud eu ping example.com"));
+        Assert.Equal("example.com", svc.Seen);
+    }
 }
