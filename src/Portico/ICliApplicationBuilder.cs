@@ -111,6 +111,13 @@ public interface ICliApplicationBuilder
     /// instance with <c>[CliRoute("migrate")]</c> plus a root route of <c>db</c> matches
     /// <c>myapp db migrate</c>. A route prefix declared via <c>[CliRoute]</c> on the class or
     /// interface composes on top of <paramref name="rootRoutes"/>.
+    /// <para>
+    /// A mount prefix is <b>literal segments only</b>. It is applied to commands declared elsewhere,
+    /// which have no parameter for a <c>{placeholder}</c> to bind to, so one is refused at
+    /// <see cref="CliApplication.Create"/> rather than compiled into a literal nobody could type.
+    /// A type-level <c>[CliRoute]</c> is the opposite — it decorates the same author's methods, so
+    /// its placeholders bind exactly as method-level ones do.
+    /// </para>
     /// </summary>
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg

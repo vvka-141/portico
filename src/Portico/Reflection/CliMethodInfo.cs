@@ -37,15 +37,22 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         var parameters = base.GetParameters();
         var attributes = GetCustomAttributes(true).OfType<Attribute>().ToList();
 
+        // A type-level [CliRoute] is a prefix on the SAME author's methods, so its placeholders bind
+        // like any other — the two levels are concatenated and resolved as one route (POR-71). A
+        // mount prefix is different: it grafts someone else's tool under a path, so it is literal
+        // only and BuildRootSegments refuses a placeholder outright.
         var rootSegments = BuildRootSegments(_context);
         var typePrefixSegments = BuildTypePrefixSegments(method, registeredType);
+        List<CliRouteSegment> routeParts = [..typePrefixSegments, ..ExtractRouteParts(attributes)];
+
         var parameterLevelArgs = ResolveParameterLevelArguments(parameters);
-        var resolvedRouteParts = ResolveRoutePlaceholders(parameters, attributes, parameterLevelArgs, out var placeholderArgs);
+        var resolvedRouteParts = ResolveRoutePlaceholders(
+            parameters, attributes, routeParts, typePrefixSegments.Count, parameterLevelArgs, out var placeholderArgs);
 
         // After placeholder resolution, no CliPlaceholderSegment instances remain — _routeSegments
         // is exclusively CliLiteralSegment + CliArgumentSegment. Every argument segment came from a
         // {placeholder} in a [CliRoute]: the route string is the command's path, in full.
-        _routeSegments = [..rootSegments, ..typePrefixSegments, ..resolvedRouteParts];
+        _routeSegments = [..rootSegments, ..resolvedRouteParts];
 
         var argumentByParameter = MapArgumentsToParameters(parameters, placeholderArgs);
 
@@ -136,17 +143,38 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         }
     }
 
-    private static IReadOnlyList<CliRouteSegment> BuildRootSegments(CliContext context) =>
-        context.RootRoutes
-            .SelectMany(r => Regex.Split(r.RouteSignature, @"\s+"))
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => s.Trim())
-            .Select(s => (CliRouteSegment)new CliLiteralSegment(s))
-            .ToList();
+    /// <summary>
+    /// The mount prefix from <c>AddCommands(x, rootRoutes)</c>. Literal segments only: a mount grafts
+    /// a tool that was authored elsewhere under a path, so there is no parameter for a placeholder to
+    /// bind to. One is refused loudly rather than compiled into a literal nobody could type.
+    /// </summary>
+    private static IReadOnlyList<CliRouteSegment> BuildRootSegments(CliContext context)
+    {
+        var segments = new List<CliRouteSegment>();
+        foreach (var root in context.RootRoutes)
+        {
+            foreach (var token in Tokenize(root.RouteSignature))
+            {
+                if (PlaceholderRegex().IsMatch(token))
+                {
+                    throw new CliConfigurationException(
+                        $"Mount prefix \"{root.RouteSignature}\" contains the placeholder '{token}'. " +
+                        $"A mount prefix is literal segments only — it is applied to commands declared " +
+                        $"elsewhere, which have no parameter to bind it to. Use literal segments in " +
+                        $"AddCommands(..., \"{root.RouteSignature}\"), or declare the argument in the " +
+                        $"mounted command's own [CliRoute].");
+                }
+                segments.Add(new CliLiteralSegment(token));
+            }
+        }
+        return segments;
+    }
 
     /// <summary>
     /// Resolve the type-level <c>[CliRoute]</c> prefix applied to a method. Registered class wins
-    /// over declaring interface; if neither carries one, returns an empty list.
+    /// over declaring interface; if neither carries one, returns an empty list. Placeholders are
+    /// carried through as <see cref="CliPlaceholderSegment"/> and bind exactly as method-level ones
+    /// do — the prefix decorates the same author's methods, so the parameter is theirs to declare.
     /// </summary>
     private static IReadOnlyList<CliRouteSegment> BuildTypePrefixSegments(MethodInfo method, Type registeredType)
     {
@@ -157,11 +185,26 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         var prefix = classAttr ?? declaringAttr;
         if (prefix is null) return Array.Empty<CliRouteSegment>();
 
-        return Regex.Split(prefix.RouteSignature, @"\s+")
+        return [.. Tokenize(prefix.RouteSignature).Select(ToSegment)];
+    }
+
+    /// <summary>Whitespace-splits a route signature into trimmed, non-empty tokens.</summary>
+    private static IEnumerable<string> Tokenize(string routeSignature) =>
+        Regex.Split(routeSignature, @"\s+")
             .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => s.Trim())
-            .Select(s => (CliRouteSegment)new CliLiteralSegment(s))
-            .ToList();
+            .Select(s => s.Trim());
+
+    /// <summary>
+    /// A route token is a placeholder only when it is ENTIRELY <c>{name}</c> — <c>user{id}</c> is a
+    /// literal the framework routes fine (POR-61). Every level of the route uses this one function so
+    /// the levels cannot disagree about what a placeholder is.
+    /// </summary>
+    private static CliRouteSegment ToSegment(string token)
+    {
+        var placeholder = PlaceholderRegex().Match(token);
+        return placeholder.Success
+            ? new CliPlaceholderSegment(placeholder.Groups["name"].Value)
+            : new CliLiteralSegment(token);
     }
 
     /// <summary>
@@ -216,11 +259,12 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     private List<CliRouteSegment> ResolveRoutePlaceholders(
         ParameterInfo[] parameters,
         IReadOnlyList<Attribute> attributes,
+        List<CliRouteSegment> parts,
+        int typePrefixLength,
         List<CliArgumentAttribute> parameterLevelArgs,
         out List<CliArgumentAttribute> placeholderArgs)
     {
         placeholderArgs = new List<CliArgumentAttribute>();
-        var parts = ExtractRouteParts(attributes).ToList();
         for (int i = 0; i < parts.Count; i++)
         {
             if (parts[i] is not CliPlaceholderSegment placeholder) continue;
@@ -230,11 +274,20 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
                 var parameterList = parameters.Length == 0
                     ? "(method takes no parameters)"
                     : string.Join(", ", parameters.Select(p => p.Name));
+                // A type-level prefix applies to EVERY method on the type, so pointing the author at
+                // the method alone would send them looking at a route string that does not contain
+                // the placeholder.
+                var declaredBy = i < typePrefixLength
+                    ? $"the type-level [CliRoute] prefix on '{DeclaringType?.FullName}' declares route placeholder"
+                    : $"Method '{DeclaringType?.FullName}.{Name}' declares route placeholder";
+                var fix = i < typePrefixLength
+                    ? $"Either rename the placeholder, or add a '{placeholder.Name}' parameter to every " +
+                      $"[CliRoute] method on the type."
+                    : "Either rename the placeholder, or add the parameter.";
+
                 throw new CliConfigurationException(
-                    $"Method '{DeclaringType?.FullName}.{Name}' declares route placeholder " +
-                    $"'{{{placeholder.Name}}}' but no parameter '{placeholder.Name}' exists on the method. " +
-                    $"Available parameters: {parameterList}. " +
-                    $"Either rename the placeholder, or add the parameter.");
+                    $"{declaredBy} '{{{placeholder.Name}}}' but no parameter '{placeholder.Name}' " +
+                    $"exists on method '{Name}'. Available parameters: {parameterList}. {fix}");
             }
 
             // Reuse the parameter's own [CliArgument] when it has one — that instance already carries
@@ -493,25 +546,8 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     private static IReadOnlyList<CliRouteSegment> ExtractRouteParts(IReadOnlyList<Attribute> attributes)
     {
         return attributes
-            .SelectMany<Attribute, CliRouteSegment>(attribute =>
-            {
-                if (attribute is CliRouteAttribute route)
-                {
-                    return Regex
-                        .Split(route.RouteSignature, @"\s+")
-                        .Where(r => !string.IsNullOrWhiteSpace(r))
-                        .Select(r => r.Trim())
-                        .Select<string, CliRouteSegment>(r =>
-                        {
-                            var ph = PlaceholderRegex().Match(r);
-                            return ph.Success
-                                ? new CliPlaceholderSegment(ph.Groups["name"].Value)
-                                : new CliLiteralSegment(r);
-                        });
-                }
-
-                return [];
-            })
+            .OfType<CliRouteAttribute>()
+            .SelectMany(route => Tokenize(route.RouteSignature).Select(ToSegment))
             .ToList();
     }
 
