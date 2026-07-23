@@ -9,10 +9,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// POR007 — reports a method parameter targeted by more than one <c>[CliArgument]</c>: two
-/// method-level <c>nameof</c> references to the same parameter, two parameter-level attributes,
-/// or a method-level + parameter-level pair. The framework binds exactly one, so the extras
-/// silently misbind.
+/// POR007 — reports a method parameter carrying more than one <c>[CliArgument]</c>. The framework
+/// binds exactly one, so the extras are silently discarded along with their descriptions.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DuplicateCliArgumentAnalyzer : DiagnosticAnalyzer
@@ -31,26 +29,9 @@ public sealed class DuplicateCliArgumentAnalyzer : DiagnosticAnalyzer
     {
         var method = (MethodDeclarationSyntax)context.Node;
 
-        // target parameter name -> reported locations of every [CliArgument] aimed at it.
+        // target parameter name -> reported locations of every [CliArgument] on it.
         var targets = new Dictionary<string, List<Location>>();
 
-        // Method-level [CliArgument(nameof(x), "desc")] forms.
-        foreach (var attribute in method.AttributeLists.SelectMany(al => al.Attributes))
-        {
-            if (!CliArgumentAttributeFacts.TryGetMethodLevelParameterName(
-                    context, attribute, out var parameterNameExpression))
-            {
-                continue;
-            }
-
-            var constant = context.SemanticModel.GetConstantValue(parameterNameExpression, context.CancellationToken);
-            if (constant is { HasValue: true, Value: string target })
-            {
-                Add(targets, target, attribute.GetLocation());
-            }
-        }
-
-        // Parameter-level [CliArgument] forms.
         foreach (var parameter in method.ParameterList.Parameters)
         {
             var name = parameter.Identifier.ValueText;

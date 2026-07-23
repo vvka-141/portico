@@ -15,9 +15,9 @@ anything.
 | [POR002](#por002) | Error | Two methods **on one type** declare the same route |
 | [POR003](#por003) | Error | A malformed `[CliOption]` alias spec |
 | [POR004](#por004) | Warning | A `[CliRoute]` with no `[CliCommandExample]` |
-| [POR005](#por005) | Error | `[CliArgument]` names a parameter that does not exist |
+| [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder |
 | [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor |
-| [POR007](#por007) | Error | One parameter targeted by two `[CliArgument]`s |
+| [POR007](#por007) | Error | One parameter carrying two `[CliArgument]`s |
 | [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code |
 | [POR009](#por009) | Error | Two options on one command declaring the same alias |
 | [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
@@ -72,13 +72,20 @@ broken program.
 
 ## POR005
 
-**`[CliArgument]` names a parameter that does not exist.**
+**`[CliArgument]` has no matching route placeholder.**
 
 ```csharp
-[CliRoute("copy")]
-[CliArgument("sourcePath")]              // ← no such parameter
-int Copy(string source, string target) => 0;
+[CliRoute("copy {target}")]                          // ← declares {target} only
+int Copy([CliArgument("where from")] string source,  // ← source has no placeholder
+         string target) => 0;
 ```
+
+A command's path is declared entirely by `[CliRoute]`, exactly as an ASP.NET Core route template
+declares `{id}` inline. `[CliArgument]` describes an argument the route already declares — it
+supplies the help text and display name and never adds a segment, so an argument the route does
+not mention has no position to bind to. Put it in the route: `[CliRoute("copy {target} {source}")]`.
+
+The mirror image of [POR001](#por001), which reports a placeholder with no parameter.
 
 ## POR006
 
@@ -93,10 +100,11 @@ dependency is legitimate, and is exactly how a DI container injects into it.
 
 ## POR007
 
-**One parameter targeted by two `[CliArgument]`s.**
+**One parameter carrying two `[CliArgument]`s.**
 
-Each positional argument binds one parameter. Two attributes claiming the same one is a declaration
-the framework cannot honour.
+`CliArgumentAttribute` is `AllowMultiple = true`, so the compiler accepts a stack of them on one
+parameter — but only one is bound and the rest are dropped along with their descriptions. Merge them
+into a single attribute.
 
 ## POR008
 

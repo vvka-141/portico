@@ -39,13 +39,13 @@ public interface IAdminTool
 
     /// <summary>Rebuild a search index. The index name is an optional positional.</summary>
     [Description("Rebuild a search index")]
-    [CliRoute("reindex")]
+    [CliRoute("reindex {index}")]
     [CliCommandExample("reindex")]
     [CliCommandExample("reindex orders")]
     [CliCommandExample("reindex orders --shard[eu] 3 --shard[us] 5")]
     int Reindex(
         // Optional trailing positional: omit it and 'all' binds.
-        [CliArgument(nameof(index), "which index to rebuild")] string index = "all",
+        [CliArgument("which index to rebuild")] string index = "all",
         // Map option — the CLI analogue of ?shard[eu]=3 on a query string.
         [CliOption("--shard", "Per-region shard counts")] System.Collections.Generic.Dictionary<string, int>? shard = null);
 

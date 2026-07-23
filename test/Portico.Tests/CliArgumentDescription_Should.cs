@@ -4,11 +4,11 @@ namespace Portico;
 
 // ReSharper disable once InconsistentNaming
 //
-// Before S35 the framework rejected parameter-level [CliArgument("description")] on a
-// placeholder-bound parameter with an error message that suggested using exactly that
-// attribute — a documented-footgun loop. Now it's supported and augments the synthesized
-// argument's description; method-level [CliArgument(nameof(x), ...)] is still rejected as
-// a genuine routing conflict.
+// [CliArgument] on a placeholder-bound parameter is the recommended shape (POR-70): the route
+// string declares the path, the attribute describes one of its segments — the CLI's [FromRoute].
+// It must never change the route, only the help. Its ability to override the DISPLAY name via
+// Name = "..." is pinned here too: the reflection pipeline defaults that property from the
+// parameter name and must not overwrite an author's choice.
 public sealed class CliArgumentDescription_Should
 {
     public interface IAugmentedDescription
@@ -50,23 +50,42 @@ public sealed class CliArgumentDescription_Should
         Assert.Contains("Target environment name", help);
     }
 
-    public sealed class DoubleDeclaredService
+    [Fact]
+    public void Leave_The_Route_Signature_Untouched()
     {
-        // Method-level [CliArgument(nameof(path), …)] + placeholder is still a conflict.
-        [CliRoute("init {path}")]
-        [CliArgument(nameof(path), "a path")]
+        var described = CliApplication
+            .Create(cfg => cfg.AddCommands(new AugmentedService()))
+            .GetRouteSignatures();
+
+        // Byte-identical to the same route with no [CliArgument] at all — the attribute describes,
+        // it does not route.
+        Assert.Equal(["deploy {env}"], described);
+    }
+
+    public interface IRenamedDisplay
+    {
+        [CliRoute("init {projectDir}")]
         [CliCommandExample("init .")]
-        public int Init(string path) => 0;
+        int Initialize([CliArgument("Where to scaffold", Name = "PROJECT_DIR")] string projectDir);
+    }
+
+    public sealed class RenamedDisplayService : IRenamedDisplay
+    {
+        public int Initialize(string projectDir) => 0;
     }
 
     [Fact]
-    public void Still_Reject_Method_Level_CliArgument_On_Placeholder_Parameter()
+    public void Honour_An_Explicit_Display_Name_Override()
     {
-        var ex = Assert.ThrowsAny<CliConfigurationException>(() =>
-            CliApplication.Create(cfg => cfg.AddCommands(new DoubleDeclaredService())));
+        var console = new StringCliConsole();
+        var app = CliApplication.Create(cfg => cfg
+            .AddCommands(new RenamedDisplayService())
+            .WithConsole(console));
 
-        Assert.Contains("{path}", ex.Message);
-        Assert.Contains("[CliArgument]", ex.Message);
-        Assert.Contains("method-level", ex.Message);
+        app.Run("app init --help");
+        var help = console.OutWriter.ToString();
+
+        Assert.Contains("PROJECT_DIR", help);
+        Assert.DoesNotContain("<PROJECTDIR>", help);
     }
 }

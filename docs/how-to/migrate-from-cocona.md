@@ -34,7 +34,7 @@ just as importantly, **when not to**.
 |---|---|
 | `[Command("db migrate")]` on a method | `[CliRoute("db migrate")]` on a method |
 | `[Option('n', Description = "...")] string name` | `[CliOption("--name\|-n", "...")] string name` |
-| `[Argument] string path` | `[CliArgument(nameof(path), "...")] string path`, or a `{path}` placeholder in the route |
+| `[Argument] string path` | a `{path}` placeholder in the route, optionally described: `[CliRoute("cmd {path}")] int Cmd([CliArgument("...")] string path)` |
 | a `bool` flag parameter | `CliFlag?` (a flag is a distinct type, not a `bool` that could also be an option) |
 | `ICommandParameterSet` | a `CliOptions` bundle |
 | `CommandFilterAttribute` / `ICommandFilter` | `CliMiddleware` |

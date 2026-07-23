@@ -6,44 +6,29 @@ using System.Threading;
 namespace Portico;
 
 /// <summary>
-/// Declares a method parameter as a positional CLI argument. Two placement styles:
-/// <list type="bullet">
-///   <item><description><b>Method-level</b> — <c>[CliArgument(nameof(path), "desc")]</c> on the
-///     method, referencing a parameter by name. Required when arguments must appear in the middle
-///     of the route signature (interleaved with <see cref="CliRouteAttribute"/>).</description></item>
-///   <item><description><b>Parameter-level</b> — <c>[CliArgument("desc")]</c> on the parameter
-///     itself; the framework resolves the parameter name from reflection. Arguments declared this
-///     way append to the end of the route signature in parameter order.</description></item>
-/// </list>
-/// Both styles can coexist on the same method, but a given parameter is declared in exactly one
-/// place — the framework rejects duplicates at configuration time.
+/// Describes a positional CLI argument. Applied to the method parameter a
+/// <see cref="CliRouteAttribute"/> placeholder already binds — it supplies the help text and, via
+/// <see cref="Name"/>, the display form; it never adds a segment to the route.
 /// </summary>
+/// <remarks>
+/// <b>The route string is the command's path, in full.</b> A command's shape is declared entirely by
+/// <c>[CliRoute]</c>, exactly as an ASP.NET Core route template declares <c>{id}</c> inline — this
+/// attribute is the CLI's <c>[FromRoute]</c>, not a way to append a segment. A
+/// <c>[CliArgument]</c> on a parameter the route declares no <c>{placeholder}</c> for is a
+/// configuration error, reported at <see cref="CliApplication.Create"/> and by analyzer rule POR005.
+/// </remarks>
 /// <example><code>
-/// [CliRoute("greet")]
-/// [CliCommandExample("greet hello", "run the greet subcommand")]
-/// public int Greet([CliArgument("the subcommand")] string verb) =&gt; 0;
+/// [CliRoute("user {id} details")]
+/// [CliCommandExample("user 42 details", "show one user")]
+/// public int Details([CliArgument("which user")] string id) =&gt; 0;
 /// </code></example>
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
 public class CliArgumentAttribute : Attribute
 {
     /// <summary>
-    /// Method-level form: reference a parameter by name, supply a description.
-    /// </summary>
-    public CliArgumentAttribute(
-        string parameterName,
-        string description)
-    {
-        ParameterName = ThrowIf
-            .ArgumentNullOrWhiteSpace(parameterName)
-            .Trim();
-        Description = description
-            .DefaultIfNullOrWhiteSpace(ParameterName);
-        Name = ParameterName;
-    }
-
-    /// <summary>
-    /// Parameter-level form: the parameter name is resolved from reflection. Use this on the
-    /// parameter itself, e.g. <c>[CliArgument("target path")] string path</c>.
+    /// Describes the argument bound to the parameter this attribute decorates. The parameter name is
+    /// resolved by reflection, so the description is all you supply:
+    /// <c>[CliArgument("target path")] string path</c>.
     /// </summary>
     public CliArgumentAttribute(string description = "")
     {
@@ -56,9 +41,9 @@ public class CliArgumentAttribute : Attribute
     }
 
     /// <summary>
-    /// Gets the name of the parameter this attribute references. Empty immediately after a
-    /// parameter-level construction — the reflection pipeline fills it in during route
-    /// discovery. Use <see cref="Name"/> for the resolved display name.
+    /// Gets the name of the parameter this attribute describes. Empty immediately after
+    /// construction — the reflection pipeline fills it in during route discovery. Use
+    /// <see cref="Name"/> for the resolved display name.
     /// </summary>
     public string ParameterName { get; set; }
 
@@ -71,34 +56,18 @@ public class CliArgumentAttribute : Attribute
     /// Gets or sets the display name shown for this argument in help output (e.g. <c>&lt;PATH&gt;</c>).
     /// </summary>
     /// <remarks>
-    /// Display name used in help output (e.g. <c>&lt;PATH&gt;</c>). For method-level placement
-    /// this is the supplied <see cref="ParameterName"/>; for parameter-level placement this is
-    /// the reflected parameter name. May be set via named attribute argument to override the
-    /// display form (<c>[CliArgument(nameof(p), "desc", Name = "PATH")]</c>).
+    /// Defaults to the reflected parameter name. Set it via a named attribute argument to override
+    /// the display form: <c>[CliArgument("target path", Name = "PATH")] string path</c>.
     /// </remarks>
     public string Name { get; set; }
 
     /// <summary>
-    /// Determines if this attribute conflicts with another by comparing their parameter names.
-    /// </summary>
-    /// <param name="other">Another CliArgumentAttribute to compare against.</param>
-    /// <returns>True if both attributes refer to the same parameter name; otherwise, false.</returns>
-    /// <example><code>
-    /// var a = new CliArgumentAttribute("path", "target path");
-    /// var b = new CliArgumentAttribute("path", "another");
-    /// bool clash = a.Conflicts(b); // true
-    /// </code></example>
-    public bool Conflicts(CliArgumentAttribute other) => ParameterName
-        .Equals(other.ParameterName, StringComparison.Ordinal);
-
-
-    /// <summary>
-    /// Checks if this attribute references a specific parameter.
+    /// Checks if this attribute describes a specific parameter.
     /// </summary>
     /// <param name="pi">The ParameterInfo to check against.</param>
     /// <returns>True if this attribute's parameter name matches the provided ParameterInfo's name; otherwise, false.</returns>
     /// <example><code>
-    /// var argument = new CliArgumentAttribute("path", "target path");
+    /// var argument = new CliArgumentAttribute("target path") { ParameterName = "path" };
     /// bool refersTo = argument.References(parameterInfo); // true when parameterInfo.Name == "path"
     /// </code></example>
     public bool References(ParameterInfo pi) => ParameterName.Equals(pi.Name);
@@ -141,7 +110,7 @@ public class CliArgumentAttribute : Attribute
     /// </summary>
     /// <returns>A string representation of the parameter name.</returns>
     /// <example><code>
-    /// var argument = new CliArgumentAttribute("path", "target path");
+    /// var argument = new CliArgumentAttribute("target path") { ParameterName = "path" };
     /// string name = argument.ToString(); // "path"
     /// </code></example>
     public override string ToString() => ParameterName;

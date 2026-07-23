@@ -15,20 +15,20 @@ public sealed class CliOptionalArgument_Should
 {
     public interface ITool
     {
-        [CliRoute("build")]
+        [CliRoute("build {target}")]
         [CliCommandExample("build")]
         [CliCommandExample("build --verbose")]
         [CliCommandExample("build release")]
         int Build(
             [CliOption("--verbose|-v")] CliFlag? verbose = null,
-            [CliArgument(nameof(target), "the build target")] string target = "default");
+            [CliArgument("the build target")] string target = "default");
 
-        [CliRoute("copy")]
+        [CliRoute("copy {source} {destination}")]
         [CliCommandExample("copy src")]
         [CliCommandExample("copy src dst")]
         int Copy(
-            [CliArgument(nameof(source), "source path")] string source,
-            [CliArgument(nameof(destination), "destination path")] string destination = "./out");
+            [CliArgument("source path")] string source,
+            [CliArgument("destination path")] string destination = "./out");
     }
 
     private sealed class Tool : ITool
@@ -152,8 +152,8 @@ public sealed class CliOptionalArgument_Should
         [CliRoute("x {optional} {required}")]
         [CliCommandExample("x a b")]
         int X(
-            [CliArgument(nameof(required), "required")] string required,
-            [CliArgument(nameof(optional), "optional")] string optional = "d");
+            [CliArgument("required")] string required,
+            [CliArgument("optional")] string optional = "d");
     }
 
     private sealed class Ambiguous : IAmbiguous

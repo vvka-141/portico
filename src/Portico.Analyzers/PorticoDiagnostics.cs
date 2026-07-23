@@ -103,25 +103,25 @@ internal static class PorticoDiagnostics
         helpLinkUri: HelpBase + "por004");
 
     /// <summary>
-    /// POR005: a method-level <c>[CliArgument(parameterName, description)]</c> references a
-    /// <c>parameterName</c> that does not match any parameter on the decorated method — usually
-    /// a stale <c>nameof(...)</c> left behind after a rename. The argument would bind to nothing
-    /// at runtime. The <c>[CliArgument]</c> analogue of POR001.
+    /// POR005: a <c>[CliArgument]</c> decorates a parameter the method's <c>[CliRoute]</c> declares
+    /// no <c>{placeholder}</c> for. The route string is the command's path in full, so an argument
+    /// the route does not mention has no position to bind to. The mirror image of POR001, which
+    /// reports a placeholder with no parameter.
     /// </summary>
     public static readonly DiagnosticDescriptor CliArgumentParameterMismatch = new(
         id: "POR005",
-        title: "[CliArgument] references an unknown parameter",
+        title: "[CliArgument] has no matching route placeholder",
         messageFormat:
-            "[CliArgument] on '{0}' references parameter '{1}', which does not exist. " +
-            "Available parameters: {2}. Fix the parameter name (or the nameof) so the argument binds.",
+            "[CliArgument] on parameter '{1}' of '{0}' has no matching placeholder in the route \"{2}\". " +
+            "Put the argument in the route: [CliRoute(\"{3}\")].",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "The method-level [CliArgument(parameterName, description)] form binds a positional " +
-            "argument to a parameter by name. A stale nameof(...) after a rename, or a typo, leaves " +
-            "the argument unbound at runtime. Detected at compile time, mirroring POR001 for route " +
-            "placeholders.",
+            "A command's path shape is declared entirely by [CliRoute], exactly as an ASP.NET Core " +
+            "route template declares {id} inline. [CliArgument] describes an argument the route " +
+            "already declares — it supplies the help text and display name and never adds a segment. " +
+            "An argument with no placeholder would have no position to bind to.",
         helpLinkUri: HelpBase + "por005");
 
     /// <summary>
@@ -149,24 +149,24 @@ internal static class PorticoDiagnostics
         helpLinkUri: HelpBase + "por006");
 
     /// <summary>
-    /// POR007: a single parameter is targeted by more than one <c>[CliArgument]</c>.
+    /// POR007: a single parameter carries more than one <c>[CliArgument]</c>.
     /// <c>[AttributeUsage(AllowMultiple = true)]</c> lets the compiler accept this, but the
-    /// framework binds exactly one, so the extras silently misbind.
+    /// framework binds exactly one, so the extras are silently discarded.
     /// </summary>
     public static readonly DiagnosticDescriptor DuplicateCliArgument = new(
         id: "POR007",
-        title: "Parameter is targeted by more than one [CliArgument]",
+        title: "Parameter carries more than one [CliArgument]",
         messageFormat:
-            "Parameter '{0}' on '{1}' is targeted by {2} [CliArgument] attributes. " +
-            "Declare each argument exactly once — method-level nameof OR parameter-level, not both.",
+            "Parameter '{0}' on '{1}' carries {2} [CliArgument] attributes. " +
+            "Describe each argument exactly once — merge them into a single attribute.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "CliArgumentAttribute is AllowMultiple=true so the method-level and parameter-level " +
-            "forms can coexist on a method — but a given parameter must be declared in exactly one " +
-            "place. Two or more [CliArgument] targeting the same parameter is a silent misbinding " +
-            "the framework rejects at configuration time; the analyzer catches it at compile time.",
+            "CliArgumentAttribute is AllowMultiple=true so the compiler accepts a stack of them on " +
+            "one parameter, but only one is bound — the rest are dropped along with their " +
+            "descriptions. The framework rejects this at configuration time; the analyzer catches " +
+            "it at compile time.",
         helpLinkUri: HelpBase + "por007");
 
     /// <summary>

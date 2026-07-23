@@ -46,14 +46,14 @@ overlap, no surprises.
 | Get the ambient `CancellationToken` | Declare a `CancellationToken` parameter — framework injects it |
 | Emit shell completion (verb-level) | `app.EmitCompletion(shell, exeName, output)` — **you wire it**: expose a `completion` subcommand that calls this. Scope is verb-level only (proposes the next route segment); options/values do not complete (`app deploy --<TAB>` yields nothing). Parked by [ADR 0003](../../../docs/adr/0003-park-option-level-shell-completion.md) until demand appears |
 | Fall back to an env var when an option is absent | `[CliOption("--port", EnvironmentVariable = "PORT")] int port` |
-| Declare a positional arg without repeating its name | `public int Init([CliArgument("target path")] string path)` |
 | Share a route prefix across every method on a type | `[CliRoute("db")]` on the interface or class — prepended to each method's route; class wins over inherited interface |
 | Bind a `CancellationToken` to a user-supplied timeout | `[CliOption("--timeout")] CancellationToken timeout` — accepts `30s`/`5m`/`PT2M`/`00:00:30` |
 | Write hermetic CLI integration tests | `CliTestHarness.ForApplication(cfg => …).Run("app cmd").ExpectExit(0)` |
 | Test a handler that calls `CliPrompt` / `Console.ReadLine` | `harness.Run("app delete foo", input: "y\n")` — feeds stdin |
 | Accept a multi-value option as a list | `[CliOption("--envs")] List<string> envs` — also `T[]`, `IEnumerable<T>`, `IList<T>`, `ICollection<T>`, `IReadOnlyList<T>`, `IReadOnlyCollection<T>`, `ImmutableArray<T>`, `ImmutableList<T>`, `IImmutableList<T>` |
 | Accept a multi-value option as a set (dedup) | `[CliOption("--tags")] HashSet<string> tags` — also `SortedSet<T>`, `ISet<T>`, `IReadOnlySet<T>`, `ImmutableHashSet<T>`, `IImmutableSet<T>`, `ImmutableSortedSet<T>` |
-| Add a description to a placeholder-bound argument | `int Deploy([CliArgument("Target environment name")] string env)` with route `[CliRoute("deploy {env}")]` |
+| Declare a positional argument | a `{name}` placeholder in the route: `[CliRoute("deploy {env}")] int Deploy(string env)`. The route string is the command's path in full — an argument has no other way to get a position |
+| Add a description (and a display name) to an argument | `int Deploy([CliArgument("Target environment name", Name = "ENV")] string env)` — describes the `{env}` the route already declares; it never adds a segment |
 | Time every command invocation (opt-in via `--timing`) | `cfg.UseMiddleware(new CliTimingMiddleware())` — prints `[timing] <invocation> ... N ms` to stderr |
 | Route `Trace.*` output to the console (opt-in via `--trace-level`) | `cfg.UseMiddleware(new CliTracingMiddleware())` — writes through the app's `ICliConsole`. **Caveat:** `Trace.Listeners` is process-global, so concurrent in-process invocations cross-talk; treat as single-writer per process |
 | Get graceful Ctrl+C → exit 130 with zero boilerplate | `.RunAsync()` / `.RunAsync(args)` auto-wires `Console.CancelKeyPress` |

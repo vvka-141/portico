@@ -29,10 +29,9 @@ public sealed class CliApplication_Should
 {
     public interface ICountService
     {
-        [CliRoute("count")]
-        [CliArgument(nameof(n), "how many")]
+        [CliRoute("count {n}")]
         [CliCommandExample("count 3")]
-        int Count(int n);
+        int Count([CliArgument("how many")] int n);
     }
 
     public sealed class CountService : ICountService
@@ -176,10 +175,9 @@ public sealed class CliApplication_Should
 
     public interface IAsyncService
     {
-        [CliRoute("compute")]
-        [CliArgument(nameof(n), "how many")]
+        [CliRoute("compute {n}")]
         [CliCommandExample("compute 7")]
-        Task<int> ComputeAsync(int n);
+        Task<int> ComputeAsync([CliArgument("how many")] int n);
     }
 
     public sealed class AsyncService : IAsyncService
@@ -404,13 +402,12 @@ public sealed class CliApplication_Should
 
     public interface IHelpfulCommand
     {
-        [CliRoute("init")]
-        [CliArgument(nameof(path), "Project directory path")]
+        [CliRoute("init {path}")]
         [CliCommandExample("init .", "Use current directory")]
         [CliCommandExample("init /src/db --template basic", "Use a named template")]
         [System.ComponentModel.Description("Initialize a new project at the given path.")]
         int Initialize(
-            string path,
+            [CliArgument("Project directory path")] string path,
             [CliOption("--template|-t", "Template to scaffold from", DefaultValue = "basic")] string template = "basic",
             [CliOption("--verbose|-v", "Enable verbose output")] CliFlag? verbose = null);
     }
@@ -621,10 +618,9 @@ public sealed class CliApplication_Should
     {
         public string? Captured { get; private set; }
 
-        [CliRoute("cp")]
-        [CliArgument(nameof(path), "path to copy")]
+        [CliRoute("cp {path}")]
         [CliCommandExample("cp -- -file-with-leading-dash.txt")]
-        public int Cp(string path)
+        public int Cp([CliArgument("path to copy")] string path)
         {
             Captured = path;
             return 0;
@@ -1133,10 +1129,9 @@ public sealed class CliApplication_Should
 
     public sealed class RangedArgService
     {
-        [CliRoute("scale")]
-        [CliArgument(nameof(n), "target count")]
+        [CliRoute("scale {n}")]
         [CliCommandExample("scale 5")]
-        public int Scale([Range(1, 10)] int n) => 0;
+        public int Scale([Range(1, 10)] [CliArgument("target count")] int n) => 0;
     }
 
     [Fact]
@@ -1276,13 +1271,12 @@ public sealed class CliApplication_Should
 
     public sealed class MultiAnnotatedArgService
     {
-        [CliRoute("mk")]
-        [CliArgument(nameof(s), "short string")]
+        [CliRoute("mk {s}")]
         [CliCommandExample("mk ab")]
         public int Mk(
             [StringLength(3, MinimumLength = 2)]
             [RegularExpression("^[a-z]+$")]
-            string s) => 0;
+            [CliArgument("short string")] string s) => 0;
     }
 
     [Fact]
@@ -1307,7 +1301,7 @@ public sealed class CliApplication_Should
     {
         public string? CapturedPath { get; private set; }
 
-        [CliRoute("init")]
+        [CliRoute("init {path}")]
         [CliCommandExample("init ./project")]
         public int Init([CliArgument("target directory path")] string path)
         {
@@ -1345,12 +1339,10 @@ public sealed class CliApplication_Should
         public string? A { get; private set; }
         public string? B { get; private set; }
 
-        // Method-level for 'a' (explicit name), parameter-level for 'b' — both should work
-        // together; 'a' sits in the route tail per method-level ordering, 'b' appends.
-        [CliRoute("mix")]
-        [CliArgument(nameof(a), "first")]
+        // Two placeholders, both described. Order comes from the route string and nothing else.
+        [CliRoute("mix {a} {b}")]
         [CliCommandExample("mix A B")]
-        public int Mix(string a, [CliArgument("second")] string b)
+        public int Mix([CliArgument("first")] string a, [CliArgument("second")] string b)
         {
             A = a;
             B = b;
@@ -1359,7 +1351,7 @@ public sealed class CliApplication_Should
     }
 
     [Fact]
-    public void Combine_MethodLevel_And_ParameterLevel_Arguments()
+    public void Bind_Several_Described_Placeholders_In_Route_Order()
     {
         var svc = new MixedArgService();
         var processor = CliApplication.Create(cfg => cfg.AddCommands(svc));
@@ -1374,10 +1366,10 @@ public sealed class CliApplication_Should
                                // catches the same mistake at compile time (see CliArgumentAnalyzers).
     public sealed class DuplicateArgService
     {
-        // Conflict: 'x' is named by both method-level and parameter-level attributes.
-        [CliRoute("go")]
-        [CliArgument(nameof(x), "method-level")]
-        public int Go([CliArgument("parameter-level")] string x) => 0;
+        // Two [CliArgument] on one parameter: only one can be bound, so the other's description
+        // would be silently dropped.
+        [CliRoute("go {x}")]
+        public int Go([CliArgument("first description")] [CliArgument("second description")] string x) => 0;
     }
 #pragma warning restore POR007
 
@@ -1386,8 +1378,11 @@ public sealed class CliApplication_Should
     {
         var ex = Assert.ThrowsAny<Exception>(() =>
             CliApplication.Create(cfg => cfg.AddCommands(new DuplicateArgService())));
-        Assert.Contains("parameter-level and a method-level", ex.Message);
+        Assert.Contains("At most one is allowed per parameter", ex.Message);
     }
+
+    // The "[CliArgument] with no placeholder" rejection lives in CliRouteOwnsPath_Should, with the
+    // rest of POR-70's invariant.
 
     // Env-var fallback (Session 15b) ------------------------------------------------------------
 
@@ -1588,24 +1583,9 @@ public sealed class CliApplication_Should
         Assert.Contains("Available parameters: path", ex.Message);
     }
 
-    public sealed class DoubleDeclaredPlaceholderService
-    {
-        // Placeholder AND method-level [CliArgument] for the same parameter.
-        [CliRoute("init {path}")]
-        [CliArgument(nameof(path), "a path")]
-        [CliCommandExample("init .")]
-        public int Init(string path) => 0;
-    }
-
-    [Fact]
-    public void Reject_Placeholder_And_CliArgument_For_Same_Parameter()
-    {
-        var ex = Assert.ThrowsAny<Exception>(() =>
-            CliApplication.Create(cfg => cfg.AddCommands(new DoubleDeclaredPlaceholderService())));
-
-        Assert.Contains("{path}", ex.Message);
-        Assert.Contains("[CliArgument]", ex.Message);
-    }
+    // POR-70 removed Reject_Placeholder_And_CliArgument_For_Same_Parameter: a placeholder plus a
+    // [CliArgument] describing it is no longer a conflict, it is the recommended shape. The
+    // positive case is pinned by CliArgumentDescription_Should.
 
     public sealed class MultiPlaceholderService
     {
