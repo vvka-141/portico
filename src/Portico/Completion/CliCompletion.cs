@@ -18,15 +18,17 @@ namespace Portico.Completion;
 /// in this iteration.
 /// </para>
 /// <para>
-/// Argument placeholders (<c>{argName}</c>) in route signatures are stripped before emission —
-/// the shell cannot autocomplete an argument value, so those positions are left to user input.
+/// A route signature is truncated at its first argument placeholder (<c>{argName}</c>) — the shell
+/// cannot autocomplete an argument value, so completion stops where one is expected. A route such as
+/// <c>db {env} migrate</c> completes only as far as <c>db</c>: deleting the interior placeholder and
+/// rejoining the literals would propose <c>db migrate</c>, a command the CLI does not have.
 /// </para>
 /// </remarks>
 public static partial class CliCompletion
 {
     [System.Text.RegularExpressions.GeneratedRegex(@"\s*\{[^}]+\}",
         System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
-    private static partial System.Text.RegularExpressions.Regex PlaceholderStripRegex();
+    private static partial System.Text.RegularExpressions.Regex PlaceholderRegex();
 
     /// <summary>
     /// Writes a self-contained completion script for <paramref name="shell"/> to
@@ -37,8 +39,9 @@ public static partial class CliCompletion
     /// <param name="shell">The target shell (bash or zsh).</param>
     /// <param name="executableName">The name the script completes for, as typed at the prompt.</param>
     /// <param name="routeSignatures">
-    /// The route signatures to complete. Argument placeholders (<c>{name}</c>) are stripped — a shell
-    /// cannot autocomplete a value.
+    /// The route signatures to complete. Each is truncated at its first argument placeholder
+    /// (<c>{name}</c>) — a shell cannot autocomplete a value, and completing past one would propose
+    /// segment sequences the application does not route.
     /// </param>
     /// <param name="output">Where the script is written.</param>
     /// <example><code>
@@ -56,7 +59,7 @@ public static partial class CliCompletion
         ThrowIf.ArgumentNull(output);
 
         var literals = routeSignatures
-            .Select(StripPlaceholders)
+            .Select(TruncateAtFirstPlaceholder)
             .Where(s => s.Length > 0)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(s => s, StringComparer.Ordinal)
@@ -89,7 +92,9 @@ public static partial class CliCompletion
         output.WriteLine("    while IFS= read -r route; do");
         output.WriteLine("        if [[ -z \"$prefix\" ]]; then");
         output.WriteLine("            candidates+=(\"${route%% *}\")");
-        output.WriteLine("        elif [[ \"$route \" == \"$prefix \"* ]]; then");
+        // "$route" != "$prefix": a truncated route is a proper prefix of its siblings (`db` beside
+        // `db backup`), and without this guard it would propose itself back as `db db`.
+        output.WriteLine("        elif [[ \"$route \" == \"$prefix \"* && \"$route\" != \"$prefix\" ]]; then");
         output.WriteLine("            local rest=\"${route#$prefix }\"");
         output.WriteLine("            candidates+=(\"${rest%% *}\")");
         output.WriteLine("        fi");
@@ -123,7 +128,7 @@ public static partial class CliCompletion
         output.WriteLine("    for route in \"${routes[@]}\"; do");
         output.WriteLine("        if [[ -z \"$prefix\" ]]; then");
         output.WriteLine("            candidates+=(\"${route%% *}\")");
-        output.WriteLine("        elif [[ \"$route \" == \"$prefix \"* ]]; then");
+        output.WriteLine("        elif [[ \"$route \" == \"$prefix \"* && \"$route\" != \"$prefix\" ]]; then");
         output.WriteLine("            local rest=\"${route#$prefix }\"");
         output.WriteLine("            candidates+=(\"${rest%% *}\")");
         output.WriteLine("        fi");
@@ -163,8 +168,17 @@ public static partial class CliCompletion
         output.WriteLine("}");
     }
 
-    private static string StripPlaceholders(string signature) =>
-        PlaceholderStripRegex().Replace(signature, string.Empty).Trim();
+    /// <summary>
+    /// Cuts a route signature back to the literal prefix that precedes its first argument placeholder.
+    /// Deleting placeholders and rejoining what is left would weld the literals on either side of an
+    /// interior argument together (<c>db {env} migrate</c> → <c>db migrate</c>) and manufacture a route
+    /// the application cannot dispatch.
+    /// </summary>
+    private static string TruncateAtFirstPlaceholder(string signature)
+    {
+        var placeholder = PlaceholderRegex().Match(signature);
+        return (placeholder.Success ? signature[..placeholder.Index] : signature).Trim();
+    }
 
     private static string SanitizeIdentifier(string name)
     {
