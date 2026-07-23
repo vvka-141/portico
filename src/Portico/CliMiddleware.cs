@@ -94,11 +94,19 @@ public abstract class CliMiddleware : CliOptions, ICloneable
 
     /// <summary>
     /// Runs after the dispatch, <b>whether it succeeded or threw</b> — it is invoked from a
-    /// <c>finally</c>, so it is the symmetric counterpart to <see cref="OnExecutingAction"/> and the
-    /// right place to release anything that hook acquired. It runs even if
-    /// <see cref="OnExecutingAction"/> itself threw partway through. A failure additionally reaches
-    /// <see cref="OnError"/>, which runs first; this hook is not told the outcome.
+    /// <c>finally</c>, so it is the counterpart to <see cref="OnExecutingAction"/> and the right
+    /// place to release anything that hook acquired. It runs even if <see cref="OnExecutingAction"/>
+    /// itself threw partway through. A failure additionally reaches <see cref="OnError"/>, which runs
+    /// first; this hook is not told the outcome.
     /// </summary>
+    /// <remarks>
+    /// <b>Runs in reverse registration order.</b> Middleware nests rather than queues: with
+    /// <c>UseMiddleware(a)</c> then <c>UseMiddleware(b)</c>, the order is
+    /// <c>a.OnExecutingAction → b.OnExecutingAction → handler → b.OnActionExecuted →
+    /// a.OnActionExecuted</c>. That is what makes this hook safe for teardown — whatever <c>a</c>
+    /// acquired stays alive for the whole of <c>b</c>'s lifetime, exactly as ASP.NET Core unwinds its
+    /// filter pipeline.
+    /// </remarks>
     /// <param name="invocation">The invocation that just completed, successfully or not.</param>
     /// <example><code>
     /// public override void OnActionExecuted(CliInvocation invocation)
@@ -112,10 +120,11 @@ public abstract class CliMiddleware : CliOptions, ICloneable
     }
 
     /// <summary>
-    /// Runs when the dispatch failed, before <see cref="OnActionExecuted"/>. Observational only: the
-    /// original exception propagates regardless, and an exception thrown from this hook is swallowed
-    /// — a buggy telemetry hook must not mask the failure the user actually needs to see. To change
-    /// the exit code, throw <see cref="CliExitException"/> from
+    /// Runs when the dispatch failed, before <see cref="OnActionExecuted"/> and in the same
+    /// <b>reverse registration order</b> — both are the unwinding half of the pipeline. Observational
+    /// only: the original exception propagates regardless, and an exception thrown from this hook is
+    /// swallowed — a buggy telemetry hook must not mask the failure the user actually needs to see.
+    /// To change the exit code, throw <see cref="CliExitException"/> from
     /// <see cref="OnExecutingAction"/> instead.
     /// </summary>
     /// <param name="invocation">The invocation that failed.</param>
