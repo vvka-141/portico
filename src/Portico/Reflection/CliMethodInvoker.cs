@@ -39,10 +39,17 @@ internal static class CliMethodInvoker
         invocation.RedactSensitiveOptions(
             model.Options.Concat(globalOptionsBundles.SelectMany(bundle => bundle.GetOptions())));
 
+        // Middleware NESTS, it does not queue: the setup half runs in registration order and the
+        // teardown half unwinds in reverse, so a resource A opened is released only after B — which
+        // was set up inside it — has released its own. This is the CLI's IActionFilter (CHARTER §3),
+        // and ASP.NET Core's filter pipeline runs its "after" code in reverse for the same reason.
+        // Materialized once here, not re-enumerated per dispatch. POR-72.
+        var teardownOrder = globalOptionsBundles.Reverse().ToArray();
+
         // Arm the cleanup BEFORE invoking OnExecutingAction. If a bundle's OnExecutingAction throws
         // partway through (e.g. after CliTraceListener has been attached to Trace.Listeners), the
         // finally block must still run OnActionExecuted so the listener is detached.
-        Action onExecuted = () => globalOptionsBundles.ForEach(bundle => bundle.OnActionExecuted(invocation));
+        Action onExecuted = () => teardownOrder.ForEach(bundle => bundle.OnActionExecuted(invocation));
         try
         {
             globalOptionsBundles.ForEach(bundle => bundle.OnExecutingAction(invocation));
@@ -94,7 +101,7 @@ internal static class CliMethodInvoker
         }
         catch (CliOptionMaterializationException e)
         {
-            NotifyError(globalOptionsBundles, invocation, e);
+            NotifyError(teardownOrder, invocation, e);
             throw new CliExitException(e.Message) { ExitCode = CliExitException.UsageErrorExitCode };
         }
         catch (TargetInvocationException e)
@@ -102,12 +109,12 @@ internal static class CliMethodInvoker
             var inner = e.InnerException ?? new CliExitException(
                 $"Action '{model.Name}' failed with an unreported error.")
             { ExitCode = CliExitException.RuntimeErrorExitCode };
-            NotifyError(globalOptionsBundles, invocation, inner);
+            NotifyError(teardownOrder, invocation, inner);
             throw inner;
         }
         catch (Exception e)
         {
-            NotifyError(globalOptionsBundles, invocation, e);
+            NotifyError(teardownOrder, invocation, e);
             throw;
         }
         finally
@@ -117,9 +124,12 @@ internal static class CliMethodInvoker
     }
 
     /// <summary>
-    /// Fans out an exception to every global-option bundle's <see cref="CliMiddleware.OnError"/>.
-    /// Bundle-side exceptions are swallowed: the original exception must propagate, and a buggy
-    /// telemetry hook should not mask the user-facing failure.
+    /// Fans out an exception to every global-option bundle's <see cref="CliMiddleware.OnError"/>, in
+    /// the same reverse-registration order as <see cref="CliMiddleware.OnActionExecuted"/> — both are
+    /// the unwinding half of the pipeline, and running them in opposite directions would let an outer
+    /// middleware observe the failure before the inner one it wraps. Bundle-side exceptions are
+    /// swallowed: the original exception must propagate, and a buggy telemetry hook should not mask
+    /// the user-facing failure.
     /// </summary>
     private static void NotifyError(
         IReadOnlyList<CliMiddleware> bundles,

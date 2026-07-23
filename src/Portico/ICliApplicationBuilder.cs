@@ -95,8 +95,12 @@ public interface ICliApplicationBuilder
     /// Registers a <see cref="CliMiddleware"/> — cross-cutting options (e.g. <c>--trace-level</c>)
     /// combined with lifecycle hooks (<see cref="CliMiddleware.OnExecutingAction"/>,
     /// <see cref="CliMiddleware.OnActionExecuted"/>, <see cref="CliMiddleware.OnError"/>) that
-    /// wrap every registered command. Multiple registrations run in declared order — the CLI
-    /// equivalent of <c>app.UseMiddleware&lt;T&gt;()</c> in ASP.NET Core.
+    /// wrap every registered command. The CLI equivalent of <c>app.UseMiddleware&lt;T&gt;()</c> in
+    /// ASP.NET Core, and it <b>nests</b> the same way: multiple registrations run
+    /// <see cref="CliMiddleware.OnExecutingAction"/> in declared order and
+    /// <see cref="CliMiddleware.OnError"/> / <see cref="CliMiddleware.OnActionExecuted"/> in
+    /// <b>reverse</b> declared order, so what the first registration acquires outlives every
+    /// registration after it.
     /// </summary>
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg
