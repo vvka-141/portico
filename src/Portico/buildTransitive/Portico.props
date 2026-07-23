@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Auto-imported into any project that references Portico (build + buildTransitive, so it flows
+    through the DI/Hosting adapters too). It sets ONE property and has no build side effect: a
+    package must not write into a consumer's repository. $(PorticoAgentGuide) is the absolute path
+    to the agent instruction asset shipped alongside this file in the restored package, so a coding
+    agent — or `dotnet msbuild -getProperty:PorticoAgentGuide` — can locate it without prior
+    knowledge of Portico. Surface it into your own repo explicitly if you want it tracked; the
+    package deliberately does not do that for you.
+  -->
+  <PropertyGroup>
+    <PorticoAgentGuide>$(MSBuildThisFileDirectory)PORTICO-FOR-AGENTS.md</PorticoAgentGuide>
+  </PropertyGroup>
+</Project>

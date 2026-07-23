@@ -49,4 +49,19 @@
           Visible="false" />
   </ItemGroup>
 
+  <!--
+    The agent instruction asset (POR-50). Portico has near-zero training-data presence, so the one
+    counter to the corpus-frequency moat is to ship its own few-shot guide to the point of use. It
+    travels in buildTransitive/ next to the props that exposes its path ($(PorticoAgentGuide)), so
+    an agent working in a CONSUMER's project finds it without network access or prior knowledge —
+    including through the DI/Hosting adapters (buildTransitive flows one hop further than build).
+    Also packed at the root for a human unzipping the nupkg. Kept in the core package only, like
+    Portico.Testing: it is a reason to choose Portico, not a second `dotnet add package`.
+  -->
+  <ItemGroup>
+    <None Include="buildTransitive\Portico.props" Pack="true" PackagePath="buildTransitive" Visible="false" />
+    <None Include="..\..\PORTICO-FOR-AGENTS.md" Pack="true" PackagePath="buildTransitive" Visible="false" />
+    <None Include="..\..\PORTICO-FOR-AGENTS.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
 </Project>

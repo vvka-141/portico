@@ -80,6 +80,52 @@ public sealed class Portico_Package_Should
                 "adapter would get the framework with the analyzers silently off (POR-53)."));
     }
 
+    /// <summary>
+    /// The agent instruction asset (POR-50) must ship in the core package and be locatable by a
+    /// consumer. Portico has near-zero training-data presence, so this shipped few-shot guide is the
+    /// counter to the corpus-frequency moat — if it silently stops packing, the counter is gone.
+    /// End-to-end proof is consuming the nupkg and resolving <c>$(PorticoAgentGuide)</c> (done by
+    /// hand against the packed package); these guard the source that makes it true.
+    /// </summary>
+    [Fact]
+    public void PackTheAgentAssetIntoTheCorePackage()
+    {
+        var csproj = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Portico/Portico.csproj"));
+
+        // It travels in buildTransitive/ (so it flows through the adapters too) next to the props,
+        // and at the package root for a human unzipping the nupkg.
+        Assert.Contains("PORTICO-FOR-AGENTS.md", csproj);
+        Assert.Contains(@"buildTransitive\Portico.props", csproj);
+        Assert.Matches(@"PORTICO-FOR-AGENTS\.md""\s+Pack=""true""\s+PackagePath=""buildTransitive""", csproj);
+        Assert.Matches(@"PORTICO-FOR-AGENTS\.md""\s+Pack=""true""\s+PackagePath=""\\""", csproj);
+    }
+
+    [Fact]
+    public void ExposeTheAgentGuidePathToConsumersWithNoBuildSideEffect()
+    {
+        var props = File.ReadAllText(
+            Path.Combine(RepositoryRoot(), "src/Portico/buildTransitive/Portico.props"));
+
+        Assert.Contains("<PorticoAgentGuide>", props);
+        Assert.Contains("PORTICO-FOR-AGENTS.md", props);
+        // A package must not write into a consumer's repo: the props only sets a property.
+        Assert.DoesNotContain("<Target", props);
+        Assert.DoesNotContain("WriteLinesToFile", props);
+        Assert.DoesNotContain("Copy ", props);
+    }
+
+    [Theory]
+    [InlineData("Handler contract")]             // returns int / Task<int>
+    [InlineData("presence-only")]                // CliFlag? vs bool — the mistake agents make most
+    [InlineData("command's entire path")]        // POR-70's route-is-the-path rule
+    [InlineData("Examples are tests")]           // the wedge
+    [InlineData("POR010")]                       // the full analyzer table is present
+    public void KeepTheAgentAssetCoveringItsLoadBearingTopics(string mustContain)
+    {
+        var asset = File.ReadAllText(Path.Combine(RepositoryRoot(), "PORTICO-FOR-AGENTS.md"));
+        Assert.Contains(mustContain, asset);
+    }
+
     private static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
