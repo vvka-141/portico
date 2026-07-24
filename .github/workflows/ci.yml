@@ -28,9 +28,15 @@ jobs:
           # would silently produce the wrong version once it lands.
           fetch-depth: 0
 
+      # Both runtimes, not just the newest. Portico multi-targets net8.0 and net10.0 (POR-78);
+      # with only the 10.0 SDK installed the net8.0 test assemblies COMPILE — reference assemblies
+      # come from the targeting pack — and then fail to launch for want of a runtime. A matrix that
+      # silently skips half the target frameworks is worse than not having them.
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       # Cheap, and it runs before the build so a broken link fails fast. Three documentation
       # defects — a link resolving above the repo root, a citation to an ADR that never existed,

@@ -64,6 +64,15 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Middleware teardown order no longer depends on the target framework.** `CliMethodInvoker`
+  reversed a `CliMiddleware[]` with `bundles.Reverse()`. On `net10.0` that binds to LINQ's
+  `Enumerable.Reverse` and is correct — the shipped behaviour was never wrong — but on `net8.0` an
+  array binds to `MemoryExtensions.Reverse(Span<T>)`, which reverses **in place** and returns
+  `void`. Same source, different meaning per target. Now spelled `Enumerable.Reverse(...)`
+  explicitly. Only the chained `.ToArray()` made the compiler catch this instead of the pipeline
+  quietly tearing down in registration order on one target and reverse order on the other,
+  undoing POR-72.
+
 - **`--opt=value` now binds.** The GNU long-option form that git, docker, curl and dotnet all accept
   — and that users type without thinking — did not work **at all**: `myapp --name=x` exited 2 with
   "unknown option" for an option plainly listed in `--help`. The assignment split lived in the string
@@ -133,6 +142,16 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 - **Analyzer POR006 no longer blocks dependency-injected middleware.** Middleware is user-constructed
   and cloned, never `Activator.CreateInstance`d, so a constructor dependency is legitimate. The rule
   still covers `CliOptions` bundles, which genuinely are Activator-constructed.
+
+- **Portico now targets `net8.0` as well as `net10.0`.** All three packages ship `lib/net8.0` and
+  `lib/net10.0`, both with an empty dependency group — the zero-dependency guarantee is per-target,
+  not just on the newest. CI builds and tests both.
+
+  This replaces a "net10.0 only until a real user asks" rule that could not work: a team on .NET 8
+  never gets far enough to ask, because the framework requirement stops them at the NuGet page. The
+  migration needed two source changes and no `#if` — `[GeneratedRegex]` moved from the C# 13
+  partial-property form to the method form every other regex in the codebase already used, and one
+  `Reverse()` call was spelled `Enumerable.Reverse(...)` (see Fixed).
 
 ### Removed
 

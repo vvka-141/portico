@@ -4,7 +4,7 @@ Portico builds a .NET CLI from a **contract**: a plain C# interface whose method
 routes. This file is the whole API. Read it before writing Portico code — the framework
 has near-zero training-data presence, so your priors about it are probably wrong.
 
-Zero dependencies. Target `net10.0`. `using Portico;`
+Zero dependencies. Targets `net8.0` and `net10.0`. `using Portico;`
 
 ## The one rule that catches everyone
 

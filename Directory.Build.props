@@ -38,8 +38,19 @@
   </ItemGroup>
 
   <PropertyGroup Label="Language">
-    <!-- net10.0 only. No multi-targeting until a real user asks for it. -->
-    <TargetFramework>net10.0</TargetFramework>
+    <!--
+      net8.0 + net10.0 (POR-78). This repo's rule used to be "net10.0 only, no multi-targeting until
+      a real user asks" — a YAGNI rule that cannot work here, because the TFM is what stops the user
+      arriving. A team on .NET 8 does not file an issue saying the framework requirement excluded
+      them; they read the NuGet page and close the tab. Unlike the AOT deferral, which a user can
+      still install the package and complain about, this one produces silence, and silence reads as
+      "no demand".
+
+      The cost turned out to be two lines, not a maintenance burden: no #if anywhere, and both
+      targets ship the same zero-dependency package. Analyzer projects override this with
+      TargetFrameworks=netstandard2.0, as Roslyn requires.
+    -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <!-- Explicit usings are the house style, inherited from the origin source. -->
