@@ -110,8 +110,6 @@ A CLI is an HTTP API without the H.
   template's job is to put the examples-are-tests loop in front of a new user before they have read a
   word of documentation. A CI job scaffolds from the packed template and builds and tests the result on
   every push, so this gate cannot rot.
-  **Not yet decided** — whether to ship a template at all is an open question, tracked as POR-23.
-  If the answer is "no template", this metric is struck rather than left as an aspiration nobody owns.
 - AOT is explicitly out of scope for 1.0 — the framework uses reflection for route
   discovery, option binding, and help rendering. See [aot.md](aot.md) for the deferral
   decision and its revisit conditions; it is the single source of truth on AOT.
@@ -179,6 +177,8 @@ gates, not nice-to-haves.
   `CliTestRunResult` carriers); compiler-generated record members (`<Clone>$`, `Deconstruct`), which
   cannot carry docs at all; the trivial `CliMiddleware()` ctor and exception ctors; and
   `CliShortOptionSchema` (internal — no public surface).
+
+- **No type name may collide with BCL semantics.** For every type name inherited from Solitons.
   CommandLine, verify semantics match any BCL member with the same name, or the name is
   unique enough that a BCL-prior agent won't collide. Any "name matches BCL but flips
   semantics" is a hard blocker.
