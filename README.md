@@ -5,9 +5,9 @@
 Your service's operational surface is an API. Treat it like one.
 
 ASP.NET Core for the terminal: your routes are routes, and **your examples are executable tests** —
-so the CLI cannot lie about what it accepts. Every `[CliCommandExample]` runs through the real
-pipeline, and a stale one fails the build. Roslyn analyzers check the rest at compile time. Zero
-dependencies. DI is opt-in.
+so the CLI cannot lie about what it accepts. One `CliContractValidator<T>` test runs every
+`[CliCommandExample]` through the real pipeline, and a stale one fails the build. Roslyn analyzers
+check the rest at compile time. Zero dependencies. DI is opt-in.
 
 ```csharp
 using Portico;
@@ -86,9 +86,14 @@ Assert.Equal(100, seed.Arguments["rows"]);             // the binding, pinned �
 ```
 
 Retype `--rows` from `int` to `string` and the example still *dispatches* — but it no longer binds
-`100`, and the build goes red. **The documentation cannot drift from the code, because the
-documentation is the test.** The analyzer (`POR004`) fails the build if a route ships with no
-example at all.
+`100`, and the test above goes red. **The documentation stops drifting from the code, because the
+documentation is the test.**
+
+Two enforcement points, and it is worth being exact about which does what. `POR004` is an **Error**,
+so a route that ships with no example at all breaks the build outright — no configuration, nothing to
+opt into. Whether the examples' *contents* still dispatch is checked by the `CliContractValidator<T>`
+test above; `dotnet new portico-cli` writes it for you, and a project laid out by hand needs that one
+test for the guarantee to hold.
 
 Compare what an example is everywhere else. `cobra.Command.Example`, oclif's `examples`, yargs'
 `.example()`, OpenCLI's `examples: [string]` — free text, printed in help, checked by nobody. They are

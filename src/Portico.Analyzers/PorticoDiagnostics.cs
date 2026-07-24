@@ -87,6 +87,19 @@ internal static class PorticoDiagnostics
     /// "Examples are tests" is the signature feature — a route without one has nothing to test
     /// against <c>CliContractValidator&lt;T&gt;</c>.
     /// </summary>
+    /// <remarks>
+    /// <b>Error, not Warning (POR-76).</b> Examples-are-tests is stated as a non-negotiable
+    /// invariant, and an invariant enforced at Warning is a suggestion — it holds only in projects
+    /// that happen to set <c>TreatWarningsAsErrors</c>. The README claimed this rule "fails the
+    /// build"; at Warning that was false for an ordinary consumer, which is an overclaim about the
+    /// one mechanism the framework is chosen for.
+    /// <para>
+    /// The usual objection to Error severity — that it interrupts the natural authoring order of
+    /// writing the route first and the example second — is answered by
+    /// <c>MissingCommandExampleCodeFix</c>, which inserts a stub that compiles. The interruption
+    /// costs one keystroke.
+    /// </para>
+    /// </remarks>
     public static readonly DiagnosticDescriptor MissingCommandExample = new(
         id: "POR004",
         title: "Missing [CliCommandExample] on [CliRoute] method",
@@ -95,12 +108,13 @@ internal static class PorticoDiagnostics
             "e.g. [CliCommandExample(\"<the command as a user would type it>\")] — it both documents " +
             "the command and becomes an executable CliContractValidator<T> test.",
         category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description:
-            "Every [CliRoute] method should declare at least one [CliCommandExample]. Examples " +
+            "Every [CliRoute] method must declare at least one [CliCommandExample]. Examples " +
             "serve as both help documentation and executable test cases (via CliContractValidator<T>) " +
-            "— the signature feature of the framework.",
+            "— the signature feature of the framework. A route with no example has nothing to " +
+            "verify, so the contract it advertises is unchecked.",
         helpLinkUri: HelpBase + "por004");
 
     /// <summary>
