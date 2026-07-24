@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
 using Portico.Analyzers;
 using Xunit;
 
@@ -25,6 +26,14 @@ public class Svc
         var por004 = diags.Where(d => d.Id == "POR004").ToArray();
         Assert.Single(por004);
         Assert.Contains("Init", por004[0].GetMessage());
+
+        // POR-76. POR004 shipped at Warning while the README claimed it "fails the build" — true
+        // only where the consumer sets TreatWarningsAsErrors, which the template does and an
+        // arbitrary project does not. Examples-are-tests is the framework's one non-negotiable
+        // invariant, and an invariant enforced at Warning is a suggestion. Pinned on the reported
+        // diagnostic rather than the descriptor, so this fails if the effective severity is ever
+        // downgraded by any route — declaration, .editorconfig default, or otherwise.
+        Assert.Equal(DiagnosticSeverity.Error, por004[0].Severity);
     }
 
     [Fact]

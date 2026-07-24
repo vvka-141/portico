@@ -136,6 +136,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Changed
 
+- **`POR004` is now an `Error`, not a `Warning`.** A `[CliRoute]` with no `[CliCommandExample]`
+  breaks the build outright. Examples-are-tests is the one invariant Portico asks you to accept, and
+  at `Warning` it held only in projects that happen to set `TreatWarningsAsErrors` — so the README's
+  claim that the analyzer "fails the build" was false for an ordinary consumer. Enforcing it is the
+  honest resolution; softening the claim was the alternative. `MissingCommandExampleCodeFix` already
+  ships, so the fix is one keystroke, and a route that genuinely wants no example can suppress the
+  rule per-route — a visible decision rather than a rule that quietly does nothing.
 - **`CliOptions.IsAssignableFrom` is now `internal`.** It was a one-line wrapper over
   `typeof(CliOptions).IsAssignableFrom(type)` with no callers outside the framework — public surface
   nobody meant to ship.

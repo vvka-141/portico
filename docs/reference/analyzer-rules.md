@@ -14,7 +14,7 @@ anything.
 | [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter |
 | [POR002](#por002) | Error | Two methods **on one type** declare the same route |
 | [POR003](#por003) | Error | A malformed `[CliOption]` alias spec |
-| [POR004](#por004) | Warning | A `[CliRoute]` with no `[CliCommandExample]` |
+| [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` |
 | [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder |
 | [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor |
 | [POR007](#por007) | Error | One parameter carrying two `[CliArgument]`s |
@@ -63,12 +63,20 @@ The spec is a pipe-separated alias list: `"--verbose"`, `"--verbose|-v"`, `"-v"`
 
 ## POR004
 
-**A `[CliRoute]` with no `[CliCommandExample]`.** *(Warning, not Error.)*
+**A `[CliRoute]` with no `[CliCommandExample]`.**
 
 An example is not a comment. `CliContractValidator<T>` runs every one of them through the real
 pipeline, so a route without an example is a route nothing tests — and a command your users have no
-worked invocation for. This is the one rule that is a warning: it flags a missing *test*, not a
-broken program.
+worked invocation for.
+
+It is an **Error**, and that is deliberate. This rule flags a missing *test* rather than a broken
+program, which is the usual argument for warning severity — but examples-are-tests is the one
+invariant Portico asks you to accept, and an invariant enforced at Warning holds only in projects
+that happen to set `TreatWarningsAsErrors`. A code fix ships with it, so the fix is one keystroke:
+accept the stub, then replace the placeholder text with the command as a user would type it.
+
+If you genuinely want a route with no example, suppress it the ordinary way (see below) — that is a
+deliberate, visible, per-route decision rather than a rule that quietly does nothing.
 
 ## POR005
 

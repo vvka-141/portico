@@ -11,7 +11,7 @@ Rule ID | Category | Severity | Notes
 POR001  | Portico  | Error    | Route placeholder does not match any parameter
 POR002  | Portico  | Error    | Duplicate [CliRoute] signature on one type
 POR003  | Portico  | Error    | Malformed [CliOption] spec
-POR004  | Portico  | Warning  | Missing [CliCommandExample] on [CliRoute] method
+POR004  | Portico  | Error    | Missing [CliCommandExample] on [CliRoute] method
 POR005  | Portico  | Error    | [CliArgument] has no matching route placeholder
 POR006  | Portico  | Error    | CliOptions bundle must have a public parameterless constructor (CliMiddleware is exempt)
 POR007  | Portico  | Error    | Parameter carries more than one [CliArgument]
