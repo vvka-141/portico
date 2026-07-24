@@ -46,3 +46,9 @@ website/resources/
 
 # Content and articles (local drafts, not tracked)
 /content/
+
+# .NET SDK first-use sentinels, when a sandbox or CI harness points DOTNET_CLI_HOME at the repo
+# root. Nothing here creates this — it is an artefact of how the tooling is invoked — but an
+# untracked directory that appears whenever tests run is how unrelated junk eventually gets
+# committed. Root-anchored so it cannot mask a real directory nested in a project.
+/.dotnet-home/
