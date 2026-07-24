@@ -130,7 +130,9 @@ gates, not nice-to-haves.
 - **✅ Analyzer coverage — complete for every attribute contract (POR-25).** It was inherited marked
   "✅ audited" and was false; the two gaps it hid are now closed.
   Shipping today: `[CliRoute]` → POR001 (placeholder mismatch), POR002 (duplicate route), POR008
-  (invalid return type); `[CliArgument]` → POR005 (no matching placeholder), POR007 (duplicate argument);
+  (invalid return type); `[CliArgument]` → POR005 (no matching placeholder), plus `AllowMultiple = false`
+  so a duplicate `[CliArgument]` is CS0579 (this was POR007, retired in POR-79 — handing a check to the
+  compiler beats keeping an analyzer rule that only existed to undo an attribute's own declaration);
   `[CliOption]` → POR003 (malformed spec), **POR009 (duplicate alias)**, **POR010 (type that cannot
   be built from a command-line string)**; `[CliCommandExample]` → POR004 (missing example); and the
   `CliOptions` **bundle** constructor contract → POR006.

@@ -1,5 +1,8 @@
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Portico.Analyzers;
 using Xunit;
 
@@ -70,53 +73,50 @@ public class Svc
         await AnalyzerTestRunner.AssertCleanAsync(new CliArgumentParameterAnalyzer(), source);
     }
 
-    // ── POR007: parameter carries more than one [CliArgument] ──────────────
+    // ── Duplicate [CliArgument]: the compiler's job now, not an analyzer's ──────────────
+    //
+    // POR-79 retired POR007. It existed only because CliArgumentAttribute declared
+    // AllowMultiple = true and the framework then banned what the attribute had just permitted.
+    // AllowMultiple = false hands the check to the C# compiler as CS0579, which is strictly
+    // stronger: no analyzer package to reference, no #pragma to suppress it, no way to turn it off.
+    //
+    // These tests are what makes the retirement safe rather than merely asserted — they pin the
+    // replacement enforcement, both spellings, and the negative case.
 
-    [Fact]
-    public async Task POR007_Report_When_Two_Attributes_Target_Same_Parameter()
+    private static ImmutableArray<Diagnostic> Compile(string source) =>
+        CSharpCompilation.Create(
+                assemblyName: "DuplicateArgumentTest",
+                syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
+                references: AnalyzerTestRunner.MetadataReferences,
+                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .GetDiagnostics();
+
+    [Theory]
+    // Stacked attribute lists, and both attributes inside one list — the compiler must reject each.
+    [InlineData("""[CliArgument("the path")] [CliArgument("another description")] string path""")]
+    [InlineData("""[CliArgument("a"), CliArgument("b")] string path""")]
+    public void Compiler_Rejects_Two_CliArguments_On_One_Parameter(string parameter)
     {
-        var source = """
+        var source = $$"""
 using Portico;
 
 public class Svc
 {
     [CliRoute("init {path}")]
     [CliCommandExample("init .")]
-    public int Init([CliArgument("the path")] [CliArgument("another description")] string path) => 0;
+    public int Init({{parameter}}) => 0;
 }
 """;
 
-        var diags = await AnalyzerTestRunner.RunAsync(new DuplicateCliArgumentAnalyzer(), source);
+        var errors = Compile(source)
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToArray();
 
-        var por007 = diags.Where(d => d.Id == "POR007").ToArray();
-        Assert.Single(por007);
-        Assert.Contains("path", por007[0].GetMessage());
-        Assert.Contains("Init", por007[0].GetMessage());
+        Assert.Contains(errors, d => d.Id == "CS0579");
     }
 
     [Fact]
-    public async Task POR007_Report_When_Both_Attributes_Share_One_Attribute_List()
-    {
-        var source = """
-using Portico;
-
-public class Svc
-{
-    [CliRoute("init {path}")]
-    [CliCommandExample("init .")]
-    public int Init([CliArgument("a"), CliArgument("b")] string path) => 0;
-}
-""";
-
-        var diags = await AnalyzerTestRunner.RunAsync(new DuplicateCliArgumentAnalyzer(), source);
-
-        var por007 = diags.Where(d => d.Id == "POR007").ToArray();
-        Assert.Single(por007);
-        Assert.Contains("path", por007[0].GetMessage());
-    }
-
-    [Fact]
-    public async Task POR007_Not_Report_When_Each_Parameter_Targeted_Once()
+    public void Compiler_Accepts_One_CliArgument_Per_Parameter()
     {
         var source = """
 using Portico;
@@ -129,6 +129,6 @@ public class Svc
 }
 """;
 
-        await AnalyzerTestRunner.AssertCleanAsync(new DuplicateCliArgumentAnalyzer(), source);
+        Assert.Empty(Compile(source).Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 }

@@ -5,8 +5,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Portico.Analyzers;
 
 /// <summary>
-/// Shared semantic predicate for <c>Portico.CliArgumentAttribute</c>, used by the POR005 and POR007
-/// analyzers so both recognise the attribute (and its subclasses) identically.
+/// Shared semantic predicate for <c>Portico.CliArgumentAttribute</c>, used by the POR005
+/// analyzer so it recognises the attribute (and its subclasses) identically to the runtime.
 /// </summary>
 internal static class CliArgumentAttributeFacts
 {

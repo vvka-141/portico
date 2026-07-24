@@ -1361,17 +1361,25 @@ public sealed class CliApplication_Should
         Assert.Equal("second", svc.B);
     }
 
-#pragma warning disable POR007 // Intentional duplicate: this fixture verifies the runtime guard
-                               // is still a safety net for builds without the analyzer. POR007 now
-                               // catches the same mistake at compile time (see CliArgumentAnalyzers).
+    // POR-79 set CliArgumentAttribute to AllowMultiple = false, so the plain spelling of this
+    // mistake is now CS0579 and cannot be written in C# at all — which is why POR007 was retired.
+    //
+    // The runtime guard survives, because AllowMultiple is a compiler concept and not a CLR one.
+    // Subclassing CliArgumentAttribute is a documented extension point (extensibility.md), and a
+    // subclass that redeclares [AttributeUsage(AllowMultiple = true)] gets the compiler's blessing
+    // for a stack of them — while CliMethodInfo still reads them through the base type and can bind
+    // only one. That is the path this fixture takes, and it is the reason the check is not dead code.
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
+    public sealed class RepeatableArgumentAttribute(string description)
+        : CliArgumentAttribute(description);
+
     public sealed class DuplicateArgService
     {
-        // Two [CliArgument] on one parameter: only one can be bound, so the other's description
-        // would be silently dropped.
         [CliRoute("go {x}")]
-        public int Go([CliArgument("first description")] [CliArgument("second description")] string x) => 0;
+        public int Go(
+            [RepeatableArgument("first description")]
+            [RepeatableArgument("second description")] string x) => 0;
     }
-#pragma warning restore POR007
 
     [Fact]
     public void Reject_Duplicate_Argument_Declaration_At_ConfigTime()

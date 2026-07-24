@@ -134,6 +134,19 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   and cloned, never `Activator.CreateInstance`d, so a constructor dependency is legitimate. The rule
   still covers `CliOptions` bundles, which genuinely are Activator-constructed.
 
+### Removed
+
+- **`POR007` is retired.** It reported a parameter carrying two `[CliArgument]`s — a mistake that was
+  possible only because `CliArgumentAttribute` declared `AllowMultiple = true` and the framework then
+  banned what the attribute had just permitted. The attribute now declares `AllowMultiple = false`, so
+  the C# compiler rejects it as **CS0579**: no analyzer reference required, no `#pragma` to suppress
+  it, nothing to disable. Handing a check to the compiler beats keeping a rule that only existed to
+  undo an attribute's own declaration. The ID is not reused — the next free rule is `POR011`.
+
+  The runtime check at `CliApplication.Create` stays. `AllowMultiple` is a compiler concept, not a
+  CLR one, so a subclass of `CliArgumentAttribute` — a documented extension point — that redeclares
+  `[AttributeUsage(AllowMultiple = true)]` can still reach it.
+
 ### Changed
 
 - **`POR004` is now an `Error`, not a `Warning`.** A `[CliRoute]` with no `[CliCommandExample]`

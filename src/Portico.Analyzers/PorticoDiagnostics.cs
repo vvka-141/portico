@@ -163,26 +163,11 @@ internal static class PorticoDiagnostics
             "is legitimate and is how a DI container injects into it.",
         helpLinkUri: HelpBase + "por006");
 
-    /// <summary>
-    /// POR007: a single parameter carries more than one <c>[CliArgument]</c>.
-    /// <c>[AttributeUsage(AllowMultiple = true)]</c> lets the compiler accept this, but the
-    /// framework binds exactly one, so the extras are silently discarded.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DuplicateCliArgument = new(
-        id: "POR007",
-        title: "Parameter carries more than one [CliArgument]",
-        messageFormat:
-            "Parameter '{0}' on '{1}' carries {2} [CliArgument] attributes. " +
-            "Describe each argument exactly once — merge them into a single attribute.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        description:
-            "CliArgumentAttribute is AllowMultiple=true so the compiler accepts a stack of them on " +
-            "one parameter, but only one is bound — the rest are dropped along with their " +
-            "descriptions. The framework rejects this at configuration time; the analyzer catches " +
-            "it at compile time.",
-        helpLinkUri: HelpBase + "por007");
+    // POR007 was retired in POR-79. It reported a parameter carrying more than one [CliArgument] —
+    // a mistake that existed only because CliArgumentAttribute declared AllowMultiple = true and
+    // then banned what it had just permitted. Setting AllowMultiple = false hands the check to the
+    // C# compiler (CS0579), which is strictly stronger: no analyzer reference, no suppression, no
+    // way to turn it off. The ID is not reused; the next free rule is POR011.
 
     /// <summary>
     /// POR008: a method decorated with <c>[CliRoute]</c> must return <c>int</c> or

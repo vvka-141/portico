@@ -17,7 +17,6 @@ anything.
 | [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` |
 | [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder |
 | [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor |
-| [POR007](#por007) | Error | One parameter carrying two `[CliArgument]`s |
 | [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code |
 | [POR009](#por009) | Error | Two options on one command declaring the same alias |
 | [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
@@ -106,13 +105,15 @@ constructor arguments.
 constructed by *you* and cloned per dispatch, never `Activator`-constructed — so a constructor
 dependency is legitimate, and is exactly how a DI container injects into it.
 
-## POR007
+## POR007 — retired
 
-**One parameter carrying two `[CliArgument]`s.**
+There is no POR007. It reported a parameter carrying two `[CliArgument]`s — a mistake that was
+possible only because `CliArgumentAttribute` declared `AllowMultiple = true` and the framework then
+banned what the attribute had just permitted. The attribute now declares `AllowMultiple = false`, so
+the C# compiler reports it as **CS0579** before any analyzer runs: no package reference required, no
+suppression path, nothing to disable.
 
-`CliArgumentAttribute` is `AllowMultiple = true`, so the compiler accepts a stack of them on one
-parameter — but only one is bound and the rest are dropped along with their descriptions. Merge them
-into a single attribute.
+The ID is not reused. The next free rule is POR011.
 
 ## POR008
 
