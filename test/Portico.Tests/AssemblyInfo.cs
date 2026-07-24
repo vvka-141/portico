@@ -1,7 +1,8 @@
 using Xunit;
 
 // Test classes run SERIALLY in this assembly. This is not a performance oversight — it is
-// required for correctness, and the suite runs in ~2 seconds regardless.
+// required for correctness. The suite takes roughly half a minute, dominated by the analyzer
+// tests, which spin up a Roslyn compilation per case; serialization is not what costs the time.
 //
 // The console is process-global. Two things in this suite touch it in incompatible ways:
 //

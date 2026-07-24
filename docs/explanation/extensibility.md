@@ -44,7 +44,7 @@ overlap, no surprises.
 | Replace help triggers (e.g. add `/?` on Windows) | `cfg.WithHelp(h => h.Triggers("--help", "-h", "-?", "/?"))` |
 | Disable help entirely (daemon / headless CLI) | `cfg.SuppressHelp()` |
 | Get the ambient `CancellationToken` | Declare a `CancellationToken` parameter — framework injects it |
-| Emit shell completion (verb-level) | `app.EmitCompletion(shell, exeName, output)` — **you wire it**: expose a `completion` subcommand that calls this. Scope is verb-level only (proposes the next route segment); options/values do not complete (`app deploy --<TAB>` yields nothing). Parked by [ADR 0003](../../../docs/adr/0003-park-option-level-shell-completion.md) until demand appears |
+| Emit shell completion (verb-level) | `app.EmitCompletion(shell, exeName, output)` — **you wire it**: expose a `completion` subcommand that calls this. Scope is verb-level only (proposes the next route segment); options/values do not complete (`app deploy --<TAB>` yields nothing). Parked in the [ROADMAP](../ROADMAP.md) until demand appears |
 | Fall back to an env var when an option is absent | `[CliOption("--port", EnvironmentVariable = "PORT")] int port` |
 | Share a route prefix across every method on a type | `[CliRoute("db")]` on the interface or class — prepended to each method's route; class wins over inherited interface |
 | Bind a `CancellationToken` to a user-supplied timeout | `[CliOption("--timeout")] CancellationToken timeout` — accepts `30s`/`5m`/`PT2M`/`00:00:30` |

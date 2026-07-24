@@ -32,6 +32,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Cheap, and it runs before the build so a broken link fails fast. Three documentation
+      # defects — a link resolving above the repo root, a citation to an ADR that never existed,
+      # and public docs pointing at a private tracker — shipped undetected until an outside
+      # reader found them (POR-77). This is the gate that re-runs.
+      - name: Check docs integrity
+        run: bash eng/check-docs-links.sh
+
       - name: Restore
         run: dotnet restore portico.sln
 

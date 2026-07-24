@@ -72,7 +72,7 @@ with no DLL reference at all. What it does not do is *report diagnostics for you
 Its validation is runtime, via `System.ComponentModel.DataAnnotations`, after parameters are bound.
 The others validate at runtime or not at all.
 
-Portico fails your **build** for eight declaration mistakes ([POR001–POR008](../../README.md)) — a
+Portico fails your **build** for ten declaration mistakes ([POR001–POR010](../../README.md)) — a
 route placeholder that matches no parameter, two methods claiming the same route, a `[CliRoute]` with
 no `[CliCommandExample]`, and so on. And `[CliCommandExample]` is not a comment: `CliContractValidator<T>`
 runs every example through the real pipeline and fails the build when one stops dispatching, or stops

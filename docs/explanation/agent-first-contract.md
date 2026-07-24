@@ -13,7 +13,7 @@ each ✅ is a behaviour with a test behind it, named.
 | Never hang waiting for a human who is not there | ✅ shipped | `CliPrompt` |
 | Exit codes are a stable enumeration | ✅ shipped, now documented | `CliExitException` |
 | stderr is not a prompt-injection channel | ✅ **new** | `CliSanitizer` |
-| Ground truth about the real surface | 🟡 partial | verified `--help` shipped; machine-readable emission sanctioned by [POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41), not yet built |
+| Ground truth about the real surface | 🟡 partial | verified `--help` shipped; machine-readable emission sanctioned (see below), not yet built |
 | Structured output (`--json`) | ❌ **declined** | see below |
 | Typed error envelopes | ❌ declined for now | see below |
 
@@ -79,9 +79,9 @@ it are **executed against the real contract**, so they cannot be stale — but i
 manifest.
 
 Whether Portico should emit a machine-readable manifest was a **Charter question**, not an engineering
-one (§5 rejects DSL *input* formats; a manifest is derived *output*). It was settled by
-[POR-41](https://alexeyevlampiev.atlassian.net/browse/POR-41) on 2026-07-15: **emission is
-permitted** — read-only, hard-scoped, no schema ingestion and no MCP server mode. See Charter §5.
+one (§5 rejects DSL *input* formats; a manifest is derived *output*). It was settled on 2026-07-15:
+**emission is permitted** — read-only, hard-scoped, no schema ingestion and no MCP server mode.
+See Charter §5.
 The manifest itself is not yet built.
 
 ## ❌ Structured output (`--json`) — declined
