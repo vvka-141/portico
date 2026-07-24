@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Portico.DependencyInjection;
@@ -24,7 +25,12 @@ namespace Portico.DependencyInjection;
 /// </remarks>
 internal static class CliDispatchScope
 {
-    private static readonly AsyncLocal<IServiceScope?> Current = new();
+    private sealed class DispatchScope(AsyncServiceScope scope)
+    {
+        public AsyncServiceScope Scope { get; } = scope;
+    }
+
+    private static readonly AsyncLocal<DispatchScope?> Current = new();
 
     /// <summary>
     /// Resolves <paramref name="contractType"/> from the current dispatch's scope, opening one on
@@ -33,29 +39,29 @@ internal static class CliDispatchScope
     /// </summary>
     public static object Resolve(Type contractType, IServiceProvider services)
     {
-        var scope = Current.Value;
-        if (scope is null)
+        var dispatchScope = Current.Value;
+        if (dispatchScope is null)
         {
-            scope = services.GetRequiredService<IServiceScopeFactory>().CreateScope();
-            Current.Value = scope;
+            dispatchScope = new DispatchScope(services.CreateAsyncScope());
+            Current.Value = dispatchScope;
         }
 
-        return scope.ServiceProvider.GetRequiredService(contractType);
+        return dispatchScope.Scope.ServiceProvider.GetRequiredService(contractType);
     }
 
     /// <summary>
-    /// Disposes the current dispatch's scope, if one was opened. Idempotent: registering the closing
-    /// middleware twice (two <c>AddCommands</c> calls against the same provider) must not double-dispose.
+    /// Asynchronously disposes the current dispatch's scope, if one was opened. Idempotent: multiple
+    /// registered command contracts must not double-dispose the shared per-dispatch scope.
     /// </summary>
-    public static void Close()
+    public static async ValueTask CloseAsync()
     {
-        var scope = Current.Value;
-        if (scope is null) return;
+        var dispatchScope = Current.Value;
+        if (dispatchScope is null) return;
 
         Current.Value = null;
         try
         {
-            scope.Dispose();
+            await dispatchScope.Scope.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -64,6 +70,12 @@ internal static class CliDispatchScope
             Debug.WriteLine($"Portico: dispatch scope disposal failed: {e}");
         }
     }
+
+    /// <summary>
+    /// Compatibility cleanup for custom <see cref="ICliApplicationBuilder"/> implementations that
+    /// cannot use the core's internal asynchronous lifetime seam.
+    /// </summary>
+    public static void Close() => CloseAsync().AsTask().GetAwaiter().GetResult();
 }
 
 /// <summary>

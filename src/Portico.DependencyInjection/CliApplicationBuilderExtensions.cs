@@ -92,11 +92,21 @@ public static class CliApplicationBuilderExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(rootRoutes);
 
-        // The middleware closes the scope the factory opens. Registering it here — rather than asking
-        // the user to — is what keeps `AddScoped` from silently behaving like `AddSingleton`.
-        // Registering it twice is harmless: closing an already-closed scope is a no-op.
-        builder.UseMiddleware(new CliServiceScopeMiddleware());
+        // The concrete Portico builder exposes an internal lifetime seam to this adapter. Cleanup
+        // then surrounds activation + invocation, so it runs even when constructor resolution fails,
+        // and can await IAsyncDisposable services without sync-over-async.
+        if (builder is ICliCommandLifetimeBuilder lifetimeBuilder)
+        {
+            return lifetimeBuilder.AddCommands(
+                contractType,
+                () => CliDispatchScope.Resolve(contractType, services),
+                CliDispatchScope.CloseAsync,
+                rootRoutes);
+        }
 
+        // Compatibility path for third-party builder decorators. The public builder contract only
+        // has a synchronous factory/hook surface, so bridge the same async cleanup synchronously.
+        builder.UseMiddleware(new CliServiceScopeMiddleware());
         return builder.AddCommands(contractType, () => CliDispatchScope.Resolve(contractType, services), rootRoutes);
     }
 

@@ -121,7 +121,7 @@ public static class CliPrompt
         console.Out.Write($"{message}: ");
 
         // Redirected input path (test harness, piped stdin) — no ReadKey available.
-        if (console.IsOutputRedirected || Console.IsInputRedirected)
+        if (console.IsInputRedirected)
         {
             var line = console.In.ReadLine()
                 ?? throw EndOfInputException(nameof(GetPassword));

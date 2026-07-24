@@ -3,59 +3,43 @@ using Xunit;
 
 namespace Portico;
 
-// POR-64. POR008 forbids a ValueTask return type, but the runtime is a deliberately lenient backstop
-// (it already handles non-generic Task more permissively than the analyzer). If POR008 is suppressed
-// or absent, a ValueTask handler must still be AWAITED and its exit code honoured — not silently
-// discarded as 0 (which would report success for unfinished async work). The analyzers are referenced
-// as ordinary assemblies here, not active plugins, so these ValueTask routes compile — precisely the
-// "POR008 absent" scenario.
+// POR008 is an authoring aid, not the runtime's only line of defence. Consumers can suppress
+// analyzers or load contracts from separately-built assemblies, so application construction must
+// enforce the same handler return contract.
 // ReSharper disable once InconsistentNaming
 public sealed class CliValueTaskReturn_Should
 {
-    public sealed class Svc
+    public sealed class ValueTaskOfIntService
     {
-        public bool Ran { get; private set; }
-
-        [CliRoute("vt-int")]
-        [CliCommandExample("vt-int")]
-        public async ValueTask<int> VtInt()
-        {
-            await Task.Yield();
-            Ran = true;
-            return 7;
-        }
-
-        [CliRoute("vt")]
-        [CliCommandExample("vt")]
-        public async ValueTask Vt()
-        {
-            await Task.Yield();
-            Ran = true;
-        }
+        [CliRoute("run")]
+        [CliCommandExample("run")]
+        public ValueTask<int> Run() => ValueTask.FromResult(7);
     }
 
-    private static (int exit, Svc svc) Run(string commandLine)
+    public sealed class PlainValueTaskService
     {
-        var svc = new Svc();
-        var app = CliApplication.Create(cfg => cfg.AddCommands(svc));
-        return (app.Run(commandLine), svc);
+        [CliRoute("run")]
+        [CliCommandExample("run")]
+        public ValueTask Run() => ValueTask.CompletedTask;
     }
 
     [Fact]
-    public void Await_A_ValueTask_Of_Int_And_Honour_Its_Exit_Code()
+    public void Reject_ValueTask_Of_Int_When_Application_Is_Created()
     {
-        var (exit, svc) = Run("app.exe vt-int");
+        var ex = Assert.Throws<CliConfigurationException>(() =>
+            CliApplication.Create(cfg => cfg.AddCommands(new ValueTaskOfIntService())));
 
-        Assert.True(svc.Ran, "the ValueTask<int> handler must be awaited to completion");
-        Assert.Equal(7, exit);   // not 0 — the exit code is honoured, not discarded
+        Assert.Contains("ValueTask", ex.Message);
+        Assert.Contains("int or Task<int>", ex.Message);
     }
 
     [Fact]
-    public void Await_A_Plain_ValueTask_And_Return_Zero()
+    public void Reject_Plain_ValueTask_When_Application_Is_Created()
     {
-        var (exit, svc) = Run("app.exe vt");
+        var ex = Assert.Throws<CliConfigurationException>(() =>
+            CliApplication.Create(cfg => cfg.AddCommands(new PlainValueTaskService())));
 
-        Assert.True(svc.Ran, "the ValueTask handler must be awaited to completion");
-        Assert.Equal(0, exit);
+        Assert.Contains("ValueTask", ex.Message);
+        Assert.Contains("int or Task<int>", ex.Message);
     }
 }

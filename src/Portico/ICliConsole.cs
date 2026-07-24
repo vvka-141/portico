@@ -29,6 +29,14 @@ public interface ICliConsole
     bool IsOutputRedirected => false;
 
     /// <summary>
+    /// True when stdin has been redirected from a file, pipe, or in-memory reader. Prompt helpers
+    /// use this independently from <see cref="IsOutputRedirected"/>: redirecting output does not
+    /// imply that password input can be read with <see cref="Console.ReadKey(bool)"/>.
+    /// Custom implementations default to <c>false</c>.
+    /// </summary>
+    bool IsInputRedirected => false;
+
+    /// <summary>
     /// True when the console is suitable for colored / styled output. The default implementation
     /// honors the <c>NO_COLOR</c> environment variable (see <c>https://no-color.org</c>) and the
     /// absence of a TTY — consumers that respect this property automatically degrade gracefully
@@ -53,6 +61,7 @@ public sealed class SystemCliConsole : ICliConsole
     public TextReader In => Console.In;
 
     public bool IsOutputRedirected => Console.IsOutputRedirected;
+    public bool IsInputRedirected => Console.IsInputRedirected;
 
     public bool IsColorEnabled =>
         !Console.IsOutputRedirected &&

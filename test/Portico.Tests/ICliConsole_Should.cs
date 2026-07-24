@@ -15,6 +15,13 @@ public sealed class ICliConsole_Should
     }
 
     [Fact]
+    public void Default_IsInputRedirected_To_False_On_Custom_Implementations()
+    {
+        ICliConsole custom = new MinimalConsole();
+        Assert.False(custom.IsInputRedirected);
+    }
+
+    [Fact]
     public void Default_IsColorEnabled_To_False_On_Custom_Implementations()
     {
         // Custom consoles are opt-in-to-color — default is safe (no styling).

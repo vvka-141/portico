@@ -11,7 +11,7 @@ namespace Portico;
 /// <remarks>
 /// Opt-in by design — without <c>--timing</c>, the middleware is silent, adding only a
 /// <see cref="Stopwatch"/> start/stop on the dispatch path. The timing line goes to
-/// <see cref="Console.Error"/> so it doesn't pollute stdout capture in pipelines
+/// <see cref="ICliConsole.Error"/> so it doesn't pollute stdout capture in pipelines
 /// (<c>mytool do | jq</c> keeps working). Format:
 /// <code>
 /// [timing] deploy prod ... 182 ms
@@ -54,7 +54,8 @@ public sealed class CliTimingMiddleware : CliMiddleware
         _stopwatch?.Stop();
         if (Timing.HasValue && _stopwatch is not null)
         {
-            Console.Error.WriteLine($"[timing] {invocation} ... {_stopwatch.ElapsedMilliseconds} ms");
+            (AttachedConsole ?? SystemCliConsole.Instance).Error.WriteLine(
+                $"[timing] {invocation} ... {_stopwatch.ElapsedMilliseconds} ms");
         }
         base.OnActionExecuted(invocation);
     }
