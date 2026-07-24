@@ -1,0 +1,132 @@
+[
+  {
+    "id": "01-single-option",
+    "prose": "A CLI named `tool`. One command: `greet`. It takes a required option `--name` (a string).\nOn success print exactly one line: greet|name=<name>  and exit 0.",
+    "goldens": [{ "cmd": "greet --name Ada", "out": "greet|name=Ada", "exit": 0 }]
+  },
+  {
+    "id": "02-subcommand",
+    "prose": "A CLI named `tool`. One command reached as `db migrate`. It takes a required option `--to` (a string).\nOn success print exactly one line: migrate|to=<to>  and exit 0.",
+    "goldens": [{ "cmd": "db migrate --to v5", "out": "migrate|to=v5", "exit": 0 }]
+  },
+  {
+    "id": "03-positional",
+    "prose": "A CLI named `tool`. One command: `open`, which takes ONE POSITIONAL argument called `path` (not an option).\nInvoked as `tool open ./src`. On success print exactly one line: open|path=<path>  and exit 0.",
+    "goldens": [{ "cmd": "open ./src", "out": "open|path=./src", "exit": 0 }]
+  },
+  {
+    "id": "04-optional-positional",
+    "prose": "A CLI named `tool`. One command: `list`, taking ONE OPTIONAL trailing positional argument `scope` that defaults to `all`.\nInvoked as `tool list` or `tool list mine`. Print exactly one line: list|scope=<scope>  and exit 0.",
+    "goldens": [
+      { "cmd": "list", "out": "list|scope=all", "exit": 0 },
+      { "cmd": "list mine", "out": "list|scope=mine", "exit": 0 }
+    ]
+  },
+  {
+    "id": "05-flag",
+    "prose": "A CLI named `tool`. One command: `build`. It has a PRESENCE-ONLY flag `--verbose` (passing it takes no value; omitting it means off).\nPrint exactly one line: build|verbose=<on|off>  and exit 0.",
+    "goldens": [
+      { "cmd": "build", "out": "build|verbose=off", "exit": 0 },
+      { "cmd": "build --verbose", "out": "build|verbose=on", "exit": 0 }
+    ]
+  },
+  {
+    "id": "06-bool-two-state",
+    "prose": "A CLI named `tool`. One command: `sync`. It has an option `--force` that is an explicit TWO-STATE boolean: the user types `--force true` or `--force false`. It defaults to false when omitted.\nPrint exactly one line: sync|force=<true|false>  (lowercase) and exit 0.",
+    "goldens": [
+      { "cmd": "sync --force true", "out": "sync|force=true", "exit": 0 },
+      { "cmd": "sync", "out": "sync|force=false", "exit": 0 }
+    ]
+  },
+  {
+    "id": "07-collection",
+    "prose": "A CLI named `tool`. One command: `tag`. It has an option `--tag` that may be REPEATED to collect several values.\nPrint exactly one line: tag|tags=<comma-joined values in the order given>  and exit 0.",
+    "goldens": [{ "cmd": "tag --tag a --tag b --tag c", "out": "tag|tags=a,b,c", "exit": 0 }]
+  },
+  {
+    "id": "08-map",
+    "prose": "A CLI named `tool`. One command: `shard`. It has a KEY-VALUE (dictionary) option `--set`, invoked as `--set[eu] 3 --set[us] 5`, producing a mapping from string keys to int values.\nPrint exactly one line: shard|<key>=<value> pairs sorted by key and joined by commas, e.g. shard|eu=3,us=5  and exit 0.",
+    "goldens": [{ "cmd": "shard --set[eu] 3 --set[us] 5", "out": "shard|eu=3,us=5", "exit": 0 }]
+  },
+  {
+    "id": "09-timespan",
+    "prose": "A CLI named `tool`. One command: `wait`. It has an option `--for` holding a duration, which an operator may type as \"30 seconds\" or \"2 minutes\".\nPrint exactly one line: wait|seconds=<total whole seconds>  and exit 0.",
+    "goldens": [
+      { "cmd": "wait --for \"30 seconds\"", "out": "wait|seconds=30", "exit": 0 },
+      { "cmd": "wait --for \"2 minutes\"", "out": "wait|seconds=120", "exit": 0 }
+    ]
+  },
+  {
+    "id": "10-enum",
+    "prose": "A CLI named `tool`. One command: `log`. It has an option `--level` whose value is one of an enum: Debug, Info, Warn, Error.\nPrint exactly one line: log|level=<level>  and exit 0.",
+    "goldens": [{ "cmd": "log --level Warn", "out": "log|level=Warn", "exit": 0 }]
+  },
+  {
+    "id": "11-two-subcommands",
+    "prose": "A CLI named `tool`. TWO commands sharing a prefix: `cache clear` and `cache stats`. Neither takes options.\nPrint exactly one line: cache-clear  or  cache-stats  respectively, and exit 0.",
+    "goldens": [
+      { "cmd": "cache clear", "out": "cache-clear", "exit": 0 },
+      { "cmd": "cache stats", "out": "cache-stats", "exit": 0 }
+    ]
+  },
+  {
+    "id": "12-int-default",
+    "prose": "A CLI named `tool`. One command: `seed`. It has an option `--rows` (an integer) that defaults to 10 when omitted.\nPrint exactly one line: seed|rows=<rows>  and exit 0.",
+    "goldens": [
+      { "cmd": "seed", "out": "seed|rows=10", "exit": 0 },
+      { "cmd": "seed --rows 250", "out": "seed|rows=250", "exit": 0 }
+    ]
+  },
+  {
+    "id": "13-two-placeholders",
+    "prose": "A CLI named `tool`. One command shaped `copy <source> <dest>` where source and dest are POSITIONAL arguments.\nInvoked as `tool copy a.txt b.txt`. Print exactly one line: copy|from=<source>|to=<dest>  and exit 0.",
+    "goldens": [{ "cmd": "copy a.txt b.txt", "out": "copy|from=a.txt|to=b.txt", "exit": 0 }]
+  },
+  {
+    "id": "14-interior-placeholder",
+    "prose": "A CLI named `tool`. One command shaped `user <id> delete` — the positional argument sits BETWEEN two literal words.\nInvoked as `tool user 42 delete`. Print exactly one line: delete|id=42  and exit 0.",
+    "goldens": [{ "cmd": "user 42 delete", "out": "delete|id=42", "exit": 0 }]
+  },
+  {
+    "id": "15-aliases",
+    "prose": "A CLI named `tool`. One command: `push`. It has a required string option with BOTH a long form `--remote` and a short form `-r`.\nPrint exactly one line: push|remote=<remote>  and exit 0.",
+    "goldens": [
+      { "cmd": "push --remote origin", "out": "push|remote=origin", "exit": 0 },
+      { "cmd": "push -r origin", "out": "push|remote=origin", "exit": 0 }
+    ]
+  },
+  {
+    "id": "16-async",
+    "prose": "A CLI named `tool`. One command: `fetch`, whose handler is ASYNCHRONOUS (it awaits something) and takes a required option `--url`.\nPrint exactly one line: fetch|url=<url>  and exit 0.",
+    "goldens": [{ "cmd": "fetch --url https://x.test", "out": "fetch|url=https://x.test", "exit": 0 }]
+  },
+  {
+    "id": "17-exit-code",
+    "prose": "A CLI named `tool`. One command: `check`. It takes a required integer option `--code`. The command prints exactly one line: check|code=<code>  and then EXITS WITH THAT NUMBER as the process exit code.",
+    "goldens": [
+      { "cmd": "check --code 0", "out": "check|code=0", "exit": 0 },
+      { "cmd": "check --code 3", "out": "check|code=3", "exit": 3 }
+    ]
+  },
+  {
+    "id": "18-bundle",
+    "prose": "A CLI named `tool`. One command: `page`. It has THREE related options that should be grouped into a single reusable options class rather than three separate handler parameters: `--offset` (int, default 0), `--limit` (int, default 50), and `--sort` (string, default \"id\").\nPrint exactly one line: page|offset=<offset>|limit=<limit>|sort=<sort>  and exit 0.",
+    "goldens": [
+      { "cmd": "page", "out": "page|offset=0|limit=50|sort=id", "exit": 0 },
+      { "cmd": "page --offset 20 --limit 5 --sort name", "out": "page|offset=20|limit=5|sort=name", "exit": 0 }
+    ]
+  },
+  {
+    "id": "19-env-fallback",
+    "prose": "A CLI named `tool`. One command: `ping`. It has an option `--endpoint` (string). When `--endpoint` is not passed, its value must come from the environment variable `TOOL_ENDPOINT`. If neither is present it defaults to `local`.\nPrint exactly one line: ping|endpoint=<endpoint>  and exit 0.",
+    "goldens": [
+      { "cmd": "ping --endpoint https://a", "out": "ping|endpoint=https://a", "exit": 0 },
+      { "cmd": "ping", "out": "ping|endpoint=from-env", "exit": 0, "env": { "TOOL_ENDPOINT": "from-env" } }
+    ]
+  },
+  {
+    "id": "20-three-level",
+    "prose": "A CLI named `tool`. One command reached as `remote branch delete` (three literal words) taking a required option `--name`.\nPrint exactly one line: rbd|name=<name>  and exit 0.",
+    "goldens": [{ "cmd": "remote branch delete --name feat", "out": "rbd|name=feat", "exit": 0 }]
+  }
+]
