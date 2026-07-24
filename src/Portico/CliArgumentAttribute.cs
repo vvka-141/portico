@@ -22,7 +22,12 @@ namespace Portico;
 /// [CliCommandExample("user 42 details", "show one user")]
 /// public int Details([CliArgument("which user")] string id) =&gt; 0;
 /// </code></example>
-[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
+// AllowMultiple = false, so the C# compiler reports a second [CliArgument] on one parameter as
+// CS0579. That is strictly stronger than the analyzer rule it replaced (POR007, retired in POR-79):
+// no analyzer package to reference, no suppression path, no way to disable it. The runtime check in
+// CliMethodInfo survives because AllowMultiple is a compiler concept, not a CLR one — a subclass
+// that redeclares [AttributeUsage(AllowMultiple = true)] still reaches it.
+[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false)]
 public class CliArgumentAttribute : Attribute
 {
     /// <summary>

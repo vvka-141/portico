@@ -166,7 +166,6 @@ diagnostics for command-surface mistakes. If you see one, the message names the 
 | POR004 | a `[CliRoute]` method has no `[CliCommandExample]` |
 | POR005 | a `[CliArgument]` parameter has no matching `{placeholder}` |
 | POR006 | a `CliOptions` bundle has no public parameterless constructor |
-| POR007 | one parameter carries two `[CliArgument]` |
 | POR008 | a `[CliRoute]` method does not return `int`/`Task<int>` |
 | POR009 | two options on one command share an alias |
 | POR010 | a `[CliOption]` type cannot be built from a command-line string |

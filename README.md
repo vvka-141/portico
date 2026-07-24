@@ -122,7 +122,6 @@ checking your CLI:
 | `POR004` | a `[CliRoute]` with no `[CliCommandExample]` |
 | `POR005` | `[CliArgument]` has no matching route placeholder |
 | `POR006` | a `CliOptions` bundle with no public parameterless constructor |
-| `POR007` | one parameter carrying two `[CliArgument]`s |
 | `POR008` | a `[CliRoute]` method that cannot return an exit code |
 | `POR009` | two options on one command declaring the same alias |
 | `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
