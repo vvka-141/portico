@@ -18,6 +18,7 @@
     <!-- The internalized helpers (POR-11) and the routing internals are not public
          surface, but they carry their own tests. -->
     <InternalsVisibleTo Include="Portico.Tests" />
+    <InternalsVisibleTo Include="Portico.DependencyInjection" />
   </ItemGroup>
 
   <!--

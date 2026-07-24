@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Portico.Testing;
 using Xunit;
@@ -45,6 +45,18 @@ public sealed class CliDependencyInjection_Should
         {
             IsDisposed = true;
             ledger.Disposed.Add(nameof(Database));
+        }
+    }
+
+    public sealed class AsyncDatabase(Ledger ledger) : IAsyncDisposable
+    {
+        public bool IsDisposed { get; private set; }
+
+        public ValueTask DisposeAsync()
+        {
+            IsDisposed = true;
+            ledger.Disposed.Add(nameof(AsyncDatabase));
+            return ValueTask.CompletedTask;
         }
     }
 
@@ -184,6 +196,64 @@ public sealed class CliDependencyInjection_Should
             _ = ledger;
             throw new InvalidOperationException("migration failed");
         }
+    }
+
+    public sealed class ActivationFailingTool
+    {
+        public ActivationFailingTool(Database database)
+        {
+            _ = database;
+            throw new InvalidOperationException("constructor failed");
+        }
+
+        [CliRoute("activate")]
+        [CliCommandExample("activate")]
+        public int Activate() => 0;
+    }
+
+    [Fact]
+    public void Dispose_The_Dispatch_Scope_When_Command_Activation_Throws()
+    {
+        var ledger = new Ledger();
+        var services = new ServiceCollection()
+            .AddSingleton(ledger)
+            .AddScoped<Database>()
+            .AddScoped<ActivationFailingTool>()
+            .BuildServiceProvider();
+
+        var result = CliTestHarness
+            .ForApplication(cfg => cfg.AddCommands<ActivationFailingTool>(services))
+            .Run("admin activate");
+
+        result.ExpectExit(1);
+        Assert.Equal([nameof(Database)], ledger.Disposed);
+    }
+
+    public sealed class AsyncTool(AsyncDatabase database)
+    {
+        [CliRoute("async")]
+        [CliCommandExample("async")]
+        public Task<int> Run()
+        {
+            Assert.False(database.IsDisposed);
+            return Task.FromResult(0);
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_Async_Only_Services_When_The_Command_Completes()
+    {
+        var ledger = new Ledger();
+        var services = new ServiceCollection()
+            .AddSingleton(ledger)
+            .AddScoped<AsyncDatabase>()
+            .AddScoped<AsyncTool>()
+            .BuildServiceProvider();
+
+        var app = CliApplication.Create(cfg => cfg.AddCommands<AsyncTool>(services));
+
+        Assert.Equal(0, await app.RunAsync("admin async"));
+        Assert.Equal([nameof(AsyncDatabase)], ledger.Disposed);
     }
 
     [Fact]

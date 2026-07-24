@@ -30,7 +30,7 @@ public sealed class CliPrompt_Extended_Should
         public TextReader In => Reader;
 
         // Signals the password path that input is redirected — exercises the non-TTY branch.
-        public bool IsOutputRedirected => true;
+        public bool IsInputRedirected => true;
     }
 
     // --- GetLine ----------------------------------------------------------------------------

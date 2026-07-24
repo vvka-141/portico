@@ -258,6 +258,7 @@ public sealed class CliContractValidator<T> where T : class
         public TextWriter Out => OutWriter;
         public TextWriter Error => ErrorWriter;
         public TextReader In => TextReader.Null;
+        public bool IsInputRedirected => true;
 
         public void Clear()
         {

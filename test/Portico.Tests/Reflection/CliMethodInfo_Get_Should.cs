@@ -15,10 +15,12 @@ public sealed class CliMethodInfo_Get_Should
 
     public interface IPgUpTestCase
     {
+        // Returns int, not void: a [CliRoute] method's return type is part of the handler contract,
+        // rejected at CliApplication.Create. This fixture exercises parameter metadata, not dispatch.
         [CliRoute("init {projectDir}")]
         [CliCommandExample("init .")]
         [CliCommandExample("init /src/database --template basic")]
-        public void Initialize(
+        public int Initialize(
             [CliArgument("Project directory path", Name = "ProjectDir")] string projectDir,
             [CliOption("--verbose")] CliFlag? verbose);
 

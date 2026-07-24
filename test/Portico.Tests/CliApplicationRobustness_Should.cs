@@ -128,13 +128,8 @@ public sealed class CliApplicationRobustness_Should
             .WithConsole(console));
 
         Assert.Equal(0, app.Run("app slow --timing"));
-
-        // --timing isn't captured by StringCliConsole.Error because the middleware writes to
-        // Console.Error directly (framework's test policy: handlers/middleware use System.Console.*).
-        // But the framework's WithConsole doesn't redirect Console.Error — only the harness does.
-        // For this test, redirecting process-level Console.Error would race other tests; instead,
-        // verify the dispatch succeeded with the option present. The ExpectOut timing line path
-        // is exercised by the harness-based test below.
+        Assert.Contains("[timing]", console.ErrorWriter.ToString());
+        Assert.Contains("slow", console.ErrorWriter.ToString());
     }
 
     [Fact]
@@ -149,5 +144,6 @@ public sealed class CliApplicationRobustness_Should
         Assert.Equal(0, app.Run("app slow"));
         // No output of any kind (handler doesn't print; middleware is silent without --timing).
         Assert.Empty(console.OutWriter.ToString());
+        Assert.Empty(console.ErrorWriter.ToString());
     }
 }

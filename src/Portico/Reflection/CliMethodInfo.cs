@@ -34,6 +34,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
     {
         _context = context;
         Debug.Assert(IsCliMethod(method));
+        RejectInvalidReturnType(method);
         var parameters = base.GetParameters();
         var attributes = GetCustomAttributes(true).OfType<Attribute>().ToList();
 
@@ -77,6 +78,15 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             literalPrefix: literalPrefix,
             mountPrefix: [.. rootSegments.OfType<CliLiteralSegment>().Select(s => s.Text)],
             routeSignature: ComputeRouteSignature(_routeSegments));
+    }
+
+    private static void RejectInvalidReturnType(MethodInfo method)
+    {
+        if (method.ReturnType == typeof(int) || method.ReturnType == typeof(Task<int>)) return;
+
+        throw new CliConfigurationException(
+            $"Method '{method.DeclaringType?.FullName}.{method.Name}' returns " +
+            $"'{method.ReturnType.FullName}'. A [CliRoute] method must return int or Task<int>.");
     }
 
     /// <summary>

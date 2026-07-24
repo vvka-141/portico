@@ -165,6 +165,7 @@ public sealed class CliTestHarness
         public TextWriter Out => OutWriter;
         public TextWriter Error => ErrorWriter;
         public TextReader In => Console.In;
+        public bool IsInputRedirected => true;
     }
 }
 

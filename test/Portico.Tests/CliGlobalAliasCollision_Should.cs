@@ -30,6 +30,12 @@ public sealed class CliGlobalAliasCollision_Should
         public int Run([CliOption("--value|-x")] string? value = null) => 0;
     }
 
+    public sealed class DiagnosticMiddleware : CliMiddleware
+    {
+        [CliOption("--VERBOSE|-d")]
+        public CliFlag? Diagnostic { get; set; }
+    }
+
     [Fact]
     public void Reject_A_Route_Option_That_Collides_With_A_Global_Middleware_Alias()
     {
@@ -49,5 +55,18 @@ public sealed class CliGlobalAliasCollision_Should
             .AddCommands(new NonCollidingService()));
 
         Assert.Equal(0, app.Run("app.exe run -x hello"));
+    }
+
+    [Fact]
+    public void Reject_An_Alias_Collision_Between_Two_Global_Middleware()
+    {
+        var ex = Assert.Throws<CliConfigurationException>(() => CliApplication.Create(cfg => cfg
+            .UseMiddleware(new VerbosityMiddleware())
+            .UseMiddleware(new DiagnosticMiddleware())
+            .AddCommands(new NonCollidingService())));
+
+        Assert.Contains("--verbose", ex.Message, System.StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(nameof(VerbosityMiddleware), ex.Message);
+        Assert.Contains(nameof(DiagnosticMiddleware), ex.Message);
     }
 }

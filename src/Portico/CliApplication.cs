@@ -291,7 +291,8 @@ public sealed partial class CliApplication
         _helpTriggers = config.HelpTriggers;
         _helpSuppressed = config.HelpSuppressed;
 
-        var globalOptions = config.Middleware.Distinct();
+        var globalOptions = config.Middleware.Distinct().ToArray();
+        RejectDuplicateGlobalOptionAliases(globalOptions);
         _actions =
             [
                 ..config.Services
@@ -300,7 +301,11 @@ public sealed partial class CliApplication
                         var context = new CliContext(service.RootRoutes, globalOptions, _console);
                         return CliMethodInfo
                             .Get(service.ServiceType, context)
-                            .Select(method => new CliAction(method, service.InstanceFactory, _console));
+                            .Select(method => new CliAction(
+                                method,
+                                service.InstanceFactory,
+                                service.Release,
+                                _console));
                     })
             ];
 
@@ -317,6 +322,30 @@ public sealed partial class CliApplication
         }
 
         (_shortOptionSchema, _registeredOptionNames) = BuildShortOptionSchema(_actions);
+    }
+
+    private static void RejectDuplicateGlobalOptionAliases(IEnumerable<CliMiddleware> middleware)
+    {
+        var seen = new Dictionary<string, string>(CliAliasComparer.Instance);
+
+        foreach (var bundle in middleware)
+        {
+            foreach (var option in bundle.GetOptions())
+            {
+                foreach (var alias in option.Aliases)
+                {
+                    var origin = $"global option '{option.Name}' on middleware '{bundle.GetType().FullName}'";
+                    if (seen.TryGetValue(alias, out var existing))
+                    {
+                        throw new CliConfigurationException(
+                            $"Global option alias '{alias}' is declared by both {existing} and {origin}. " +
+                            "Each global option alias must be unique across the application.");
+                    }
+
+                    seen[alias] = origin;
+                }
+            }
+        }
     }
 
     // Shared with ICliApplicationBuilder.WithVersion() — see CliVersionDiscovery (SOL-82).
@@ -674,9 +703,10 @@ public sealed partial class CliApplication
     private sealed record Service(
         Type ServiceType,
         Func<object?> InstanceFactory,
+        Func<ValueTask>? Release,
         ImmutableArray<CliRouteAttribute> RootRoutes);
 
-    private sealed class Builder : ICliApplicationBuilder
+    private sealed class Builder : ICliApplicationBuilder, ICliCommandLifetimeBuilder
     {
         public List<CliMiddleware> Middleware { get; } = new();
         public List<Service> Services { get; } = new();
@@ -742,14 +772,28 @@ public sealed partial class CliApplication
         public ICliApplicationBuilder AddCommands(object instance, IEnumerable<CliRouteAttribute> rootRoutes)
         {
             ThrowIf.ArgumentNull(instance);
-            Services.Add(new Service(instance.GetType(), () => instance, [..rootRoutes.Distinct()]));
+            Services.Add(new Service(instance.GetType(), () => instance, null, [..rootRoutes.Distinct()]));
             return this;
         }
 
         public ICliApplicationBuilder AddCommands(Type serviceType, Func<object> factory, IEnumerable<CliRouteAttribute> rootRoutes)
         {
             ThrowIf.ArgumentNull(factory);
-            Services.Add(new Service(serviceType, () => factory(), [..rootRoutes.Distinct()]));
+            Services.Add(new Service(serviceType, () => factory(), null, [..rootRoutes.Distinct()]));
+            return this;
+        }
+
+        ICliApplicationBuilder ICliCommandLifetimeBuilder.AddCommands(
+            Type serviceType,
+            Func<object> factory,
+            Func<ValueTask> release,
+            IEnumerable<CliRouteAttribute> rootRoutes)
+        {
+            ThrowIf.ArgumentNull(serviceType);
+            ThrowIf.ArgumentNull(factory);
+            ThrowIf.ArgumentNull(release);
+            ThrowIf.ArgumentNull(rootRoutes);
+            Services.Add(new Service(serviceType, () => factory(), release, [..rootRoutes.Distinct()]));
             return this;
         }
     }
@@ -758,14 +802,32 @@ public sealed partial class CliApplication
     //  Per-action wrapper
     // ---------------------------------------------------------------------------------------
 
-    private sealed class CliAction(CliMethodInfo method, Func<object?> instanceFactory, ICliConsole console)
+    private sealed class CliAction(
+        CliMethodInfo method,
+        Func<object?> instanceFactory,
+        Func<ValueTask>? release,
+        ICliConsole console)
     {
         [DebuggerStepThrough]
         public bool IsMatch(CliInvocation invocation) => method.IsMatch(invocation);
 
         [DebuggerStepThrough]
-        public Task<int> InvokeAsync(CliInvocation invocation, CancellationToken cancellationToken) =>
-            method.InvokeAsync(instanceFactory(), invocation, cancellationToken);
+        public async Task<int> InvokeAsync(CliInvocation invocation, CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await method
+                    .InvokeAsync(instanceFactory(), invocation, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (release is not null)
+                {
+                    await release().ConfigureAwait(false);
+                }
+            }
+        }
 
         public void ShowHelp(CliInvocation invocation) =>
             console.Out.WriteLine(method.ToCommandHelpString(invocation.ExecutableName));
