@@ -12,7 +12,10 @@ internal sealed partial class CliCancellationTokenTypeConverter : TypeConverter
 {
     // Compact duration form common in CLI tools: "30s", "5m", "2h", "1d", "1.5h".
     [GeneratedRegex(@"^\s*(?<value>\d+(?:\.\d+)?)\s*(?<unit>s|m|h|d)\s*$", RegexOptions.IgnoreCase)]
-    private static partial Regex CompactDurationRegex { get; }
+    // Method form, not the C# 13 partial-property form: [GeneratedRegex] only accepts a property
+    // on net9.0+, and Portico multi-targets net8.0. Every other generated regex here is already a
+    // method, so this also removes the odd one out.
+    private static partial Regex CompactDurationRegex();
 
     public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) =>
         sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
@@ -66,7 +69,7 @@ internal sealed partial class CliCancellationTokenTypeConverter : TypeConverter
 
     private static bool TryParseCompact(string text, out TimeSpan timeout)
     {
-        var match = CompactDurationRegex.Match(text);
+        var match = CompactDurationRegex().Match(text);
         if (!match.Success)
         {
             timeout = TimeSpan.Zero;

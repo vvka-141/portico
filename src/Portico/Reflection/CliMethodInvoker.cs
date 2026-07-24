@@ -44,7 +44,12 @@ internal static class CliMethodInvoker
         // was set up inside it — has released its own. This is the CLI's IActionFilter (CHARTER §3),
         // and ASP.NET Core's filter pipeline runs its "after" code in reverse for the same reason.
         // Materialized once here, not re-enumerated per dispatch. POR-72.
-        var teardownOrder = globalOptionsBundles.Reverse().ToArray();
+        // Enumerable.Reverse spelled out, not `globalOptionsBundles.Reverse()`. The operand is a
+        // CliMiddleware[], and on net8.0 an array binds to MemoryExtensions.Reverse(Span<T>) — which
+        // reverses IN PLACE and returns void. Same source, different meaning per target framework;
+        // the chained ToArray() is the only reason the compiler catches it rather than the pipeline
+        // silently tearing down in registration order on one TFM and reverse on the other.
+        var teardownOrder = Enumerable.Reverse(globalOptionsBundles).ToArray();
 
         // Arm the cleanup BEFORE invoking OnExecutingAction. If a bundle's OnExecutingAction throws
         // partway through (e.g. after CliTraceListener has been attached to Trace.Listeners), the
