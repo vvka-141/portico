@@ -94,6 +94,19 @@ Use it on a parameter the same way you'd use `[CliOption]`:
 public int Import([CliJsonOption("--manifest|-m")] Manifest manifest) { ... }
 ```
 
+#### Analyzer coverage gap for derived attributes
+
+The Roslyn analyzers POR003, POR009 and POR010 match `[CliOption]` and `[CliArgument]` by name.
+A derived attribute (`[CliJsonOption]`) is invisible to them — they will not flag a malformed
+spec, a duplicate alias, or an unconvertible type on it.
+
+**Runtime still validates.** `CliOptionMaterializer` checks the same invariants at dispatch time
+and throws `CliConfigurationException` from `CliApplication.Create` before a single command runs.
+The gap is compile-time feedback only: a broken derived attribute fails at startup, not at build.
+
+If build-time coverage matters to you, keep `[CliOption]` on the parameter and move the custom
+conversion into a `TypeConverter` registered via `TypeDescriptor` — the analyzers will see it.
+
 ### 2. Custom argument types via `CliArgumentAttribute` subclass
 
 Same mechanism for positional arguments. Override `CanAccept` to plug in a custom
