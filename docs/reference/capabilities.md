@@ -224,7 +224,7 @@ own, deferring to whatever owns the lifetime — that is exactly how
 app.EmitCompletion(CliCompletionShell.Bash, "admin", Console.Out);
 ```
 
-Emits a self-contained bash or zsh completion script for the application's routes. Wire it to a
+Emits a self-contained bash, zsh or PowerShell completion script for the application's routes. Wire it to a
 hidden command and `admin completion bash > /etc/bash_completion.d/admin`.
 
 ### Middleware — the `IActionFilter` analogue
@@ -238,6 +238,31 @@ Middleware is constructed by you and cloned per dispatch, so it can take constru
 
 Two ship in the box: `CliTimingMiddleware` (`--timing`) and `CliTracingMiddleware`
 (`--trace-level`).
+
+## Testing
+
+### Contract validation — `CliContractValidator<T>`
+
+Runs every `[CliCommandExample]` against a `DispatchProxy`-backed application. An example that
+fails to dispatch, or dispatches to the wrong handler, is a test failure.
+`Enumerate()` returns one `CliContractExample` per example — handler, arguments, and values —
+so a single `[Theory]` gives you one red/green per example.
+
+### End-to-end testing — `CliTestHarness`
+
+```csharp
+var harness = CliTestHarness.ForApplication(cfg => cfg.AddCommands(new MyService()));
+harness.Run("myapp seed --rows 10").ExpectExit(0).ExpectOut("Seeded 10 rows");
+harness.Run("myapp seed --rows abc").ExpectExit(2).ExpectError("invalid");
+harness.Run("myapp confirm-delete", input: "y\n").ExpectExit(0);
+```
+
+Each `Run` builds a fresh `CliApplication` with a dedicated in-memory `ICliConsole`.
+Exit code, stdout, stderr and stdin injection — no `Console.SetOut`, no process spawn,
+no parallel-test interference. Four chainable assertions: `ExpectExit`, `ExpectOut`,
+`ExpectError`, `ExpectNotError`.
+
+Both types ship inside the core `Portico` package. Nothing extra to install.
 
 ## See also
 

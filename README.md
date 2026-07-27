@@ -151,6 +151,23 @@ stderr is the log stream; that is not a place to guess.
 The same mechanism does a second job nobody asked it to: an agent that runs your CLI and reads its
 output never sees the credential either. It was built for logs; it works for transcripts.
 
+## Test your CLI end-to-end, without spawning a process
+
+`CliTestHarness` runs your commands against a hermetic in-memory console — exit codes,
+stdout, stderr, stdin injection — no `Console.SetOut`, no process spawn, no flaky parallel tests:
+
+```csharp
+var harness = CliTestHarness.ForApplication(cfg => cfg.AddCommands(new MyService()));
+
+harness.Run("myapp init ./project").ExpectExit(0).ExpectOut("Initialized");
+harness.Run("myapp init").ExpectExit(2).ExpectError("Missing positional argument");
+harness.Run("myapp delete repo", input: "y\n").ExpectExit(0);
+```
+
+`CliContractValidator<T>` answers "does my declared surface still hold?" —
+`CliTestHarness` answers "what does my command actually do when run?" Both ship in the
+same package, no extra install.
+
 ## Several teams, one binary
 
 Each team ships its own contract — own routes, own examples, own tests. The platform team mounts them:

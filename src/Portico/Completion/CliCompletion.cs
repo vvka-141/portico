@@ -36,7 +36,7 @@ public static partial class CliCompletion
     /// instead, which supplies the route signatures from the application itself; this overload is for
     /// emitting a script for routes you already have in hand.
     /// </summary>
-    /// <param name="shell">The target shell (bash or zsh).</param>
+    /// <param name="shell">The target shell (bash, zsh or PowerShell).</param>
     /// <param name="executableName">The name the script completes for, as typed at the prompt.</param>
     /// <param name="routeSignatures">
     /// The route signatures to complete. Each is truncated at its first argument placeholder
