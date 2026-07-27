@@ -141,12 +141,21 @@ public interface ICliApplicationBuilder
     /// </code></example>
     ICliApplicationBuilder AddCommands(Type serviceType, Func<object> factory, IEnumerable<CliRouteAttribute> rootRoutes);
 
+    /// <summary>
+    /// Shorthand for <see cref="AddCommands(object, IEnumerable{CliRouteAttribute})"/> with no
+    /// root routes — the instance's routes mount at the application root.
+    /// </summary>
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool()));
     /// </code></example>
     [DebuggerStepThrough]
     public sealed ICliApplicationBuilder AddCommands(object instance) => AddCommands(instance, []);
 
+    /// <summary>
+    /// Typed convenience: wraps the <paramref name="factory"/> and delegates to
+    /// <see cref="AddCommands(Type, Func{object}, IEnumerable{CliRouteAttribute})"/> with no
+    /// root routes.
+    /// </summary>
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg.AddCommands(() =&gt; new MyTool()));
     /// </code></example>
@@ -154,6 +163,10 @@ public interface ICliApplicationBuilder
     public sealed ICliApplicationBuilder AddCommands<T>(Func<T> factory) where T : class =>
         AddCommands(typeof(T), () => factory(), []);
 
+    /// <summary>
+    /// Typed convenience: wraps the <paramref name="factory"/> and delegates to
+    /// <see cref="AddCommands(Type, Func{object}, IEnumerable{CliRouteAttribute})"/>.
+    /// </summary>
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg
     ///     .AddCommands(() =&gt; new MigrationTool(), new[] { new CliRouteAttribute("db") }));

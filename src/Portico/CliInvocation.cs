@@ -95,6 +95,10 @@ public sealed partial class CliInvocation : IFormattable
     }
 
 
+    /// <summary>
+    /// Parses the current process's command line. Argv is obtained from the runtime and the
+    /// executable name is resolved via <see cref="ProcessExecutableName"/>.
+    /// </summary>
     /// <example><code>
     /// // Parse the current process command line (argv[0] is the executable path).
     /// var invocation = CliInvocation.FromArgs();
