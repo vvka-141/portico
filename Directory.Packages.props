@@ -21,12 +21,17 @@
     <PackageVersion Include="MinVer" Version="7.0.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Adapter packages (never referenced by the core)">
-    <!-- Abstractions only: Portico.DependencyInjection adapts to a container, it does not supply one. -->
+  <ItemGroup Label="Adapter packages — net8.0 (never referenced by the core)"
+             Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Adapter packages — net10.0 (never referenced by the core)"
+             Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
-    <!-- The DI implementation is a TEST dependency of the adapter: you need a container to test against one. -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <!-- Portico.Hosting: the Generic Host itself. -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
   </ItemGroup>
 
