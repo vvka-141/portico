@@ -324,6 +324,7 @@ organised by [Diataxis](https://diataxis.fr/).
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
 - [Migrating from Cocona](docs/how-to/migrate-from-cocona.md) — the concept mapping, and when another framework is the better move
 - [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI
+- [`examples/ReferenceCli`](examples/ReferenceCli) — the full-surface reference: map options, bundles with validation, `RankByOptions`, middleware with DI, composition — the ground truth for correct Portico code
 - [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
 
 ## Contributing
