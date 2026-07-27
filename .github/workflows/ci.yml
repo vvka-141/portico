@@ -1,7 +1,7 @@
 name: CI
 
-# The always-green gate. Build, test, and pack on every push to main and every PR.
-# This workflow PUBLISHES NOTHING — tag-driven release to nuget.org lands with POR-6.
+# The always-green gate. Runs on every push to main and every PR.
+# This workflow PUBLISHES NOTHING — tag-driven release lives in release.yml.
 on:
   push:
     branches: [main]
@@ -18,86 +18,4 @@ permissions:
 
 jobs:
   verify:
-    name: Build, test, pack
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # MinVer (POR-6) derives the version from tag history, so a shallow clone
-          # would silently produce the wrong version once it lands.
-          fetch-depth: 0
-
-      # Both runtimes, not just the newest. Portico multi-targets net8.0 and net10.0 (POR-78);
-      # with only the 10.0 SDK installed the net8.0 test assemblies COMPILE — reference assemblies
-      # come from the targeting pack — and then fail to launch for want of a runtime. A matrix that
-      # silently skips half the target frameworks is worse than not having them.
-      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
-        with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
-
-      # Cheap, and it runs before the build so a broken link fails fast. Three documentation
-      # defects — a link resolving above the repo root, a citation to an ADR that never existed,
-      # and public docs pointing at a private tracker — shipped undetected until an outside
-      # reader found them (POR-77). This is the gate that re-runs.
-      - name: Check docs integrity
-        run: bash eng/check-docs-links.sh
-
-      - name: Restore
-        run: dotnet restore portico.sln
-
-      # TreatWarningsAsErrors is on repo-wide, so a warning already fails this step.
-      - name: Build
-        run: dotnet build portico.sln -c Release --no-restore
-
-      - name: Test
-        run: dotnet test portico.sln -c Release --no-build --verbosity normal
-
-      # Pack on every run, not just at release. A package that is only ever packed at
-      # release time breaks at release time — this proves the release path continuously.
-      - name: Pack
-        run: dotnet pack portico.sln -c Release --no-build -o ./artifacts
-
-      # The template's promise is a GREEN examples-are-tests loop in front of a new user in under a
-      # minute. The only way to know it still holds is to be that user: install the packed template,
-      # scaffold, and build+test the result against the packages this run just produced. A scaffold
-      # that emitted POR004 on first build, or shipped a red contract test, would be the worst
-      # possible first impression — and nothing else in this workflow would notice (POR-23).
-      - name: Smoke-test the dotnet new template
-        run: |
-          set -euo pipefail
-          version=$(ls artifacts/Portico.Templates.*.nupkg | sed -E 's/.*Portico\.Templates\.(.*)\.nupkg/\1/')
-          echo "Scaffolding against Portico $version"
-
-          dotnet new install "artifacts/Portico.Templates.$version.nupkg"
-
-          scaffold="$RUNNER_TEMP/scaffold"
-          mkdir -p "$scaffold" && cd "$scaffold"
-          dotnet new portico-cli -n SmokeCli --porticoVersion "$version"
-          cd SmokeCli
-
-          cat > nuget.config <<XML
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <packageSources>
-              <add key="local" value="$GITHUB_WORKSPACE/artifacts" />
-            </packageSources>
-          </configuration>
-          XML
-
-          # TreatWarningsAsErrors is on inside the template, and the analyzers ship in the package:
-          # a warning here IS a failure.
-          dotnet build -c Release
-          dotnet test  -c Release --no-build
-          dotnet run --project SmokeCli -c Release --no-build -- greet --name Ada
-
-      - name: Upload packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: nupkg
-          path: |
-            artifacts/*.nupkg
-            artifacts/*.snupkg
-          if-no-files-found: error
+    uses: ./.github/workflows/verify.yml
