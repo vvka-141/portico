@@ -265,27 +265,6 @@ public class CliOptionAttribute : Attribute
     public virtual StringComparer GetValueComparer() => StringComparer.Ordinal;
 
 
-
-    /// <summary>
-    /// Builds a <see cref="CliOptionAttribute"/> for an option-bundle property by finding the
-    /// declared <see cref="CliOptionAttribute"/> in <paramref name="attributes"/> and merging
-    /// any <see cref="DescriptionAttribute"/> as the option's description. Throws if the
-    /// property is missing a <c>[CliOption]</c> attribute or carries more than one.
-    /// </summary>
-    /// <example><code>
-    /// var attributes = property.GetCustomAttributes().ToArray();
-    /// CliOptionAttribute option = CliOptionAttribute.Get(property, attributes);
-    /// </code></example>
-    public static CliOptionAttribute Get(PropertyInfo property, Attribute[] attributes)
-    {
-        var option = attributes.OfType<CliOptionAttribute>().Single();
-        var descriptionOverride = attributes
-            .OfType<DescriptionAttribute>()
-            .Select(a => a.Description)
-            .SingleOrDefault(option.Description);
-        return new CliOptionAttribute(option.PipeSeparatedAliases, descriptionOverride);
-    }
-
     /// <summary>
     /// Returns <see langword="true"/> if <paramref name="optionName"/> (with leading dashes)
     /// matches any of this attribute's declared aliases.
