@@ -39,7 +39,7 @@ namespace Portico;
 /// object handed in through the constructor.
 /// </para>
 /// </remarks>
-public abstract class CliMiddleware : CliOptions, ICloneable
+public abstract class CliMiddleware : CliOptions
 {
     private readonly ImmutableArray<CliOptionsPropertyInfo> _options;
 
@@ -151,10 +151,8 @@ public abstract class CliMiddleware : CliOptions, ICloneable
     /// dependency and wrong for mutable per-invocation state.
     /// </summary>
     /// <returns>A shallow copy of this middleware.</returns>
-    /// <example><code>var perDispatch = (CliMiddleware)sharedMiddleware.Clone();</code></example>
+    /// <example><code>var perDispatch = sharedMiddleware.Clone();</code></example>
     public CliMiddleware Clone() => (CliMiddleware)this.MemberwiseClone();
-
-    object ICloneable.Clone() => Clone();
 
     /// <summary>
     /// The application's <see cref="ICliConsole"/>, injected by the framework onto the per-dispatch
