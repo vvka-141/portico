@@ -17,6 +17,13 @@ public sealed class Portico_PublicSurface_Should
     private static IReadOnlyList<Type> ExportedTypes =>
         Assembly.Load("Portico").GetExportedTypes();
 
+    private static readonly Assembly[] AllShippedAssemblies =
+    [
+        typeof(CliApplication).Assembly,
+        typeof(DependencyInjection.CliApplicationBuilderExtensions).Assembly,
+        typeof(Hosting.CliHostExtensions).Assembly,
+    ];
+
     /// <summary>
     /// The one public type whose name does not start with <c>Cli</c>. It is the default
     /// <see cref="ICliConsole"/> singleton, it is public in the origin, and the public XML docs
@@ -107,5 +114,97 @@ public sealed class Portico_PublicSurface_Should
         var exported = ExportedTypes.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 
         Assert.All(expected, name => Assert.Contains(name, exported));
+    }
+
+    /// <summary>
+    /// POR-104: adding or removing an exported type is a deliberate act — it must update both this
+    /// list and docs/explanation/public-surface.md. The test covers all shipped assemblies (core +
+    /// adapters), not just the core, because consumer NuGet references resolve all three.
+    /// </summary>
+    [Fact]
+    public void Track_every_exported_type_by_name()
+    {
+        // Canonical list — sorted by FullName. Update docs/explanation/public-surface.md when
+        // you add or remove an entry here.
+        var expected = new SortedSet<string>(StringComparer.Ordinal)
+        {
+            // Portico (core) — framework entry point and builder
+            "Portico.CliApplication",
+            "Portico.ICliApplicationBuilder",
+            "Portico.CliVersionBuilder",
+            "Portico.CliHelpBuilder",
+
+            // Portico (core) — attributes
+            "Portico.CliRouteAttribute",
+            "Portico.CliOptionAttribute",
+            "Portico.CliArgumentAttribute",
+            "Portico.CliCommandExampleAttribute",
+
+            // Portico (core) — runtime types
+            "Portico.CliFlag",
+            "Portico.CliOptions",
+            "Portico.CliMiddleware",
+            "Portico.CliInvocation",
+            "Portico.ICliConsole",
+            "Portico.SystemCliConsole",
+            "Portico.CliPrompt",
+            "Portico.CliExitException",
+            "Portico.CliConfigurationException",
+
+            // Portico (core) — ready-made middleware
+            "Portico.CliTimingMiddleware",
+            "Portico.CliTracingMiddleware",
+
+            // Portico (core) — shell completion
+            "Portico.Completion.CliCompletion",
+            "Portico.Completion.CliCompletionShell",
+
+            // Portico (core) — option captures
+            "Portico.ICliOptionCapture",
+            "Portico.CliOptionCapture",
+            "Portico.CliScalarOptionCapture",
+            "Portico.CliFlagOptionCapture",
+            "Portico.CliCollectionOptionCapture",
+            "Portico.ICliCollectionCapture",
+            "Portico.ICliMapOptionCapture",
+            "Portico.CliKeyValueOptionCapture",
+            "Portico.CliKeyFlagOptionCapture",
+            "Portico.CliKeyCollectionOptionCapture",
+
+            // Portico.Testing
+            "Portico.Testing.CliTestHarness",
+            "Portico.Testing.CliTestRunResult",
+            "Portico.Testing.CliContractValidator`1",
+            "Portico.Testing.CliContractExample",
+            "Portico.Testing.CliTestAssertionException",
+
+            // Portico.DependencyInjection
+            "Portico.DependencyInjection.CliApplicationBuilderExtensions",
+
+            // Portico.Hosting
+            "Portico.Hosting.CliHostExtensions",
+        };
+
+        var actual = new SortedSet<string>(
+            AllShippedAssemblies
+                .SelectMany(a => a.GetExportedTypes())
+                .Select(t => t.FullName!),
+            StringComparer.Ordinal);
+
+        var added = new SortedSet<string>(actual, StringComparer.Ordinal);
+        added.ExceptWith(expected);
+
+        var removed = new SortedSet<string>(expected, StringComparer.Ordinal);
+        removed.ExceptWith(actual);
+
+        Assert.True(
+            added.Count == 0 && removed.Count == 0,
+            "Exported surface changed. Update this list AND docs/explanation/public-surface.md." +
+            (added.Count > 0
+                ? Environment.NewLine + "ADDED:   " + string.Join(", ", added)
+                : "") +
+            (removed.Count > 0
+                ? Environment.NewLine + "REMOVED: " + string.Join(", ", removed)
+                : ""));
     }
 }
