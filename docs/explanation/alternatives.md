@@ -43,8 +43,9 @@ you.
 **ConsoleAppFramework — if startup time, allocation or binary size is the constraint.** It is a
 source generator: zero reflection, zero allocation, NativeAOT. It will beat Portico on every one of
 those numbers and we are not going to pretend otherwise. Portico uses reflection and `DispatchProxy`
-deliberately — an admin CLI running inside a service's container does not care about a 36 ms startup
-delta ([the AOT decision](aot.md), and what would change our mind).
+deliberately — an admin CLI running inside a service's container does not care about a startup
+delta that is invisible next to the container start it lives inside ([the AOT decision](aot.md),
+and what would change our mind).
 
 **Spectre.Console — if the output is the product.** Tables, progress bars, colour, live displays.
 Portico does not own presentation and does not want to. Compose them: Azure Functions Core Tools

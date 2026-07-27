@@ -51,7 +51,7 @@
       TargetFrameworks=netstandard2.0, as Roslyn requires.
     -->
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <!-- Explicit usings are the house style, inherited from the origin source. -->
     <ImplicitUsings>disable</ImplicitUsings>
