@@ -126,13 +126,14 @@ checking your CLI:
 | `POR009` | two options on one command declaring the same alias |
 | `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
 
-Stated precisely, because a vague boast is worse than none: **no other .NET CLI framework reports
-compile-time diagnostics for CLI attribute misuse.** Not "no competitor ships analyzers" — that would
-be false, and you would catch it. [ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework)
-*is* an analyzer, a source generator with no DLL reference at all. What it does not do is diagnose your
-CLI declarations: its validation runs at runtime, after binding, via `DataAnnotations`. The others
-validate at runtime or not at all. ([The alternatives, honestly](docs/explanation/alternatives.md) —
-with the versions and the date they were checked.)
+Portico is not the only .NET CLI library with compile-time diagnostics —
+[ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework) (CAF001–CAF018),
+[CliFx](https://github.com/Tyrrrz/CliFx) (18 descriptors), and
+[DotMake.CommandLine](https://github.com/AdrianFreeworx/DotMake.CommandLine) (DMCLI01–DMCLI42) all
+report build errors for declaration mistakes. The rules overlap but differ: POR001/POR005
+(route-placeholder binding) and POR004 (missing examples) have no counterpart elsewhere, because they
+follow from the attribute-routing and contract-validation model. ([The alternatives,
+honestly](docs/explanation/alternatives.md) — with the versions and the date they were checked.)
 
 ## Secrets do not reach your logs
 
