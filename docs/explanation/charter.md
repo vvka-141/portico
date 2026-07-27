@@ -228,25 +228,27 @@ The load-bearing clause is the second one. The first is recognition; the second 
   public surface until it is measured, however plausible it sounds.
 
 What is scarce is not typing speed. It is **ground truth**: a description of the command surface that
-cannot drift from the surface itself. Every incumbent's examples are free text —
+cannot drift from the surface itself. Most incumbents' examples are free text —
 `cobra.Command.Example`, oclif's `examples`, yargs' `.example()`, OpenCLI's `examples: [string]` — printed
-in help, checked by nobody. Portico's are executed through the real pipeline against the real contract,
+in help, never verified. Portico's are executed through the real pipeline against the real contract,
 and a stale one fails the build.
 
 ### The prior art we concede, by name
 
 An honest pitch names the people who got there first. **"Nobody thought to validate examples" is false
-and must never be said.**
+and must never be said.** Full analysis is in `docs/explanation/alternatives.md`; summary here:
 
-- **Azure CLI.** Its `azdev linter` has `faulty_help_example_parameters_rule`, which parses each help
-  example through the **real** command parser and fails CI on an invalid one. Verified in
-  `azdev/operations/linter/rules/help_rules.py`, not assumed. That is genuine, shipped prior art. The
-  honest distinction: Microsoft built bespoke tooling for *one* CLI, checking that an example's options
-  are *recognised*; Portico makes it the framework's central abstraction, checking that an example
-  **dispatches to a specific handler and binds specific values**.
-- **trycmd** (Rust) executes README examples as snapshot tests — the closest thing in a mainstream
-  ecosystem.
+- **Spectre.Console.Cli** — `ValidateExamples()` runs each `.WithExample(...)` through a real
+  `CommandTreeParser`. Opt-in, at startup, parse-only (type conversion not checked). The nearest
+  .NET prior art.
+- **Nushell** — `fn examples()` + `#[test] fn test_examples()` executes examples against an in-process
+  pipeline and asserts against a declared result. Has a coverage gate Portico lacks.
+- **Azure CLI** — `azdev linter` parses help examples against the real parser, with `_check_value` and
+  type conversion mocked out. Proves option names are *recognised*.
+- **trycmd** (Rust) executes README examples as snapshot tests.
 - **docopt** derived the parser from the help text, attacking the same drift from the opposite end.
 
-The claim that survives all three: *no .NET CLI framework makes verified examples the contract*, and no
-framework in any ecosystem checks that an example reaches the handler it names with the values it names.
+The claim that survives all five: *no .NET CLI framework checks that a declared example dispatches to a
+specific handler and binds specific values, as a build-time gate.* Spectre checks tokenization; azdev
+checks recognition; Nushell executes against an in-process pipeline. Portico checks dispatch and
+binding through the real pipeline.

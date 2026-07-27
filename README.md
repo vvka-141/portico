@@ -96,14 +96,21 @@ test above; `dotnet new portico-cli` writes it for you, and a project laid out b
 test for the guarantee to hold.
 
 Compare what an example is everywhere else. `cobra.Command.Example`, oclif's `examples`, yargs'
-`.example()`, OpenCLI's `examples: [string]` — free text, printed in help, checked by nobody. They are
+`.example()`, OpenCLI's `examples: [string]` — free text, printed in help, never verified. They are
 correct on the day they are written and unverifiable ever after.
 
-The exception, and we will name it: **Azure CLI's `azdev linter` genuinely runs help examples through
-the real parser** and fails CI on a bad one. It is real prior art. The difference is scope — Microsoft
-built it for one CLI, and it checks that an example's options are *recognised*; Portico makes it the
-framework's central abstraction, and checks that an example *dispatches to a handler and binds
-values*. More on [who got there first](docs/explanation/alternatives.md#who-got-there-first).
+**Spectre.Console** got closest in .NET: its `ValidateExamples()` runs each `.WithExample(...)` through
+a real `CommandTreeParser` and catches unrecognised tokens. It is opt-in, runs at application startup
+(not at build time), and checks *parsing* — not dispatch or binding. `--count abc` against an `int
+Count` passes. Still, anyone saying Spectre examples are "just help text" is wrong.
+
+**Azure CLI's `azdev linter`** has `faulty_help_example_parameters_rule`, which parses help examples
+against the real command parser — but with `_check_value` and type conversion mocked out. It proves an
+example's option names are *recognised*, not that their values are valid.
+
+The distinction: Spectre checks tokenization; azdev checks recognition; Portico checks that an example
+**dispatches to a specific handler and binds specific values**. More on
+[who got there first](docs/explanation/alternatives.md#who-got-there-first).
 
 This is not a hypothetical. Writing the worked example in this repo, that test caught a real bug in
 the framework on its first run — `TimeSpan?` was not accepting `"30 seconds"`. It is fixed. That is
