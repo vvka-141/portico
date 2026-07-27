@@ -264,7 +264,8 @@ Honest concessions, because a comparison that concedes nothing is not worth read
   binary size is your constraint, use it — it will beat Portico and we are not going to pretend
   otherwise.
 - **Not AOT.** Portico uses reflection for routing, binding and help. This follows from the target:
-  an admin CLI inside a service container does not care about a 36 ms startup delta. See
+  an admin CLI inside a service container does not care about a startup delta that is invisible
+  next to the container start it lives inside. See
   [docs/explanation/aot.md](docs/explanation/aot.md) — the decision, and the conditions under which
   we would revisit it.
 - **Not Microsoft's.** [System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/)
