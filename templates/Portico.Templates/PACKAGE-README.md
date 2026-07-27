@@ -1,0 +1,17 @@
+# Portico.Templates
+
+Project template for [Portico](https://www.nuget.org/packages/Portico) — a runnable CLI with
+one route, one executable example, and a passing contract test.
+
+```
+dotnet new install Portico.Templates
+dotnet new portico-cli -n MyCli
+cd MyCli
+dotnet test
+```
+
+The template gives you a solution with two projects: a CLI (`MyCli/`) and a test project
+(`MyCli.Tests/`). The test runs every `[CliCommandExample]` through the real pipeline — rename
+an option and the build goes red.
+
+**Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico)
