@@ -23,17 +23,23 @@ public sealed class CliSecretRedaction_Should
         int Migrate(
             [CliOption("--connection-string", Sensitive = true)] string connectionString,
             [CliOption("--token", Sensitive = true)] string? token = null,
-            [CliOption("--verbose")] CliFlag? verbose = null);
+            [CliOption("--verbose")] CliFlag? verbose = null,
+            [CliOption("--secret-flag", Sensitive = true)] CliFlag? secretFlag = null);
 
         [CliRoute("db seed")]
         [CliCommandExample("db seed --rows 10")]
         int Seed([CliOption("--rows", Sensitive = true)] int rows);
+
+        [CliRoute("db connect")]
+        [CliCommandExample("db connect --api-key test")]
+        int Connect([CliOption("--api-key", Sensitive = true)] string apiKey = "sk-default-SECRET");
     }
 
     private sealed class Admin : IAdmin
     {
-        public int Migrate(string connectionString, string? token, CliFlag? verbose) => 0;
+        public int Migrate(string connectionString, string? token, CliFlag? verbose, CliFlag? secretFlag) => 0;
         public int Seed(int rows) => 0;
+        public int Connect(string apiKey) => 0;
     }
 
     private static CliTestHarness Harness() =>
@@ -97,5 +103,43 @@ public sealed class CliSecretRedaction_Should
         Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
         Assert.DoesNotContain("hunter2", result.StandardError, StringComparison.Ordinal);
         Assert.Contains("invalid", result.StandardError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Redact_Sensitive_Default_In_Help_Output()
+    {
+        var console = new StringCliConsole();
+        var app = CliApplication.Create(cfg => cfg
+            .AddCommands(new Admin())
+            .WithConsole(console));
+
+        app.Run("admin.exe db connect --help");
+
+        var help = console.OutWriter.ToString();
+        Assert.Contains("(default: ***)", help, StringComparison.Ordinal);
+        Assert.DoesNotContain("sk-default-SECRET", help, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Not_Echo_Sensitive_Values_On_Arity_Error()
+    {
+        var result = Harness().Run(
+            $"admin.exe db migrate --connection-string \"{Password}\" extra-value");
+
+        Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
+        Assert.DoesNotContain("hunter2", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain(Password, result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("extra-value", result.StandardError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Not_Echo_Sensitive_Flag_Swallowed_Value()
+    {
+        var result = Harness().Run(
+            "admin.exe db migrate --connection-string x --secret-flag LEAKED-VALUE");
+
+        Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
+        Assert.DoesNotContain("LEAKED-VALUE", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("LEAKED-VALUE", result.StandardOut, StringComparison.Ordinal);
     }
 }

@@ -376,10 +376,12 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
             // positional-after-option surprise (`--output out.dll main.cs`): keep the first value,
             // flag the rest, and point at the `--` terminator (SOL-77).
             CliCollectionOptionCapture collection => throw new CliOptionMaterializationException(
-                $"The option '{option.Name}' expects a single value but received {collection.Values.Length} " +
-                $"({string.Join(", ", collection.Values.Select(v => $"'{v}'"))}). " +
-                $"If the extra values are positional arguments, pass them after the '--' terminator " +
-                $"(e.g. '{option.Name} {collection.Values[0]} -- {string.Join(" ", collection.Values.Skip(1))}')."),
+                _attribute.Sensitive
+                    ? $"The option '{option.Name}' expects a single value but received {collection.Values.Length}."
+                    : $"The option '{option.Name}' expects a single value but received {collection.Values.Length} " +
+                      $"({string.Join(", ", collection.Values.Select(v => $"'{v}'"))}). " +
+                      $"If the extra values are positional arguments, pass them after the '--' terminator " +
+                      $"(e.g. '{option.Name} {collection.Values[0]} -- {string.Join(" ", collection.Values.Skip(1))}')."),
             CliFlagOptionCapture => throw new CliOptionMaterializationException(
                 $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead."),
             _ => throw new CliOptionMaterializationException(
@@ -489,14 +491,14 @@ internal sealed class CliFlagOptionMaterializer : CliOptionMaterializer
                     throw new CliOptionMaterializationException(
                         $"The flag option '{option.Name}' cannot be used as a map.");
                 default:
-                    // A value-carrying capture on a flag is the positional-after-flag surprise
-                    // (`run -v file.txt`): name the swallowed token and point at `--` (SOL-77).
                     var swallowed = FirstValueOf(option);
                     throw new CliOptionMaterializationException(
                         swallowed is null
                             ? $"The flag option '{option.Name}' cannot accept values."
-                            : $"The flag option '{option.Name}' does not take a value, but received '{swallowed}'. " +
-                              PositionalAfterOptionHint(swallowed));
+                            : _attribute.Sensitive
+                                ? $"The flag option '{option.Name}' does not take a value."
+                                : $"The flag option '{option.Name}' does not take a value, but received '{swallowed}'. " +
+                                  PositionalAfterOptionHint(swallowed));
             }
         }
 
