@@ -155,8 +155,9 @@ A mount prefix is **literal only** (it applies to commands declared elsewhere). 
 
 ## The analyzers — your edit-loop verifier
 
-These fire at build time (and in the IDE). No other .NET CLI framework reports compile-time
-diagnostics for command-surface mistakes. If you see one, the message names the fix.
+These fire at build time (and in the IDE). ConsoleAppFramework, CliFx, and DotMake.CommandLine also
+ship compile-time diagnostics; Portico's rules cover different ground because they follow from the
+attribute-routing and contract-validation model. If you see one, the message names the fix.
 
 | ID | Fires when |
 |---|---|

@@ -61,22 +61,32 @@ or System.CommandLine is the better destination instead.
 
 ## The one claim we make, stated precisely enough to be falsified
 
-> **No other .NET CLI framework reports compile-time diagnostics for CLI attribute misuse, and none
-> makes a command's documented examples executable tests of its own routing.**
+> **No other .NET CLI framework makes a command's documented examples executable tests of its own
+> routing.**
 
 Note what that does *not* say.
 
-It does **not** say "no competitor ships analyzers." That would be false, and the first informed
-reader would say so: **ConsoleAppFramework literally is an analyzer** — a source generator, shipped
-with no DLL reference at all. What it does not do is *report diagnostics for your CLI declarations*.
-Its validation is runtime, via `System.ComponentModel.DataAnnotations`, after parameters are bound.
-The others validate at runtime or not at all.
+It does **not** claim Portico is the only library with compile-time diagnostics. Several competitors
+ship them, and they are good:
 
-Portico fails your **build** for ten declaration mistakes ([POR001–POR010](../../README.md)) — a
-route placeholder that matches no parameter, two methods claiming the same route, a `[CliRoute]` with
-no `[CliCommandExample]`, and so on. And `[CliCommandExample]` is not a comment: `CliContractValidator<T>`
-runs every example through the real pipeline and fails the build when one stops dispatching, or stops
-binding the value it used to bind.
+- **ConsoleAppFramework** — CAF001–CAF018, all `DiagnosticSeverity.Error`, generated at compile time
+  by its source generator. Includes duplicate command names, invalid global-options types, and a
+  doc-comment-to-parameter name check that is structurally the same idea as POR001.
+- **CliFx 3.x** — 18 descriptors (16 Error, 2 Warning), packed at `analyzers/dotnet/cs`. Includes
+  `CommandOptionMustHaveUniqueName` and `CommandOptionMustHaveUniqueShortName` — duplicate-alias
+  detection, the same check as POR009.
+- **DotMake.CommandLine** — DMCLI01–DMCLI42, mixed Error/Warning. Accessibility, constructors,
+  bindability, and parent/child wiring.
+
+Portico's ten rules ([POR001–POR010](../../README.md)) cover overlapping but different ground.
+POR001/POR005 (route-placeholder binding) and POR004 (a `[CliRoute]` with no `[CliCommandExample]`)
+have no counterpart in the others, because they follow from the attribute-routing model and the
+contract-validation mechanism. The others — duplicate routes, malformed option specs, unconvertible
+types — are variations of checks the competitors also make. The difference is model, not count.
+
+And `[CliCommandExample]` is not a comment: `CliContractValidator<T>` runs every example through the
+real pipeline and fails the build when one stops dispatching, or stops binding the value it used to
+bind.
 
 Composition is not part of the claim, deliberately: mounting sub-CLIs is
 [not novel](../how-to/compose-clis.md) — oclif and cobra have done it for years. What is unusual is
