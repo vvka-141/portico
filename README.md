@@ -197,7 +197,7 @@ If a feature is hard to explain through that analogy, it does not belong in Port
 | `Portico.DependencyInjection` | `IServiceProvider` adapter | `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `Portico.Hosting` | Generic Host integration | `Microsoft.Extensions.Hosting` |
 
-The core has **zero** dependencies, and a test asserts it against the packed `.nupkg`. The
+The core has **zero** dependencies, and a post-pack test asserts it against the `.nupkg`'s actual nuspec. The
 `Microsoft.Extensions.*` adapters are separate packages precisely so it stays that way.
 
 DI is one extension method, and the factory stays lazy — a `health` command never constructs the

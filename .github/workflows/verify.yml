@@ -39,6 +39,12 @@ jobs:
       - name: Pack
         run: dotnet pack portico.sln -c Release --no-build -o ./artifacts
 
+      - name: Verify packed nupkg contents
+        run: >
+          dotnet test test/Portico.Packaging.Tests -c Release
+          -e PORTICO_ARTIFACTS=${{ github.workspace }}/artifacts
+          --verbosity normal
+
       - name: Smoke-test the dotnet new template
         run: |
           set -euo pipefail
