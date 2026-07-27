@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Portico\Portico.csproj" />
+    <ProjectReference Include="..\..\src\Portico.DependencyInjection\Portico.DependencyInjection.csproj" />
+    <ProjectReference Include="..\..\src\Portico.Hosting\Portico.Hosting.csproj" />
     <!-- Referenced as ordinary assemblies (not as analyzer plugins): the tests instantiate the
          DiagnosticAnalyzer and CodeFixProvider types directly and drive them over a scratch
          compilation. -->
