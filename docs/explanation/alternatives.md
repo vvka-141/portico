@@ -49,7 +49,11 @@ delta ([the AOT decision](aot.md), and what would change our mind).
 **Spectre.Console — if the output is the product.** Tables, progress bars, colour, live displays.
 Portico does not own presentation and does not want to. Compose them: Azure Functions Core Tools
 ships on System.CommandLine *plus* Spectre.Console, which is exactly the split we think is right —
-a router that routes, and a renderer that renders.
+a router that routes, and a renderer that renders. Spectre also has genuine testing support:
+`CommandAppTester` — a documented, first-class helper with assertions on `ExitCode`, `Output` and
+`Settings` (the typed parse result). `CliTestHarness` covers similar ground (exit code, stdout,
+stderr, stdin injection); the main additions are `CliContractValidator<T>` (automated contract
+verification) and the process-global console gate that prevents parallel-test interference.
 
 **CliFx — if you like the attributed-command-class shape** and want something small, stable and
 mature that does not drag `Microsoft.Extensions.*` behind it.

@@ -153,9 +153,10 @@ honestly, the only thing here that Cocona could not have done for you.
 
 - **No AOT, no `Lite` variant.** Reflection is deliberate. If that is your constraint,
   ConsoleAppFramework is the better answer.
-- **No `dotnet new` template yet.**
-- **No shell-completion parity claims** beyond what is in the box (`CliCompletion` emits bash/zsh
-  scripts).
+- **`dotnet new portico-cli`** scaffolds a project with one route, one example and a green contract
+  test — but the template is young and not a full migration target yet.
+- **No shell-completion parity claims** beyond what is in the box (`CliCompletion` emits bash, zsh
+  and PowerShell scripts).
 - **Portico is 0.x.** SemVer's 0.x licence — anything may change — is the preview channel. There is
   no user base to keep compatible with yet, and we will tell you what changed in the
   [changelog](../../CHANGELOG.md).
