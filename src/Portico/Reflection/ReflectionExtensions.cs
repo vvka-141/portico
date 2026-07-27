@@ -152,6 +152,9 @@ internal static class ReflectionExtensions
     /// foreach (var kv in typeof(Dictionary&lt;string, int&gt;).GetGenericDictionaryArgumentTypes())
     ///     Console.WriteLine($"{kv.Key} -&gt; {kv.Value}");
     /// </code></example>
+    // IL2070: runtime type inspection for generic collection support;
+    // CliApplication.Create/Run warn consumers about trimming incompatibility.
+#pragma warning disable IL2070
     public static IEnumerable<KeyValuePair<Type, Type>> GetGenericDictionaryArgumentTypes(this Type type)
     {
         ThrowIf.ArgumentNull(type);
@@ -186,4 +189,5 @@ internal static class ReflectionExtensions
             }
         }
     }
+#pragma warning restore IL2070
 }

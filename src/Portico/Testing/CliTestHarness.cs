@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,6 +63,8 @@ public sealed class CliTestHarness
     /// var harness = CliTestHarness.ForApplication(cfg =&gt; cfg.AddCommands(new MyService()));
     /// harness.Run("myapp init ./project").ExpectExit(0).ExpectOut("Initialized");
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public static CliTestHarness ForApplication(Action<ICliApplicationBuilder> configure)
     {
         ThrowIf.ArgumentNull(configure);
@@ -75,6 +78,8 @@ public sealed class CliTestHarness
     /// <example><code>
     /// harness.Run("myapp delete repo", input: "y\n").ExpectExit(0);
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public CliTestRunResult Run(string commandLine, string? input = null, CancellationToken cancellationToken = default)
     {
         ThrowIf.ArgumentNullOrWhiteSpace(commandLine);
@@ -89,6 +94,8 @@ public sealed class CliTestHarness
     /// <example><code>
     /// harness.Run(new[] { "init", "./project" }).ExpectExit(0).ExpectNoError();
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public CliTestRunResult Run(string[] args, string? input = null, CancellationToken cancellationToken = default)
     {
         ThrowIf.ArgumentNull(args);
@@ -101,6 +108,8 @@ public sealed class CliTestHarness
     /// var result = await harness.RunAsync("myapp build", cancellationToken: cts.Token);
     /// result.ExpectExit(0);
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public Task<CliTestRunResult> RunAsync(string commandLine, string? input = null, CancellationToken cancellationToken = default) =>
         RunCapturedAsync(input, (app, ct) => app.RunAsync(commandLine, ct), cancellationToken);
 
@@ -109,9 +118,13 @@ public sealed class CliTestHarness
     /// var result = await harness.RunAsync(new[] { "build", "--config", "Release" });
     /// result.ExpectExit(0);
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public Task<CliTestRunResult> RunAsync(string[] args, string? input = null, CancellationToken cancellationToken = default) =>
         RunCapturedAsync(input, (app, ct) => app.RunAsync(args, ct), cancellationToken);
 
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     private async Task<CliTestRunResult> RunCapturedAsync(
         string? input,
         Func<CliApplication, CancellationToken, Task<int>> run,

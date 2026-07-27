@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -87,6 +88,8 @@ public sealed class CliContractValidator<T> where T : class
     ///     .Validate(onNotInvoked: (ex, reason) =&gt;
     ///         Assert.Fail($"Example didn't dispatch: {ex.Example}{Environment.NewLine}Reason: {reason}"));
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public void Validate(
         Action<CliCommandExampleAttribute, string> onNotInvoked,
         Action<CliCommandExampleAttribute>? onInvoked = default,
@@ -132,6 +135,8 @@ public sealed class CliContractValidator<T> where T : class
     /// Assert.Equal(nameof(IMyCommands.Seed), e.Handler);   // the route, pinned
     /// Assert.Equal(100, e.Arguments["rows"]);              // the binding, pinned
     /// </code></example>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     public IReadOnlyList<CliContractExample> Enumerate(
         Action<ICliApplicationBuilder>? configureApplication = default) =>
         Run(configureApplication)
@@ -153,6 +158,8 @@ public sealed class CliContractValidator<T> where T : class
     /// <see cref="DispatchProxy"/>-backed application, and runs each example — pairing every
     /// attribute with the dispatch it produced, or <see langword="null"/> if it reached no route.
     /// </summary>
+    [RequiresUnreferencedCode(CliApplication.TrimWarning)]
+    [RequiresDynamicCode(CliApplication.TrimWarning)]
     private IReadOnlyList<(CliCommandExampleAttribute Attribute, CliDispatch? Dispatch, string? FailureReason)> Run(
         Action<ICliApplicationBuilder>? configureApplication)
     {

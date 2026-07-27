@@ -85,24 +85,17 @@ Until then, the cost/benefit does not pencil out.
 
 ## 6. The minimal-investment path, if ever needed
 
-Not a plan. An outline, in case future-us or a contributor picks this up.
+### Option A — Trim annotations only, no generator ✅ Done (POR-85)
 
-### Option A — Trim annotations only, no generator
+`[RequiresUnreferencedCode]` and `[RequiresDynamicCode]` are on every public entry point
+(`CliApplication.Create`/`Run`/`RunAsync`, `CliContractValidator<T>`, `CliTestHarness`,
+`CliHostExtensions.RunPorticoAsync`). Internal reflection sites carry targeted `#pragma warning
+disable` suppressions. `EnableTrimAnalyzer` is enabled in the Portico.csproj so the library's
+own build is warning-clean. See § 7 for consumer-facing details.
 
-Add `[DynamicDependency]` and `[RequiresUnreferencedCode]` attributes at the reflection call
-sites so the trimmer preserves what's needed, and users get clear warnings when they attempt
-AOT. This is a **1–2 session** change with no generator complexity:
-
-- `CliApplication.AddCommands(object instance)` — annotate with `[RequiresUnreferencedCode]`.
-  User sees a warning; user annotates their own types; AOT build succeeds.
-- `CliMiddleware` ctor, `CliOptionsParameterInfo.Materialize` — same treatment.
-- `TypeDescriptor.GetConverter(Type)` in `CliOptionAttribute.CanAccept` — hardest case; may
-  require a static type-converter registry for the primitives the framework natively supports.
-- Publish one sample csproj demonstrating an AOT-clean Portico CLI with user-side annotations.
-
-This delivers **functional AOT for the 80% case** (scalar + flag options over primitive types)
-without shipping a generator. Users who want more (custom converters, reflection-heavy bundle
-ctors) either stay on the reflection build or contribute the annotations themselves.
+This does **not** make trimming work — the framework remains reflection-dependent by design
+(§§ 1–4). What it does is make a trimmed publish fail with clear compiler warnings instead of
+silently at runtime.
 
 ### Option B — Full source generator
 
@@ -113,15 +106,29 @@ concrete user.
 
 ## 7. What consumers should know today
 
-If a consumer tries `PublishAot=true` on a Portico app, they'll see trim warnings
-and the binary will likely misbehave at runtime (routes not discovered, options not bound). The
-framework's documentation does not claim AOT support. If this becomes a blocker for a real
-scenario, file an issue describing the use case — the decision above is reversible.
+`CliApplication.Create`, every `Run`/`RunAsync` overload, `CliContractValidator<T>.Validate`/
+`Enumerate`, `CliTestHarness` and `CliHostExtensions.RunPorticoAsync` are annotated with
+`[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. A consumer who publishes with
+`PublishTrimmed=true` or `PublishAot=true` will see build-time IL2026/IL3050 warnings naming
+these APIs and pointing at this document.
+
+The annotations do not make trimming work — they make it **fail visibly, at build time**, instead
+of silently at runtime. The framework's reflection surface (route discovery, option binding, type
+conversion, `DispatchProxy`) is incompatible with trimming and NativeAOT by design (§§ 1–4 above).
+Suppressing the warnings does not change that; the trimmed binary will fail.
+
+If AOT becomes a blocker for a real scenario, file an issue describing the use case — the decision
+above is reversible, and § 6 sketches the minimal path.
 
 ---
 
 ## Decision log
 
+- **2026-07-27** — implemented § 6 Option A (POR-85). All public entry points annotated with
+  `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]`; `EnableTrimAnalyzer` enabled;
+  internal reflection sites carry targeted pragma suppressions. The build is warning-clean.
+  The framework remains reflection-dependent; the annotations make a trimmed publish fail
+  visibly (IL2026/IL3050 at build time) rather than silently at runtime.
 - **2026-04-20** — decided to defer AOT indefinitely. The original prescriptive plan is replaced
   by this considerations document. Driver: framework author's own use cases (dockerised
   microservice CLI entrypoints) don't require AOT; no concrete external demand; source-generator

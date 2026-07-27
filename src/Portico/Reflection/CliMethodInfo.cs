@@ -421,12 +421,15 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
 
     public static CliMethodInfo[] Get(Type type, CliContext context)
     {
+        // IL2070: reflection over user types; CliApplication.Create warns consumers.
+#pragma warning disable IL2070
         var methods = type
             .GetInterfaces()
             .Prepend(type)
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             .Distinct()
             .ToList();
+#pragma warning restore IL2070
 
         var list = new List<CliMethodInfo>();
 

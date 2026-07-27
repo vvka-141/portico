@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -23,6 +24,11 @@ namespace Portico;
 /// </summary>
 public sealed partial class CliApplication
 {
+    internal const string TrimWarning =
+        "Portico discovers routes and binds options via reflection. " +
+        "A trimmed or NativeAOT publish will fail at runtime. " +
+        "See docs/explanation/aot.md in the Portico repository.";
+
     private readonly ICliConsole _console;
     private readonly Func<string>? _versionFactory;
     private readonly IReadOnlyList<string>? _versionTriggers;
@@ -58,6 +64,8 @@ public sealed partial class CliApplication
     /// var app = CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool()));
     /// return app.Run(args);
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public static CliApplication Create(Action<ICliApplicationBuilder> initialize)
     {
@@ -71,6 +79,8 @@ public sealed partial class CliApplication
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).Run("greet --name Ada");
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public int Run(string commandLine) =>
         RunAsync(commandLine, CancellationToken.None).GetAwaiter().GetResult();
@@ -80,6 +90,8 @@ public sealed partial class CliApplication
     /// public static int Main(string[] args) =&gt;
     ///     CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).Run(args);
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public int Run(string[] args) =>
         RunAsync(args, CancellationToken.None).GetAwaiter().GetResult();
@@ -88,6 +100,8 @@ public sealed partial class CliApplication
     /// <example><code>
     /// CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).Run();
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public int Run() =>
         RunAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -105,6 +119,8 @@ public sealed partial class CliApplication
     /// <example><code>
     /// return await CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).RunAsync();
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public Task<int> RunAsync(CancellationToken cancellationToken = default) =>
         RunWithAutoCancelAsync(CliInvocation.ProcessArgv(), cancellationToken);
@@ -117,6 +133,8 @@ public sealed partial class CliApplication
     /// <example><code>
     /// await CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).RunAsync("greet --name Ada");
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public Task<int> RunAsync(string commandLine, CancellationToken cancellationToken = default) =>
         RunWithAutoCancelAsync(CliInvocation.TokenizeFromString(commandLine), cancellationToken);
@@ -139,6 +157,8 @@ public sealed partial class CliApplication
     /// public static Task&lt;int&gt; Main(string[] args) =&gt;
     ///     CliApplication.Create(cfg =&gt; cfg.AddCommands(new MyTool())).RunAsync(args);
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     [DebuggerStepThrough]
     public Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
