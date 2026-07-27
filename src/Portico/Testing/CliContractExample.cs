@@ -12,16 +12,16 @@ namespace Portico.Testing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Matched"/> alone only tells you the example reached <em>some</em> route. To assert
-/// the example is a genuine contract — that it reaches the route you meant, binding the values you
-/// meant — assert on <see cref="Handler"/> and <see cref="Arguments"/> as well. An example that
-/// silently starts dispatching to a different overload, or binding a different value, still
-/// <see cref="Matched"/>; it is <see cref="Handler"/> and <see cref="Arguments"/> that catch it.
+/// <see cref="Matched"/> is <see langword="true"/> only when the example dispatched to <strong>the
+/// method it is declared on</strong>. An example on method A that routes to method B reports
+/// <see cref="Matched"/> = <see langword="false"/> with a <see cref="FailureReason"/> naming the
+/// mismatch. To pin the full contract — values and types, not just the route — assert on
+/// <see cref="Arguments"/> as well.
 /// </para>
 /// </remarks>
 /// <param name="Example">The verbatim example invocation, less the executable name.</param>
 /// <param name="Description">The example's optional one-line description.</param>
-/// <param name="Matched">Whether the example dispatched to a route at all.</param>
+/// <param name="Matched">Whether the example dispatched to the method it is declared on.</param>
 /// <param name="Handler">
 /// The name of the contract method the example dispatched to, or <see langword="null"/> if it
 /// dispatched to nothing. Compare against <c>nameof(IMyCommands.Seed)</c> to pin the route.
@@ -31,10 +31,10 @@ namespace Portico.Testing;
 /// nothing dispatched. A parameter the user did not supply appears with its default.
 /// </param>
 /// <param name="FailureReason">
-/// Why the example did not dispatch, in the framework's own words — <c>"Unrecognized option(s):
-/// --bogus"</c>, <c>"Value 'abc' for option '--amount' is invalid."</c> — or <see langword="null"/>
-/// when it did. Put it in the assertion message: a red test that says only <em>that</em> an example
-/// broke makes the reader go and find the <em>why</em> the framework already knew.
+/// Why the example failed — the framework's own diagnostic (<c>"Unrecognized option(s):
+/// --bogus"</c>), a handler-mismatch explanation, or <see langword="null"/> when it succeeded.
+/// Put it in the assertion message: a red test that says only <em>that</em> an example broke makes
+/// the reader go and find the <em>why</em> the framework already knew.
 /// </param>
 /// <example><code>
 /// public static IEnumerable&lt;object[]&gt; Examples() =&gt;
