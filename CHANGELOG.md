@@ -11,7 +11,8 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 ### Added
 
 - `CliOptionAttribute.Sensitive` — mark an option's value a secret. It is redacted (`***`) wherever
-  the framework echoes the command line: trace output, timing output, conversion errors.
+  the framework renders it: help defaults, trace output, timing output, conversion errors, arity
+  diagnostics.
 - Optional trailing positionals: a C# default on a `[CliArgument]` parameter now makes the
   positional optional, and help renders it as `[NAME]` rather than `<NAME>`.
 - `docs/` — the Charter, the extensibility guide, the AOT decision, and the roadmap.

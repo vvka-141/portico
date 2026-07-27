@@ -137,8 +137,8 @@ honestly](docs/explanation/alternatives.md) — with the versions and the date t
 
 ## Secrets do not reach your logs
 
-Mark an option `Sensitive = true` and its value is redacted wherever the framework echoes the command
-line — trace output, timing output, conversion errors:
+Mark an option `Sensitive = true` and its value is redacted wherever the framework renders it —
+help defaults, trace output, timing output, conversion errors, arity diagnostics:
 
 ```
 [timing] admin db migrate --connection-string *** ... 22 ms

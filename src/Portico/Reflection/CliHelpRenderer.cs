@@ -220,11 +220,10 @@ internal static class CliHelpRenderer
         var desc = option.Description ?? string.Empty;
         if (option.IsOptional && option.DefaultValue is not null && option.DefaultValue is not CliFlag)
         {
-            // Respect a user-supplied "(default: X)" fragment rather than appending a second
-            // one — common case when a consumer documented the default in prose.
             if (!desc.Contains("default:", StringComparison.OrdinalIgnoreCase))
             {
-                var suffix = $"  (default: {option.DefaultValue})";
+                var rendered = option.IsSensitive ? "***" : $"{option.DefaultValue}";
+                var suffix = $"  (default: {rendered})";
                 desc = !string.IsNullOrWhiteSpace(desc) ? desc + suffix : suffix.TrimStart();
             }
         }
