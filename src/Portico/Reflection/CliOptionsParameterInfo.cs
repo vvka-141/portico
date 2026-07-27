@@ -9,6 +9,9 @@ namespace Portico.Reflection;
 internal sealed class CliOptionsParameterInfo : CliParameterInfo
 {
     private readonly ImmutableArray<CliOptionsPropertyInfo> _properties;
+    // IL2072/IL2075: bundle instantiation and property discovery use reflection;
+    // CliApplication.Create warns consumers about trimming incompatibility.
+#pragma warning disable IL2072, IL2075
     public CliOptionsParameterInfo(ParameterInfo parameter) : base(parameter)
     {
         ThrowIf.False(CliOptions.IsAssignableFrom(parameter.ParameterType));
@@ -34,6 +37,7 @@ internal sealed class CliOptionsParameterInfo : CliParameterInfo
             .ToList();
         _properties = [.. properties];
     }
+#pragma warning restore IL2072, IL2075
 
     public Type CliOptionsType { get; }
 
@@ -43,7 +47,9 @@ internal sealed class CliOptionsParameterInfo : CliParameterInfo
 
     public override object? Materialize(CliInvocation invocation)
     {
+#pragma warning disable IL2072
         var bundle = Activator.CreateInstance(CliOptionsType);
+#pragma warning restore IL2072
         foreach (var property in _properties)
         {
             var value = property.Materialize(invocation);

@@ -208,7 +208,11 @@ public class CliOptionAttribute : Attribute
         // the option path carries collections and dictionaries too, so it stays conservative.
         var effectiveType = Nullable.GetUnderlyingType(optionType) ?? optionType;
 
+        // IL2026/IL2067: TypeDescriptor.GetConverter uses reflection; the public entry point
+        // (CliApplication.Create) already warns consumers about trimming incompatibility.
+#pragma warning disable IL2026, IL2067
         converter = TypeDescriptor.GetConverter(optionType);
+#pragma warning restore IL2026, IL2067
 
         if (effectiveType == typeof(TimeSpan))
         {

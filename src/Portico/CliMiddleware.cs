@@ -50,6 +50,8 @@ public abstract class CliMiddleware : CliOptions
     /// </summary>
     public CliMiddleware()
     {
+        // IL2075: GetType().GetProperties uses reflection; CliApplication.Create warns consumers.
+#pragma warning disable IL2075
         _options =
             [
                 ..GetType()
@@ -65,6 +67,7 @@ public abstract class CliMiddleware : CliOptions
                         return [];
                     })
             ];
+#pragma warning restore IL2075
     }
 
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,6 +34,10 @@ namespace Portico.Hosting;
 /// </remarks>
 public static class CliHostExtensions
 {
+    private const string TrimWarning =
+        "Portico discovers routes and binds options via reflection. " +
+        "A trimmed or NativeAOT publish will fail at runtime. " +
+        "See docs/explanation/aot.md in the Portico repository.";
     /// <summary>
     /// Registers <typeparamref name="TImplementation"/> as the scoped implementation of the
     /// <typeparamref name="TContract"/> command contract, and records the contract so
@@ -133,6 +138,8 @@ public static class CliHostExtensions
     ///     return await builder.Build().RunPorticoAsync(args);
     /// }
     /// </code></example>
+    [RequiresUnreferencedCode(TrimWarning)]
+    [RequiresDynamicCode(TrimWarning)]
     public static async Task<int> RunPorticoAsync(
         this IHost host,
         string[] args,

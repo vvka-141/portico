@@ -50,7 +50,11 @@ internal static class CliValidation
     {
         if (bundle is not IValidatableObject validatable) return;
 
+        // IL2026: ValidationContext ctor uses reflection for display names;
+        // CliApplication.Create/Run warn consumers about trimming incompatibility.
+#pragma warning disable IL2026
         var ctx = new ValidationContext(bundle);
+#pragma warning restore IL2026
         var results = validatable.Validate(ctx)
             .Where(r => r != ValidationResult.Success)
             .ToArray();
@@ -69,7 +73,9 @@ internal static class CliValidation
 
     private static void Validate(object? value, ValidationAttribute[] attributes, string displayName)
     {
+#pragma warning disable IL2026
         var ctx = new ValidationContext(value ?? new object()) { DisplayName = displayName };
+#pragma warning restore IL2026
         var results = new List<ValidationResult>();
         if (Validator.TryValidateValue(value!, ctx, results, attributes))
         {

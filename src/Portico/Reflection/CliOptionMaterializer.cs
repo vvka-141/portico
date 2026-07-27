@@ -855,6 +855,9 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
     /// <see cref="ImmutableHashSet"/>, <see cref="ImmutableSortedSet"/>). Each factory has multiple
     /// overloads; we pick the one whose single parameter is <c>IEnumerable&lt;T&gt;</c>.
     /// </summary>
+    // IL2060/IL2070: runtime generic specialization on BCL factory types;
+    // CliApplication.Create/Run warn consumers about trimming incompatibility.
+#pragma warning disable IL2060, IL2070
     private static MethodInfo InvokeCreateRange(Type factoryType, Type itemType)
     {
         foreach (var method in factoryType.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -872,4 +875,5 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
             $"No single-parameter CreateRange<T>(IEnumerable<T>) overload found on {factoryType.FullName}. " +
             "Framework assumption broke; likely a BCL change.");
     }
+#pragma warning restore IL2060, IL2070
 }

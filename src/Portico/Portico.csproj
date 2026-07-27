@@ -6,6 +6,8 @@
     <RootNamespace>Portico</RootNamespace>
     <Description>The command surface for .NET backend services. Contract-first CLI routing where your examples are tests, verified at compile time by Roslyn analyzers. Zero dependencies; DI is opt-in.</Description>
     <PackageTags>CLI;CommandLine;Console;Routing;Analyzers;Testing;Portico</PackageTags>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
 
   <!--

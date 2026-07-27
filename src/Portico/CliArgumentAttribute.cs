@@ -95,7 +95,11 @@ public class CliArgumentAttribute : Attribute
     public virtual bool CanAccept(Type argumentType, out TypeConverter converter)
     {
         argumentType = Nullable.GetUnderlyingType(argumentType) ?? argumentType;
+        // IL2026/IL2067: TypeDescriptor.GetConverter uses reflection; the public entry point
+        // (CliApplication.Create) already warns consumers about trimming incompatibility.
+#pragma warning disable IL2026, IL2067
         converter = TypeDescriptor.GetConverter(argumentType);
+#pragma warning restore IL2026, IL2067
 
         if (argumentType == typeof(TimeSpan))
         {
