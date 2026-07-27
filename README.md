@@ -308,6 +308,11 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 
 ## Documentation
 
+**[Start here](docs/tutorial/first-cli.md)** — build your first Portico CLI in fifteen minutes.
+
+The full index: **[docs/](docs/README.md)** — tutorials, how-to guides, reference, and explanation,
+organised by [Diataxis](https://diataxis.fr/).
+
 - [Charter](docs/explanation/charter.md) — the design constitution, and the invariants it will not trade
 - [Extensibility](docs/explanation/extensibility.md) — what you can extend, and what is deliberately sealed
 - [AOT](docs/explanation/aot.md) — why not, and what would change our mind
