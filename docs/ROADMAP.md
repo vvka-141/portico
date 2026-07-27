@@ -126,6 +126,11 @@ subclass together cannot express. That, not a hypothetical, is the bar.
 
 - **Spectre-style rich rendering.** A composition story, not a Portico concern. Charter §5.
 
+- **`PublicApi.Shipped.txt` analyzer baseline.** `Microsoft.CodeAnalysis.PublicApiAnalyzers`
+  is the standard tool for API-break detection; deferred to 1.0 because the surface is
+  still moving. The 0.x gate is `Portico_PublicSurface_Should.Track_every_exported_type_by_name`
+  (POR-104) — a name-list assertion that fails the build when the exported set changes.
+
 ---
 
 ## Not carried across from the origin
