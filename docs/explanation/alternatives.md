@@ -1,6 +1,6 @@
 # The alternatives, honestly
 
-**Landscape checked: 2026-07-14.** Everything below is a claim about someone else's project, so it
+**Landscape checked: 2026-07-27.** Everything below is a claim about someone else's project, so it
 carries a date. If you are reading this much later, re-check before believing it — and if you find it
 stale, that is a bug worth an issue.
 
@@ -106,20 +106,39 @@ wiring and never get bored. Anyone pitching you brevity is pitching a scarcity t
 An honest pitch names its prior art. **"Nobody thought to validate examples" would be false**, and we
 are not going to say it.
 
-- **Azure CLI** got there first, and did it properly. Its `azdev linter` carries
-  `faulty_help_example_parameters_rule`, which parses every help example **through the real command
-  parser** and fails CI on one that does not hold up. (Checked in `azdev/operations/linter/rules/help_rules.py`
-  — not taken on trust.) The honest distinction is scope, not novelty: Microsoft built bespoke tooling
-  for *one* CLI, checking that an example's options are **recognised**. Portico makes it the framework's
-  central abstraction, and checks that an example **dispatches to a specific handler and binds specific
-  values** — so retyping an option from `int` to `string` fails the build even though the example still
-  parses.
+- **Spectre.Console.Cli** — the nearest .NET prior art. `ConfiguratorExtensions.ValidateExamples()`
+  sets a flag; `CommandModelValidator.ValidateExamples` runs a real `CommandTreeParser(model,
+  caseSensitivity, ParsingMode.Strict)` over each `.WithExample(...)`. (Verified in source,
+  2026-07-27.) It is **opt-in**, runs at **application startup** (not build time), and checks
+  **parsing** — an example with an unrecognised option fails, but `--count abc` against an `int Count`
+  passes because type conversion is not part of the check. Anyone saying Spectre examples are "just
+  help text" is wrong. The honest distinction: Spectre checks tokenization; Portico checks dispatch and
+  binding.
+- **Nushell** — the strongest prior art in any ecosystem. `fn examples()` on the `Command` trait
+  carries `example`, `description` and `result: Option<Value>`. `example_support.rs` evaluates the
+  example and asserts against the declared result; each command file carries its own `#[test] fn
+  test_examples()`. Beyond that it has `check_example_input_and_output_types_match_command_signature`
+  and `check_all_signature_input_output_types_entries_have_examples` — **a coverage gate that fails
+  when a declared signature variant has no covering example.** Portico has no equivalent of that
+  coverage gate. Honest limits: in-process pipeline evaluation against a `Value`, not argv-level
+  dispatch, and Nushell is a shell/plugin SDK rather than a general CLI framework. (Verified in source,
+  2026-07-27.)
+- **Azure CLI** — `azdev linter` carries `faulty_help_example_parameters_rule`, which parses every help
+  example against the real command parser — but with `_check_value` and `_get_value` **mocked out**
+  (type conversion deliberately disabled). (Checked in `azdev/operations/linter/rules/help_rules.py`,
+  2026-07-27.) It proves an example's option names are *recognised*, not that their values are valid.
+  The honest distinction: Microsoft built bespoke tooling for *one* CLI; Portico makes it the
+  framework's central abstraction.
 - **[trycmd](https://github.com/assert-rs/trycmd)** (Rust) executes README examples as snapshot tests —
   the closest thing to this idea in a mainstream ecosystem.
 - **docopt** attacked the same drift from the opposite end, deriving the parser *from* the help text.
 
-What survives all three: no .NET CLI framework makes verified examples the contract, and no framework
-in any ecosystem checks that an example reaches the handler it names, binding the values it names.
+What survives all five: **no .NET CLI framework checks that a declared example dispatches to a specific
+handler and binds specific values, as a build-time gate.** Spectre checks tokenization at startup if
+you ask; azdev checks recognition with conversion mocked out; Nushell executes examples against an
+in-process pipeline evaluation. Portico runs each example through the real dispatch pipeline against a
+`DispatchProxy` of the contract interface, and a stale one fails the build — retyping an option from
+`int` to `string` breaks even though the example still parses.
 
 That is the entire pitch. If none of it is worth anything to you, one of the frameworks above is a
 better choice, and you should use it.
