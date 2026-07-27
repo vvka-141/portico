@@ -21,11 +21,11 @@ namespace Portico.Testing;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="Validate"/> answers "did it dispatch?". <see cref="Enumerate"/> additionally reports
-/// <em>which</em> handler each example reached and <em>what values</em> the framework bound to it —
-/// which is what makes an example a contract rather than a smoke test. An example that begins
-/// dispatching to a different overload, or binding a different value, still dispatches; only
-/// <see cref="CliContractExample.Handler"/> and <see cref="CliContractExample.Arguments"/> catch it.
+/// Both <see cref="Validate"/> and <see cref="Enumerate"/> check that each example dispatches to
+/// <strong>the method it is declared on</strong>. An example on method A that routes to method B
+/// is a failure, not a match — the example is wrong, even though the framework accepted the input.
+/// <see cref="Enumerate"/> additionally reports what values the framework bound, so a test can pin
+/// the full contract: handler, arguments, and types.
 /// </para>
 /// <para>
 /// A contract composed into a master CLI under a root route
@@ -33,6 +33,12 @@ namespace Portico.Testing;
 /// it ships in</em> — pass those root routes to the constructor. Validating the unmounted surface of
 /// a contract that only ever ships mounted proves nothing about the CLI users actually get: the
 /// examples would pass here and exit 2 there (POR-40).
+/// </para>
+/// <para>
+/// <strong>Limitation:</strong> a type-level <c>[CliRoute]</c> on the implementation class (not the
+/// interface) is invisible to the validator — it validates the interface via a
+/// <see cref="DispatchProxy"/>, which carries no class-level attributes. Use <c>rootRoutes</c> in
+/// the constructor to mirror a mount prefix, or place the <c>[CliRoute]</c> on the interface.
 /// </para>
 /// </remarks>
 public sealed class CliContractValidator<T> where T : class
@@ -91,13 +97,13 @@ public sealed class CliContractValidator<T> where T : class
 
         foreach (var result in Run(configureApplication))
         {
-            if (result.Dispatch is not null)
+            if (result.FailureReason is null)
             {
                 onInvoked(result.Attribute);
             }
             else
             {
-                onNotInvoked(result.Attribute, result.FailureReason ?? UnknownReason);
+                onNotInvoked(result.Attribute, result.FailureReason);
             }
         }
     }
@@ -132,10 +138,10 @@ public sealed class CliContractValidator<T> where T : class
             .Select(r => new CliContractExample(
                 r.Attribute.Example,
                 r.Attribute.Description,
-                r.Dispatch is not null,
+                r.FailureReason is null,
                 r.Dispatch?.Handler,
                 r.Dispatch?.Arguments ?? EmptyArguments,
-                r.Dispatch is null ? r.FailureReason ?? UnknownReason : null))
+                r.FailureReason))
             .ToArray();
 
     private static readonly IReadOnlyDictionary<string, object?> EmptyArguments =
@@ -164,8 +170,9 @@ public sealed class CliContractValidator<T> where T : class
             .Union([type])
             .SelectMany(t => t.GetMethods())
             .Distinct()
-            .SelectMany(mi => mi.GetCustomAttributes(typeof(CliCommandExampleAttribute), true))
-            .Cast<CliCommandExampleAttribute>()
+            .SelectMany(mi => mi.GetCustomAttributes(typeof(CliCommandExampleAttribute), true)
+                .Cast<CliCommandExampleAttribute>()
+                .Select(attr => (Attribute: attr, DeclaringMethod: mi)))
             .ToArray();
 
         if (testCases.Length == 0)
@@ -179,13 +186,6 @@ public sealed class CliContractValidator<T> where T : class
         T proxy = DispatchProxy.Create<T, CliRouteProxy>();
         var recorder = (CliRouteProxy)(object)proxy;
 
-        // The framework already knows why an example failed — it writes the diagnostic to its
-        // console. Capturing that console is what turns "example didn't dispatch" into an actionable
-        // failure (POR-29). It also stops the validator from spraying those diagnostics into the
-        // user's test log as a side effect of asking a question.
-        //
-        // WithConsole runs BEFORE configureApplication, so a caller who supplies their own console
-        // still wins — they just get no reason, which is their choice to make.
         var console = new CapturingConsole();
 
         var app = CliApplication
@@ -196,28 +196,33 @@ public sealed class CliContractValidator<T> where T : class
                 configureApplication?.Invoke(builder);
             });
 
-        // The example is authored against the contract, which cannot know its mount — so the mount
-        // is what we prepend before running it, exactly as help does (POR-39).
         var mount = _rootRoutes.Length == 0
             ? string.Empty
             : string.Join(' ', _rootRoutes) + " ";
 
         var results = new List<(CliCommandExampleAttribute, CliDispatch?, string?)>(testCases.Length);
-        foreach (var testCase in testCases)
+        foreach (var (attribute, declaringMethod) in testCases)
         {
-            Debug.WriteLine(testCase.Example);
-            Debug.WriteLine(testCase.Description);
+            Debug.WriteLine(attribute.Example);
+            Debug.WriteLine(attribute.Description);
 
-            // The proxy records the dispatch it receives. A non-zero exit means the framework
-            // rejected the example before reaching any handler; a zero exit with no recorded
-            // dispatch would mean the framework short-circuited (--help, --version), which is
-            // not a route match and must not be reported as one.
             recorder.Clear();
             console.Clear();
-            int exitCode = app.Run($"program {mount}{testCase.Example}");
+            int exitCode = app.Run($"program {mount}{attribute.Example}");
             var dispatch = exitCode == 0 ? recorder.Dispatch : null;
 
-            results.Add((testCase, dispatch, dispatch is null ? ExplainFailure(console, exitCode) : null));
+            string? failureReason = null;
+            if (dispatch is null)
+            {
+                failureReason = ExplainFailure(console, exitCode);
+            }
+            else if (!string.Equals(dispatch.Handler, declaringMethod.Name, StringComparison.Ordinal))
+            {
+                failureReason = $"the example dispatched to '{dispatch.Handler}' instead of " +
+                                $"'{declaringMethod.Name}', which is the method it is declared on.";
+            }
+
+            results.Add((attribute, dispatch, failureReason));
         }
         return results;
     }
