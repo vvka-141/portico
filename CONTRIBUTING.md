@@ -18,8 +18,8 @@ Two things will fail your build that may surprise you:
   `<example>` fails `Portico_XmlDocGate_Should`. The public API is what agents and humans read; it is
   not allowed to decay quietly.
 
-Target framework is `net10.0` only. Dependencies go in `Directory.Packages.props` (central package
-management), never in an individual `.csproj`.
+Target frameworks are `net8.0` and `net10.0`. Dependencies go in `Directory.Packages.props` (central
+package management), never in an individual `.csproj`.
 
 ## The rules that are not negotiable
 
