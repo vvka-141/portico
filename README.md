@@ -2,7 +2,7 @@
 
 # Portico
 
-[![CI](https://github.com/vvka-141/portico/actions/workflows/verify.yml/badge.svg)](https://github.com/vvka-141/portico/actions/workflows/verify.yml)
+[![CI](https://github.com/vvka-141/portico/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vvka-141/portico/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Portico.svg)](https://www.nuget.org/packages/Portico)
 [![Downloads](https://img.shields.io/nuget/dt/Portico.svg)](https://www.nuget.org/packages/Portico)
 [![License](https://img.shields.io/github/license/vvka-141/portico)](LICENSE)

@@ -5,7 +5,7 @@
 
 Writes, all into this directory:
 
-    portico.svg                  the master — hand-editable, resolution-independent
+    portico.svg                  vector export — resolution-independent, regenerated not edited
     portico-icon-128.png         the NuGet package icon (NuGet recommends 128x128)
     portico-512.png              repository avatar / general-purpose square
     portico-social-1280x640.png  the GitHub social preview
@@ -14,12 +14,17 @@ The mark is a portico — two columns and an entablature — framing a shell pro
 metaphor is the framework's: a CLI is the front of the building, and what it promises at
 the door is what you get inside.
 
-The geometry lives here rather than in a hand-drawn binary so the assets are reproducible:
-a regenerated icon is byte-identical, a colour change is a one-line edit, and nothing in
-the repository is a PNG whose source has been lost. Rasterising with Pillow rather than a
-real SVG renderer keeps the dependency list to one package that is already common; the
-cost is that the SVG and the PNGs are two implementations of the same numbers, so they are
-kept adjacent and both driven from SHAPES below.
+SHAPES below is the master. Everything else, the SVG included, is derived from it, so a
+colour change is a one-line edit and nothing in the repository is a PNG whose source has
+been lost. Rasterising with Pillow rather than a real SVG renderer keeps the dependency
+list to one package that is already common.
+
+The assets are deterministically derived from that one geometry definition within a
+consistent toolchain — which is not the same as byte-identical across machines. The social
+card picks a system font, and that differs between Windows, Linux and macOS; PNG
+compression can also shift between Pillow versions. Pinning Pillow and vendoring a licensed
+font would close both gaps, and is not worth the complexity for brand assets. If a rebuild
+ever needs to match an existing file exactly, regenerate on the machine that produced it.
 """
 
 import os
@@ -101,7 +106,8 @@ CURSOR = (0.5614, 0.5829, 0.6244, 0.6547)
 
 
 def svg() -> str:
-    """The master, on a 512-unit viewBox."""
+    """The vector export, on a 512-unit viewBox. Regenerated from SHAPES, so an edit here is
+    overwritten on the next run — change the geometry instead."""
     u = 512.0
 
     def pts(points):
@@ -224,7 +230,7 @@ def main() -> None:
     svg_path = os.path.join(HERE, "portico.svg")
     with open(svg_path, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(svg())
-    print(f"  {'portico.svg':<28} master"
+    print(f"  {'portico.svg':<28} vector"
           f"  {os.path.getsize(svg_path) / 1024:.0f} KB")
 
     write(os.path.join(HERE, "portico-icon-128.png"), render_mark(128))

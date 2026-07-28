@@ -16,6 +16,19 @@ The first public release. Everything below is new to anyone outside the reposito
 `Fixed`, `Changed` and `Removed` subsections record what moved during development, and are kept
 because *why* a decision was reversed is usually more useful than the decision itself.
 
+### Highlights
+
+- **Your examples are executable tests.** One `CliContractValidator<T>` test runs every
+  `[CliCommandExample]` through the real dispatch pipeline. A stale example fails, so the CLI
+  cannot lie about what it accepts.
+- **Ten Roslyn analyzers, bundled.** `POR001`–`POR011` (POR007 retired) catch contract mistakes at
+  compile time. No second package to install.
+- **A zero-dependency core**, asserted against the packed `.nupkg`'s own nuspec, per target
+  framework.
+- **DI and Generic Host are opt-in**, in separate packages, which is what keeps the core claim
+  true rather than merely convenient.
+- **`net8.0` and `net10.0`**, both tested in CI.
+
 ### Added
 
 - `CliOptionAttribute.Sensitive` — mark an option's value a secret. It is redacted (`***`) wherever
