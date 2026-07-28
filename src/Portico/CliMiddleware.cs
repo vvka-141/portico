@@ -52,21 +52,26 @@ public abstract class CliMiddleware : CliOptions
     {
         // IL2075: GetType().GetProperties uses reflection; CliApplication.Create warns consumers.
 #pragma warning disable IL2075
-        _options =
-            [
-                ..GetType()
-                    .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                    .SelectMany(pi =>
-                    {
-                        var attributes = pi.GetCustomAttributes(true);
-                        if (attributes.OfType<CliOptionAttribute>().Any())
-                        {
-                            return new[] { new CliOptionsPropertyInfo(pi) };
-                        }
-
-                        return [];
-                    })
-            ];
+        var options = new List<CliOptionsPropertyInfo>();
+        foreach (var pi in GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            try
+            {
+                var attributes = pi.GetCustomAttributes(true);
+                if (attributes.OfType<CliOptionAttribute>().Any())
+                {
+                    options.Add(new CliOptionsPropertyInfo(pi));
+                }
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex.InnerException is ArgumentException)
+            {
+                var specEx = ex.InnerException as ArgumentException ?? (ArgumentException)ex;
+                throw new CliConfigurationException(
+                    $"Property '{pi.Name}' on middleware '{GetType().Name}': " +
+                    CliOptionMaterializer.Explain(specEx));
+            }
+        }
+        _options = [.. options];
 #pragma warning restore IL2075
     }
 
