@@ -48,7 +48,7 @@ owns routing and binding, not what you print. Throw `CliExitException` to fail w
 **Map option** — the `?keep[topic]=7` of a CLI, binds to `Dictionary<K,V>`:
 
 ```csharp
-[CliOption("--keep")] Dictionary<string,int>? keep   //  --keep[orders] 7 --keep[audit] 90
+[CliOption("--keep")] Dictionary<string,int>? keep   //  '--keep[orders]' 7 '--keep[audit]' 90
 ```
 
 **Collection** — repeat the flag; binds `List<T>`, `T[]`, `IReadOnlyList<T>`, `HashSet<T>`, …:
