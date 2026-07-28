@@ -72,10 +72,23 @@
 
   <PropertyGroup Label="License">
     <!--
-      Apache-2.0, not MPL-2.0. Portico is a library linked into proprietary
-      backend services; Apache's explicit patent grant is the reflex-safe choice
-      for that audience. Acceptance is not required — permissive licenses that
-      demand a click read as encumbered.
+      Apache-2.0, not MPL-2.0. Reconfirmed 2026-07-28 before the first release.
+
+      This comment used to argue the choice on Apache's "explicit patent grant".
+      That reason is wrong and should not be repeated: MPL-2.0 §2.1(b) grants
+      patent rights too, with retaliation termination in §5.2. Patents do not
+      separate the two licences.
+
+      What does separate them, for Portico specifically: `Portico.Templates`
+      scaffolds source files INTO the consumer's project, and the README and docs
+      exist to be copied from. Under MPL's file-level copyleft a team's edits to
+      their own scaffolded Program.cs would have to be published under MPL. Linking
+      is not the problem — MPL §3.3 permits a proprietary Larger Work outright —
+      the scaffolding is. An admin CLI for a proprietary backend service is exactly
+      the case that tax lands on.
+
+      Acceptance is not required either way: permissive licences that demand a
+      click read as encumbered.
     -->
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
