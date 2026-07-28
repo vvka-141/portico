@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Portico">
+  <title>Portico</title>
+  <rect width="512" height="512" fill="#091635"/>
+  <polygon id="architrave" fill="#F5ECD6" points="88.12,85.35 423.48,85.35 429.11,90.98 429.11,127.90 423.48,133.53 88.12,133.53 82.48,127.90 82.48,90.98"/>
+  <polygon id="capital-left" fill="#F5ECD6" points="100.86,142.49 176.38,142.49 165.38,158.41 111.87,158.41"/>
+  <polygon id="capital-right" fill="#F5ECD6" points="340.53,142.49 411.96,142.49 402.18,158.41 351.54,158.41"/>
+  <polygon id="shaft-left" fill="#F5ECD6" points="111.87,167.42 165.38,167.42 165.38,358.09 111.87,358.09"/>
+  <polygon id="shaft-right" fill="#F5ECD6" points="351.54,167.42 402.18,167.42 402.18,358.09 351.54,358.09"/>
+  <polygon id="base-left" fill="#F5ECD6" points="111.87,367.05 165.38,367.05 176.79,381.34 99.23,381.34"/>
+  <polygon id="base-right" fill="#F5ECD6" points="351.54,367.05 402.18,367.05 414.00,381.34 340.53,381.34"/>
+  <polygon id="stylobate" fill="#F5ECD6" points="91.85,390.35 187.80,390.35 187.80,404.48 330.29,404.48 330.29,390.35 421.79,390.35 421.79,426.24 91.85,426.24"/>
+  <polyline id="prompt" fill="none" stroke="#0FCBF1" stroke-width="24.06" stroke-linecap="butt" stroke-linejoin="miter" points="199.68,211.46 268.80,270.69 199.68,329.93"/>
+  <rect id="cursor" fill="#FEB705" x="287.44" y="298.44" width="32.26" height="36.76"/>
+</svg>

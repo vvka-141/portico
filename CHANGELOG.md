@@ -73,6 +73,15 @@ because *why* a decision was reversed is usually more useful than the decision i
   enough to be falsified.
 - `docs/how-to/migrate-from-cocona.md` — a migration guide for Cocona users (Cocona was archived
   2025-12-14), including where ConsoleAppFramework or System.CommandLine is the better destination.
+- **A package identity: one icon, and descriptions written to be found.** All four packages carry
+  the same embedded 128×128 icon — a portico framing a shell prompt — generated from
+  `eng/brand/generate.py`, which is also the source of the SVG master, the 512×512 square and the
+  1280×640 social preview. The geometry lives in the script rather than in a binary nobody can
+  edit, so the assets are reproducible and a colour change is a one-line diff. Package descriptions
+  and tags were rewritten as search copy: the tagline still opens the README, but the fields NuGet
+  actually matches a query against now lead with the words someone types. A packaging test asserts
+  the icon and README ship in every package, because nuget.org renders a placeholder for a missing
+  icon rather than failing.
 - `docs/how-to/compose-clis.md` + `examples/PlatformCli` — mounting several independently-built
   contracts into one binary, with the composed surface contract-tested by CI. Both mounted tools
   declare a route called `status`; the mount point disambiguates them.

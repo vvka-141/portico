@@ -83,6 +83,8 @@
 
   <PropertyGroup Label="PackageShape">
     <PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile>
+    <!-- Embedded, not PackageIconUrl: that one is deprecated and renders nothing on nuget.org. -->
+    <PackageIcon>portico-icon-128.png</PackageIcon>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -103,6 +105,15 @@
   <ItemGroup Label="Pack the per-package README"
              Condition="'$(IsPackable)' != 'false'">
     <None Include="PACKAGE-README.md"
+          Pack="true"
+          PackagePath="\"
+          Visible="false" />
+    <!--
+      One icon for all four packages, generated from eng/brand/generate.py. NuGet recommends
+      128x128 and caps embedded icons at 1 MB; this one is ~3 KB, because the source is geometry
+      rather than a raster nobody can edit.
+    -->
+    <None Include="$(MSBuildThisFileDirectory)eng/brand/portico-icon-128.png"
           Pack="true"
           PackagePath="\"
           Visible="false" />

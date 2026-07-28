@@ -5,11 +5,13 @@
     <PackageId>Portico.Templates</PackageId>
     <Title>Portico CLI template</Title>
     <Description>
-      dotnet new portico-cli — a runnable Portico CLI with one route, one executable example, and a
-      passing contract test. The point is the loop: `dotnet test` runs your help examples through the
-      real pipeline, so they cannot drift from the CLI you shipped.
+      dotnet new template for Portico, the contract-first CLI framework for .NET. `dotnet new
+      portico-cli` scaffolds a runnable net8.0 or net10.0 command-line application with an
+      attributed route, a documented example, and passing contract tests that run that example
+      through the real dispatch pipeline. The point is the loop: the example cannot drift from the
+      CLI you shipped without turning a test red.
     </Description>
-    <PackageTags>dotnet-new;templates;cli;command-line;portico</PackageTags>
+    <PackageTags>portico;cli;command-line;dotnet-new;project-template;console-application;net8;net10;testing</PackageTags>
 
     <TargetFramework>net10.0</TargetFramework>
     <IncludeContentInPack>true</IncludeContentInPack>
