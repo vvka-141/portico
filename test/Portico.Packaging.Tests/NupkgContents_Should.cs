@@ -120,6 +120,42 @@ public sealed class NupkgContents_Should
             $"found {analyzerDlls.Count}: {string.Join(", ", analyzerDlls)}");
     }
 
+    /// <summary>
+    /// Every shipped package carries the same icon and README (POR-135). Both are declared once
+    /// in Directory.Build.props, and a package that opts out of the shared item groups would lose
+    /// them silently: nuget.org renders a placeholder rather than an error, so nothing fails until
+    /// a visitor notices. NuGet caps an embedded icon at 1 MB, which is checked here too — the
+    /// generated icon is three orders of magnitude under it, and the assertion exists so that a
+    /// hand-dropped replacement cannot quietly break the pack.
+    /// </summary>
+    [Theory]
+    [InlineData("Portico")]
+    [InlineData("Portico.DependencyInjection")]
+    [InlineData("Portico.Hosting")]
+    [InlineData("Portico.Templates")]
+    public void PackTheSharedIconAndReadme(string packageId)
+    {
+        const string IconFile = "portico-icon-128.png";
+        const long NuGetIconSizeLimit = 1024 * 1024;
+
+        var nupkg = FindNupkg(packageId);
+        var nuspec = ReadNuspec(nupkg);
+        var ns = NuspecNs(nuspec);
+
+        Assert.Equal(IconFile, nuspec.Descendants(ns + "icon").SingleOrDefault()?.Value);
+        Assert.Equal("PACKAGE-README.md", nuspec.Descendants(ns + "readme").SingleOrDefault()?.Value);
+
+        using var zip = ZipFile.OpenRead(nupkg);
+        var icon = zip.Entries.SingleOrDefault(e =>
+            string.Equals(e.FullName, IconFile, StringComparison.OrdinalIgnoreCase));
+
+        Assert.True(icon is not null,
+            $"{packageId} declares <icon>{IconFile}</icon> but does not contain the file. " +
+            "nuget.org shows a placeholder rather than failing, so this is the only place it surfaces.");
+        Assert.True(icon!.Length is > 0 and < NuGetIconSizeLimit,
+            $"{IconFile} in {packageId} is {icon.Length} bytes; NuGet rejects an embedded icon at or above {NuGetIconSizeLimit}.");
+    }
+
     [Theory]
     [InlineData("Portico.DependencyInjection")]
     [InlineData("Portico.Hosting")]

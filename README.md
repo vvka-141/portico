@@ -1,4 +1,11 @@
+<img src="eng/brand/portico-512.png" alt="" width="88" align="left" hspace="16" vspace="4">
+
 # Portico
+
+[![CI](https://github.com/vvka-141/portico/actions/workflows/verify.yml/badge.svg)](https://github.com/vvka-141/portico/actions/workflows/verify.yml)
+[![NuGet](https://img.shields.io/nuget/v/Portico.svg)](https://www.nuget.org/packages/Portico)
+[![Downloads](https://img.shields.io/nuget/dt/Portico.svg)](https://www.nuget.org/packages/Portico)
+[![License](https://img.shields.io/github/license/vvka-141/portico)](LICENSE)
 
 **The command surface for .NET backend services.**
 

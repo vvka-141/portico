@@ -25,4 +25,7 @@ a `migrate` command needs.
 **Depends on:** `Portico` (pulled automatically) and
 `Microsoft.Extensions.DependencyInjection.Abstractions`.
 
-**Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico)
+**Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico) · **Issues and feedback:** [github.com/vvka-141/portico/issues](https://github.com/vvka-141/portico/issues)
+
+Portico is 0.x. The API is still being shaped by what breaks, so a rough edge is worth an
+issue rather than a workaround.
