@@ -611,18 +611,41 @@ public sealed partial class CliApplication
     {
         var best = nearMisses[0];
         var model = best.RouteModel;
-        var argCount = model.Segments.Length - best.LiteralPrefix.Count;
-        var minArgCount = model.MinSegmentCount - best.LiteralPrefix.Count;
-        var suppliedArgCount = invocation.Segments.Length - best.LiteralPrefix.Count;
+        var prefix = best.LiteralPrefix.Count;
 
-        var expected = minArgCount == argCount
-            ? $"{argCount}"
-            : $"{minArgCount}–{argCount}";
+        // LiteralPrefix stops at the first placeholder, so subtracting it leaves the placeholders
+        // *and* every literal that follows them. Counting that as an argument count overstates it:
+        // in 'worker {id} drain' the user supplies one value and types one keyword. Only when the
+        // whole tail is placeholders does "argument" describe what is missing.
+        var tailIsAllArguments = true;
+        for (int i = prefix; i < model.Segments.Length; i++)
+        {
+            if (model.Segments[i] is not CliArgumentSegment)
+            {
+                tailIsAllArguments = false;
+                break;
+            }
+        }
+
+        // And when it is not, no argument count can be right: 'worker w-42' supplies exactly the
+        // one argument the route declares and is still wrong, because 'drain' is missing. The
+        // mismatch is in the shape, so the whole route is what gets counted.
+        var (noun, max, min, supplied) = tailIsAllArguments
+            ? ("argument",
+               model.Segments.Length - prefix,
+               model.MinSegmentCount - prefix,
+               invocation.Segments.Length - prefix)
+            : ("segment",
+               model.Segments.Length,
+               model.MinSegmentCount,
+               invocation.Segments.Length);
+
+        var expected = min == max ? $"{max}" : $"{min}–{max}";
 
         var lines = new List<string>
         {
             $"Command '{best.RouteSignature}' expects {expected} " +
-            $"argument{(argCount == 1 ? "" : "s")}, got {suppliedArgCount}."
+            $"{noun}{(max == 1 ? "" : "s")}, got {supplied}."
         };
 
         var unrecognized = invocation.Options
@@ -630,7 +653,7 @@ public sealed partial class CliApplication
             .Select(opt => opt.Name)
             .ToList();
 
-        if (unrecognized.Count > 0 && suppliedArgCount < minArgCount)
+        if (unrecognized.Count > 0 && invocation.Segments.Length < model.MinSegmentCount)
         {
             var names = unrecognized.Select(n => $"'{n}'").Join(", ");
             lines.Add(
