@@ -115,4 +115,31 @@ public sealed class CliConversionError_Should
         Assert.Contains("--retries", result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("hunter2", result.StandardError, StringComparison.Ordinal);
     }
+
+    // POR-116. The POR-17 fix stripped "(Parameter 'value')" from option errors but the argument
+    // path used raw e.Message and still leaked the internal parameter name.
+    public interface IArgTool
+    {
+        [CliRoute("scale {n}")]
+        [CliCommandExample("scale 5")]
+        int Scale([CliArgument("replica count")] int n);
+    }
+
+    private sealed class ArgTool : IArgTool
+    {
+        public int Scale(int n) => 0;
+    }
+
+    [Fact]
+    public void Not_Leak_The_Internal_Parameter_Name_For_Arguments()
+    {
+        var result = CliTestHarness
+            .ForApplication(cfg => cfg.AddCommands(new ArgTool()))
+            .Run("app scale abc");
+
+        Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
+        Assert.Contains("N", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("'abc'", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("Parameter '", result.StandardError, StringComparison.Ordinal);
+    }
 }
