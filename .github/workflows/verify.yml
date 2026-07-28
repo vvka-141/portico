@@ -39,6 +39,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: bash eng/test-extract-changelog-section.sh
 
+      # Same argument, and it applies harder: this is the script that decides whether the push
+      # happens at all. A guard nobody tests is a guard nobody should trust.
+      - name: Test the release artifact preflight
+        if: matrix.os == 'ubuntu-latest'
+        run: bash eng/test-verify-release-artifacts.sh
+
       - name: Restore
         run: dotnet restore portico.sln
 
