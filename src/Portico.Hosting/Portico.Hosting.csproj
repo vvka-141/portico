@@ -4,12 +4,7 @@
     <RootNamespace>Portico.Hosting</RootNamespace>
     <AssemblyName>Portico.Hosting</AssemblyName>
     <PackageId>Portico.Hosting</PackageId>
-    <Description>
-      Microsoft.Extensions.Hosting integration for Portico, the contract-first CLI framework for
-      .NET. Register command contracts with HostApplicationBuilder and reuse the application's
-      configuration, logging and dependency injection rather than rebuilding them. Graceful
-      shutdown defers to IHostApplicationLifetime, and the command's exit code reaches Main.
-    </Description>
+    <Description>Microsoft.Extensions.Hosting integration for Portico, the contract-first CLI framework for .NET. Register command contracts with HostApplicationBuilder and reuse the application's configuration, logging and dependency injection rather than rebuilding them. Graceful shutdown defers to IHostApplicationLifetime, and the command's exit code reaches Main.</Description>
     <PackageTags>portico;cli;command-line;dotnet;generic-host;hosting;hostapplicationbuilder;dependency-injection;console</PackageTags>
   </PropertyGroup>
 
