@@ -222,6 +222,7 @@ If a feature is hard to explain through that analogy, it does not belong in Port
 | `Portico` | framework + analyzers + `Portico.Testing` | **none** |
 | `Portico.DependencyInjection` | `IServiceProvider` adapter | `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `Portico.Hosting` | Generic Host integration | `Microsoft.Extensions.Hosting` |
+| `Portico.Templates` | the `dotnet new portico-cli` scaffold | **none** |
 
 The core has **zero** dependencies, and a post-pack test asserts it against the `.nupkg`'s actual nuspec. The
 `Microsoft.Extensions.*` adapters are separate packages precisely so it stays that way.
