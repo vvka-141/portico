@@ -15,8 +15,9 @@ updates:
 
   # Reads Directory.Packages.props (central package management). Note the CORE package has zero
   # dependencies — the blast radius here is build/test tooling (xunit, Roslyn, the test SDK). That
-  # tooling is nonetheless exactly what will run alongside the release job's NUGET_API_KEY, which is
-  # the reason to watch it at all.
+  # tooling is nonetheless exactly what runs in the job that holds a nuget.org publishing
+  # credential, which is the reason to watch it at all. Trusted Publishing shortens the window —
+  # the key lives one hour rather than until someone rotates it — but does not close it.
   - package-ecosystem: nuget
     directory: /
     schedule:
