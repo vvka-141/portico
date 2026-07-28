@@ -9,12 +9,7 @@
       lives in the README, where a reader has already arrived. This field has to survive being
       matched against a query, so it leads with the words someone types.
     -->
-    <Description>
-      Contract-first command-line framework for .NET 8 and .NET 10 backend services. Define CLI
-      routes as attributed interface methods, run documented examples as executable
-      dispatch-and-binding tests, and catch contract mistakes with bundled Roslyn analyzers.
-      Zero-dependency core; dependency injection and Generic Host integrations are opt-in.
-    </Description>
+    <Description>Contract-first command-line framework for .NET 8 and .NET 10 backend services. Define CLI routes as attributed interface methods, run documented examples as executable dispatch-and-binding tests, and catch contract mistakes with bundled Roslyn analyzers. Zero-dependency core; dependency injection and Generic Host integrations are opt-in.</Description>
     <PackageTags>portico;cli;command-line;commandline;command-line-parser;dotnet;console;console-application;admin-cli;routing;roslyn-analyzer;contract-testing</PackageTags>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <IsAotCompatible>false</IsAotCompatible>

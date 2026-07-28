@@ -128,6 +128,44 @@ public sealed class NupkgContents_Should
     /// generated icon is three orders of magnitude under it, and the assertion exists so that a
     /// hand-dropped replacement cannot quietly break the pack.
     /// </summary>
+    /// <summary>
+    /// The nuspec description is plain metadata, not Markdown and not source (POR-139). A
+    /// multi-line <c>&lt;Description&gt;</c> element in a csproj carries its own indentation into
+    /// the packed value, and nuget.org's HTML hides that while `dotnet package search` and the
+    /// Visual Studio package pane do not. The project URL is checked in the same pass: it is the
+    /// only route from the package back to the source, and a package that ships without one looks
+    /// abandoned before anyone reads a line of it.
+    /// </summary>
+    [Theory]
+    [InlineData("Portico")]
+    [InlineData("Portico.DependencyInjection")]
+    [InlineData("Portico.Hosting")]
+    [InlineData("Portico.Templates")]
+    public void CarryCleanDiscoveryMetadata(string packageId)
+    {
+        const string ProjectUrl = "https://github.com/vvka-141/portico";
+
+        var nuspec = ReadNuspec(FindNupkg(packageId));
+        var ns = NuspecNs(nuspec);
+
+        var description = nuspec.Descendants(ns + "description").Single().Value;
+        Assert.DoesNotContain('\n', description);
+        Assert.DoesNotContain('\r', description);
+        Assert.DoesNotContain("  ", description, StringComparison.Ordinal);
+        Assert.Equal(description.Trim(), description);
+
+        Assert.Equal(ProjectUrl, nuspec.Descendants(ns + "projectUrl").Single().Value);
+
+        // Source Link fills these in from the build. A package whose repository element is absent
+        // cannot be traced to the commit that produced it.
+        var repository = nuspec.Descendants(ns + "repository").Single();
+        Assert.Equal("git", repository.Attribute("type")?.Value);
+        Assert.Equal(ProjectUrl, repository.Attribute("url")?.Value);
+        Assert.False(string.IsNullOrWhiteSpace(repository.Attribute("commit")?.Value));
+
+        Assert.NotEmpty(nuspec.Descendants(ns + "tags").Single().Value);
+    }
+
     [Theory]
     [InlineData("Portico")]
     [InlineData("Portico.DependencyInjection")]
