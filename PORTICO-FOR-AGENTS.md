@@ -170,6 +170,7 @@ attribute-routing and contract-validation model. If you see one, the message nam
 | POR008 | a `[CliRoute]` method does not return `int`/`Task<int>` |
 | POR009 | two options on one command share an alias |
 | POR010 | a `[CliOption]` type cannot be built from a command-line string |
+| POR011 | a route repeats a `{placeholder}` name (the second slot would overwrite the first) |
 
 ## Worked reference
 

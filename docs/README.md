@@ -34,7 +34,7 @@ to a specific question.
 | [The alternatives, honestly](explanation/alternatives.md) | What every competitor is better at, and the one claim we make |
 | [The agent-first CLI contract, scored](explanation/agent-first-contract.md) | What Portico answers, what it declines, and why |
 | [Public surface classification](explanation/public-surface.md) | Every exported type, classified |
-| [Analyzer message audit](explanation/analyzer-message-audit.md) | Actionability assessment of all nine live diagnostics |
+| [Analyzer message audit](explanation/analyzer-message-audit.md) | Actionability assessment of all ten live diagnostics |
 | [Agent grounding benchmark](explanation/agent-grounding-benchmark.md) | Does shipping the guide help? A measured answer |
 
 ## Project documents

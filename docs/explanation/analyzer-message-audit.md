@@ -1,8 +1,8 @@
 # Analyzer message actionability audit
 
 **Audited 2026-07-27 against `src/Portico.Analyzers/PorticoDiagnostics.cs` and each analyzer's
-`Diagnostic.Create` call site.** Every live diagnostic (POR001–POR010, excluding the retired POR007)
-was assessed against four criteria, drawn from
+`Diagnostic.Create` call site; POR011 added 2026-07-28.** Every live diagnostic (POR001–POR011,
+excluding the retired POR007) was assessed against four criteria, drawn from
 [SHERLOC (arXiv 2606.24820)](https://arxiv.org/abs/2606.24820), which measured a 3.8× swing in
 agent resolution rate between "Very High" and "Low" diagnostic quality:
 
@@ -29,6 +29,7 @@ adding one is cheap, that is flagged.
 | [POR008](#por008) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 | [POR009](#por009) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 | [POR010](#por010) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
+| [POR011](#por011) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 
 ✅ = fully met. ○ = present but implicit / could be added cheaply.
 
@@ -261,6 +262,34 @@ to Roslyn and a false positive at Error severity would break a working build.
 
 ---
 
+## POR011 — Route declares the same placeholder twice
+
+**Message format:**
+```
+Route "copy {path} {path}" on 'Copy' repeats placeholder '{path}'. Each placeholder name must appear
+once — use distinct names for distinct positions (e.g. '{src}' and '{dst}').
+```
+
+| Criterion | Assessment |
+|-----------|------------|
+| What | ✅ Names the repeated placeholder, not merely "a duplicate placeholder". |
+| Why | ✅ The description field explains the consequence: both slots resolve to one parameter and the second value overwrites the first at dispatch. |
+| Fix | ✅ Shows the corrected shape inline (`'{src}'` and `'{dst}'`) rather than describing it. |
+| Names | ✅ Route string, method, placeholder name. |
+
+**Code fix:** None. Renaming a placeholder means renaming the bound parameter too, and only the
+author knows which position deserves which name.
+
+**Note:** This rule guards the framework's own verification mechanism. A repeated placeholder is
+silent data loss that `CliContractValidator` cannot catch — the example still dispatches, so it
+reports a pass while one of the two values is discarded. That makes it the one rule whose absence
+would produce a *false green* rather than a runtime error, which is why it is Error severity
+despite the runtime already rejecting it at `CliApplication.Create`.
+
+**Verdict: PASS.** Clean from inception.
+
+---
+
 ## Where code fixes would be cheap to add
 
 Two rules already ship code fixes:
@@ -276,7 +305,7 @@ One rule has a cheap opportunity:
 |------|------------|--------|
 | POR005 | Replace the `[CliRoute]` argument with the corrected route string (already computed by the analyzer) | Low — the shape is identical to `MissingCommandExampleCodeFix` |
 
-The remaining six rules involve ambiguous intent (POR001, POR002, POR009), structurally different
+The remaining seven rules involve ambiguous intent (POR001, POR002, POR009, POR011), structurally different
 fixes per sub-case (POR003), return-type changes that require method-body rewrites (POR008), or
 whole-type rewrites (POR010). None is cheap.
 
@@ -284,7 +313,7 @@ whole-type rewrites (POR010). None is cheap.
 
 ## Part 2 — measurement (outstanding)
 
-Part 1 of POR-49 is complete: written verdicts for all nine live rules, no rewrites required. Part 2
+Part 1 of POR-49 is complete: written verdicts for all ten live rules, no rewrites required. Part 2
 — giving an agent deliberately-broken contracts and measuring first-pass fix rate under three arms
 (current messages, rewritten messages, analyzers suppressed) — is not started. Because no messages
 were rewritten, the arm A/arm B distinction in Part 2 collapses: there is no "before" and "after" to
