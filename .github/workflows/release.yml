@@ -2,6 +2,21 @@ name: Release
 
 # Fires ONLY on a v* tag. Pushing that tag is the release action — nothing else publishes.
 # MinVer derives the package version from the tag: v0.2.0 -> 0.2.0.
+#
+# Publishing uses nuget.org Trusted Publishing, not an API key. There is no NUGET_API_KEY secret
+# and there should never be one. What the repository needs instead:
+#
+#   1. A Trusted Publishing policy at nuget.org -> your username -> Trusted Publishing:
+#          Repository Owner:  vvka-141
+#          Repository:        portico
+#          Workflow File:     release.yml      (file name only, no .github/workflows/ prefix)
+#          Environment:       (leave empty — this workflow uses none)
+#   2. A NUGET_USER repository secret holding the nuget.org *profile name* that owns the policy.
+#      Not an email address, and not a credential — it is a secret only to keep it out of logs.
+#
+# A policy is scoped to its owner and covers every package that owner owns. Renaming this file
+# invalidates the policy until nuget.org is updated to match, which is why the name is repeated
+# in the comment above the login step.
 on:
   push:
     tags: ['v*']
@@ -16,12 +31,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # to create the GitHub Release
+      id-token: write   # to request the OIDC token Trusted Publishing exchanges for a key
 
     # A nuget.org version is immutable. Everything that can fail is therefore checked BEFORE the
     # push: a bad changelog or a misversioned package discovered afterwards cannot be corrected,
     # only superseded. `--skip-duplicate` makes a corrective re-tag worse, not better — it would
     # silently skip the republish and leave nuget.org serving the original artifacts.
     steps:
+      # Fail here rather than after the preflight. An unset NUGET_USER surfaces at the login step
+      # as an opaque authentication error, four minutes and every check later, and the fix is a
+      # repository setting rather than anything in the tree.
+      - name: Check the Trusted Publishing prerequisites
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        run: |
+          if [[ -z "${NUGET_USER:-}" ]]; then
+            echo "::error::NUGET_USER is not set. Trusted Publishing needs the nuget.org profile" \
+                 "name that owns the publishing policy — see the comment at the top of this file." >&2
+            exit 1
+          fi
+          echo "Publishing as nuget.org user '$NUGET_USER' via Trusted Publishing."
+
       # Checkout first: actions/checkout cleans the workspace, so it must precede the download.
       - name: Checkout (release preflight)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -48,12 +78,26 @@ jobs:
           bash eng/extract-changelog-section.sh "$version" CHANGELOG.md > release-notes.md
           echo "--- extracted notes for $version ($(wc -l < release-notes.md) lines) ---"
 
+      # Trusted Publishing: nuget.org exchanges this job's GitHub OIDC token for an API key that
+      # lives one hour and is good for a single exchange. No long-lived secret exists to leak,
+      # rotate, or forget. The policy on nuget.org is matched against the repository owner, the
+      # repository, and *this file's name* — renaming release.yml breaks publishing until the
+      # policy is updated to match.
+      #
+      # Deliberately the last step before the push. The key expires in an hour, and every fallible
+      # check above must have passed before there is any reason to hold a credential at all.
+      - name: Exchange the OIDC token for a short-lived nuget.org key
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       # Past this line the release is irreversible.
       - name: Publish to nuget.org
         run: >
           dotnet nuget push "./artifacts/*.nupkg"
           --source https://api.nuget.org/v3/index.json
-          --api-key ${{ secrets.NUGET_API_KEY }}
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           --skip-duplicate
 
       - name: Create the GitHub Release
