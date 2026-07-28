@@ -88,6 +88,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Quiet the "no XML docs" noise without losing the generated doc file. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
   <PropertyGroup Label="Reproducible build">
