@@ -30,8 +30,6 @@ dotnet new install Portico.Templates
 dotnet new portico-cli -n MyCli && cd MyCli && dotnet test
 ```
 
-**Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico)
-
 ## Related packages
 
 | Package | What it adds |
