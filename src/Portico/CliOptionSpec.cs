@@ -72,7 +72,7 @@ internal sealed class CliOptionSpec
         // aliases preserves declaration order (what Aliases documents and CliOptionSpec_Should pins);
         // seen is only the dedup guard. Building Aliases from the HashSet directly would have leaned on
         // undocumented CLR enumeration order (POR-67).
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<string>(CliAliasComparer.Instance);
         var aliases = new List<string>();
         var longNames = new List<string>();
         var shortNames = new List<string>();
@@ -88,6 +88,14 @@ internal sealed class CliOptionSpec
 
             if (!seen.Add(capture.Value))
             {
+                if (seen.TryGetValue(capture.Value, out var existingAlias) &&
+                    !string.Equals(existingAlias, capture.Value, StringComparison.Ordinal))
+                {
+                    throw new ArgumentException(
+                        $"Aliases '{existingAlias}' and '{capture.Value}' differ only by case; " +
+                        "long aliases are compared case-insensitively",
+                        nameof(specification));
+                }
                 throw new ArgumentException($"Duplicate option name detected: '{value}'", nameof(specification));
             }
 

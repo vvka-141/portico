@@ -94,4 +94,29 @@ public sealed class CliMalformedSpec_Should
         Assert.Contains("name", ex.Message, StringComparison.Ordinal);
         Assert.Contains("Go", ex.Message, StringComparison.Ordinal);
     }
+
+    // --- POR-118: case-variant self-collision catches at Parse, translated by POR-117 ---
+
+    public interface ICaseVariant
+    {
+        [CliRoute("go")]
+        [CliCommandExample("go --name Alice")]
+        int Go([CliOption("--name|--NAME")] string name);
+    }
+
+    private sealed class CaseVariant : ICaseVariant
+    {
+        public int Go(string name) => 0;
+    }
+
+    [Fact]
+    public void Surface_Case_Variant_Self_Collision_As_CliConfigurationException()
+    {
+        var ex = Assert.Throws<CliConfigurationException>(
+            () => CliApplication.Create(cfg => cfg.AddCommands(new CaseVariant())));
+
+        Assert.Contains("differ only by case", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("name", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("(Parameter '", ex.Message, StringComparison.Ordinal);
+    }
 }
