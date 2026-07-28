@@ -93,12 +93,22 @@ jobs:
           user: ${{ secrets.NUGET_USER }}
 
       # Past this line the release is irreversible.
+      #
+      # No --skip-duplicate. It was here once and it turned three 409s into a green v0.1.0 release
+      # that shipped one package out of four (POR-141). A conflict during a release is never
+      # benign: the version is immutable, so a silent skip means the release did nothing, and a
+      # conflict on a new ID means the ID is unavailable. Both must be loud.
       - name: Publish to nuget.org
         run: >
           dotnet nuget push "./artifacts/*.nupkg"
           --source https://api.nuget.org/v3/index.json
           --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
-          --skip-duplicate
+
+      # A 201 means nuget.org accepted the upload, not that the package exists. Validation runs
+      # afterwards and can reject it, so confirm each package actually resolves before publishing
+      # release notes that promise all four.
+      - name: Confirm every package is live on nuget.org
+        run: bash eng/verify-published-packages.sh "${GITHUB_REF_NAME#v}"
 
       - name: Create the GitHub Release
         env:
