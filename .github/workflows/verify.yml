@@ -32,6 +32,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: bash eng/check-docs-links.sh
 
+      # The release workflow extracts its notes with this script. If it is broken, the failure
+      # surfaces mid-release — after the packages are irreversibly on nuget.org. Run its tests
+      # on every push instead, where a break is free.
+      - name: Test the changelog extractor
+        if: matrix.os == 'ubuntu-latest'
+        run: bash eng/test-extract-changelog-section.sh
+
       - name: Restore
         run: dotnet restore portico.sln
 
