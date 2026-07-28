@@ -236,31 +236,48 @@ public sealed class CliContractValidator<T> where T : class
     }
 
     /// <summary>
-    /// Whether the dispatch reached the method the example is declared on. Names alone do not
-    /// answer that: two overloads share a name, so a name-only comparison reports a pass for an
-    /// example that reached the wrong one. The parameter types settle it — overloads differ in
-    /// them by definition. <c>MethodInfo</c> identity is checked first and is what normally
-    /// matches; the signature comparison is the part that does not depend on the runtime handing
-    /// back the same instance.
+    /// Whether the dispatch reached the method the example is declared on. Nothing about a
+    /// method's *appearance* answers that: two overloads share a name, and two methods inherited
+    /// from different contracts can share a name and a parameter list and still be different
+    /// methods. Only identity settles it, so identity is all this compares — reference equality
+    /// first, and failing that the metadata token, which names a method definition uniquely
+    /// within its module and does not depend on the runtime handing back the same instance.
     /// </summary>
     private static bool IsSameMethod(MethodInfo reached, MethodInfo declared) =>
         reached == declared ||
-        (string.Equals(reached.Name, declared.Name, StringComparison.Ordinal) &&
-         string.Equals(Signature(reached), Signature(declared), StringComparison.Ordinal));
+        (reached.DeclaringType == declared.DeclaringType &&
+         reached.Module == declared.Module &&
+         reached.MetadataToken == declared.MetadataToken);
 
     /// <summary>
-    /// How to name the two methods in the failure message. Bare names read better and are what
-    /// the user wrote — but when the mismatch <em>is</em> between overloads the names are equal,
-    /// and "dispatched to 'Seed' instead of 'Seed'" tells nobody anything. Fall back to the
-    /// signature exactly then.
+    /// How to name the two methods in the failure message: the shortest form that actually tells
+    /// them apart. Bare names read best and are what the user wrote, but "dispatched to 'Seed'
+    /// instead of 'Seed'" describes nothing — so overloads get their parameter types, and two
+    /// members inherited from different contracts, which agree on both, get the declaring
+    /// interface as well.
     /// </summary>
-    private static (string Reached, string Declared) Describe(MethodInfo reached, MethodInfo declared) =>
-        string.Equals(reached.Name, declared.Name, StringComparison.Ordinal)
-            ? ($"{reached.Name}{Signature(reached)}", $"{declared.Name}{Signature(declared)}")
-            : (reached.Name, declared.Name);
+    private static (string Reached, string Declared) Describe(MethodInfo reached, MethodInfo declared)
+    {
+        if (false == string.Equals(reached.Name, declared.Name, StringComparison.Ordinal))
+        {
+            return (reached.Name, declared.Name);
+        }
+
+        var reachedSignature = reached.Name + Signature(reached);
+        var declaredSignature = declared.Name + Signature(declared);
+        if (false == string.Equals(reachedSignature, declaredSignature, StringComparison.Ordinal))
+        {
+            return (reachedSignature, declaredSignature);
+        }
+
+        return ($"{Qualifier(reached)}{reachedSignature}", $"{Qualifier(declared)}{declaredSignature}");
+    }
 
     private static string Signature(MethodInfo method) =>
         "(" + string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name)) + ")";
+
+    private static string Qualifier(MethodInfo method) =>
+        method.DeclaringType is null ? string.Empty : method.DeclaringType.Name + ".";
 
     /// <summary>
     /// Why an example failed to dispatch, in the framework's own words. stderr is where the

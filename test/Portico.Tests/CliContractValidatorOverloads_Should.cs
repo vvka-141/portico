@@ -35,6 +35,27 @@ public sealed class CliContractValidatorOverloads_Should
         int Seed(string file);
     }
 
+    // POR-131. Two inherited contracts can declare methods that agree on name *and* parameter
+    // types and are still different methods. A signature comparison cannot see the difference,
+    // so the example below — declared on ILeft, reaching IRight — read as a pass.
+    public interface ILeftContract
+    {
+        [CliRoute("left {value}")]
+        [CliCommandExample("right value")]
+        int Run(string value);
+    }
+
+    public interface IRightContract
+    {
+        [CliRoute("right {value}")]
+        [CliCommandExample("right value")]
+        int Run(string value);
+    }
+
+    public interface ICombinedContract : ILeftContract, IRightContract
+    {
+    }
+
     [Fact]
     public void Reject_An_Example_That_Reaches_A_Different_Overload()
     {
@@ -80,5 +101,33 @@ public sealed class CliContractValidatorOverloads_Should
 
         Assert.Equal(nameof(IWellDeclared.Seed), matched.Handler);
         Assert.Equal("rows.csv", matched.Arguments["file"]);
+    }
+
+    // POR-131. The example on ILeftContract.Run reaches IRightContract.Run: same name, same
+    // parameter types, different method. Identity has to settle it, because nothing about the
+    // signature can.
+    [Fact]
+    public void Reject_An_Example_That_Reaches_An_Inherited_Contract_Member()
+    {
+        var results = new CliContractValidator<ICombinedContract>().Enumerate();
+
+        Assert.Equal(2, results.Count);
+        var misdeclared = results.Single(r => !r.Matched);
+        Assert.Equal("right value", misdeclared.Example);
+        Assert.Contains("dispatched to", misdeclared.FailureReason!, StringComparison.Ordinal);
+    }
+
+    // "dispatched to 'Run(String)' instead of 'Run(String)'" names nothing. When the parameter
+    // types match too, the declaring interface is the only thing left that tells them apart.
+    [Fact]
+    public void Name_The_Declaring_Contract_When_The_Signature_Cannot_Tell_Them_Apart()
+    {
+        var reason = new CliContractValidator<ICombinedContract>()
+            .Enumerate()
+            .Single(r => !r.Matched)
+            .FailureReason!;
+
+        Assert.Contains($"{nameof(IRightContract)}.Run(String)", reason, StringComparison.Ordinal);
+        Assert.Contains($"{nameof(ILeftContract)}.Run(String)", reason, StringComparison.Ordinal);
     }
 }
