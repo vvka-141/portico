@@ -29,6 +29,12 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   own code, because whether a *referenced* type has a `TypeConverter` is a runtime fact Roslyn cannot
   see, and a false positive at `Error` severity would fail a build that works. The runtime checks
   remain as backstops for builds without the analyzer.
+- **`POR011` — a route that declares the same `{placeholder}` twice.** `[CliRoute("copy {path}
+  {path}")]` resolves both slots to one parameter, and at dispatch the second value overwrites the
+  first. That is silent data loss, and it is the one mistake `CliContractValidator` cannot catch:
+  the example still dispatches, so the contract test reports a pass while a value is discarded. A
+  false green in the framework's central verification mechanism is worth an `Error`, which is why
+  this rule exists even though `CliApplication.Create` already rejects the route at runtime.
 - **`Portico.Hosting`** — Generic Host integration. `builder.Services.AddPorticoCommands<IAdminTool,
   AdminTool>()` then `await builder.Build().RunPorticoAsync(args)`, which returns the command's exit
   code for `Main` to return. **Graceful shutdown is one mechanism, not two**: the host's
@@ -96,7 +102,7 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   a loud refusal beats a quiet no-op.
 - **The analyzers now reach you if you install only an adapter package.** NuGet does not flow analyzer
   assets transitively, so `dotnet add package Portico.DependencyInjection` (or `Portico.Hosting`) used
-  to give you the framework with POR001–POR010 **silently switched off** — a green build with none of
+  to give you the framework with every analyzer **silently switched off** — a green build with none of
   the compile-time checks. The adapters now declare their dependency on the core with
   `PrivateAssets="none"`. Verified by consuming the packed `.nupkg`, not by reading the nuspec.
 - **A failing example now tells you why it failed.** `CliContractValidator<T>` knew the reason — the
@@ -145,8 +151,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   still covers `CliOptions` bundles, which genuinely are Activator-constructed.
 
 - **Portico now targets `net8.0` as well as `net10.0`.** All three packages ship `lib/net8.0` and
-  `lib/net10.0`, both with an empty dependency group — the zero-dependency guarantee is per-target,
-  not just on the newest. CI builds and tests both.
+  `lib/net10.0`. The core `Portico` package declares an empty dependency group on both — the
+  zero-dependency guarantee is per-target, not just on the newest. (`Portico.DependencyInjection`
+  and `Portico.Hosting` depend on their `Microsoft.Extensions.*` abstractions on both targets, as
+  they always have; keeping those out of the core is the point of the split.) CI builds and tests
+  both targets, and `Portico.Packaging.Tests` asserts each package's dependency set per TFM.
 
   This replaces a "net10.0 only until a real user asks" rule that could not work: a team on .NET 8
   never gets far enough to ask, because the framework requirement stops them at the NuGet page. The
@@ -161,7 +170,7 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   banned what the attribute had just permitted. The attribute now declares `AllowMultiple = false`, so
   the C# compiler rejects it as **CS0579**: no analyzer reference required, no `#pragma` to suppress
   it, nothing to disable. Handing a check to the compiler beats keeping a rule that only existed to
-  undo an attribute's own declaration. The ID is not reused — the next free rule is `POR011`.
+  undo an attribute's own declaration. The ID is not reused — the next free rule is `POR012`.
 
   The runtime check at `CliApplication.Create` stays. `AllowMultiple` is a compiler concept, not a
   CLR one, so a subclass of `CliArgumentAttribute` — a documented extension point — that redeclares
