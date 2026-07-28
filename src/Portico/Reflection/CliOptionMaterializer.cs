@@ -97,7 +97,7 @@ internal abstract class CliOptionMaterializer
     /// typed or can act on. Keep the diagnosis ("abc is not a valid value for Decimal"), drop the
     /// leak (POR-17).
     /// </summary>
-    protected static string Explain(Exception ex)
+    internal static string Explain(Exception ex)
     {
         var message = ex.Message;
 

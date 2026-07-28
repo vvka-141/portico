@@ -91,7 +91,7 @@ internal sealed class CliArgumentParameterInfo : CliParameterInfo
             // to the terminal — the parity gap the POR-48 sanitizer doc warned about (POR-60).
             throw new CliExitException(
                 CliSanitizer.Sanitize(
-                    $"Argument <{CliArgumentName.ToUpperInvariant()}>: value '{rawValue}' could not be converted. {e.Message}"))
+                    $"Argument <{CliArgumentName.ToUpperInvariant()}>: value '{rawValue}' could not be converted. {CliOptionMaterializer.Explain(e)}"))
             { ExitCode = CliExitException.UsageErrorExitCode };
         }
 
