@@ -20,6 +20,7 @@ anything.
 | [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code |
 | [POR009](#por009) | Error | Two options on one command declaring the same alias |
 | [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
+| [POR011](#por011) | Error | A route declares the same `{placeholder}` twice |
 
 ---
 
@@ -113,7 +114,7 @@ banned what the attribute had just permitted. The attribute now declares `AllowM
 the C# compiler reports it as **CS0579** before any analyzer runs: no package reference required, no
 suppression path, nothing to disable.
 
-The ID is not reused. The next free rule is POR011.
+The ID is not reused. The next free rule is POR012.
 
 ## POR008
 
@@ -165,6 +166,20 @@ intrinsic table Roslyn cannot see, and a converter can also arrive from a provid
 startup. At `Error` severity, a false positive would fail a build that works, which is strictly worse
 than the runtime error it replaces. Where it cannot be certain, it stays silent and the runtime check
 catches the rest.
+
+## POR011
+
+**A route declares the same `{placeholder}` twice.**
+
+```csharp
+[CliRoute("copy {p} {p}")]          // ← {p} appears twice
+int Copy(string p) => 0;           // ← the second slot overwrites the first at dispatch
+```
+
+Both slots resolve to the same parameter. At dispatch the second value silently overwrites the first —
+data loss that `CliContractValidator<T>` does not catch, making it a false green in the framework's
+central verification mechanism. Use distinct placeholder names for distinct positions:
+`[CliRoute("copy {src} {dst}")]`.
 
 ---
 

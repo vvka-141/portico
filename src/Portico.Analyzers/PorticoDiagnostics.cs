@@ -167,7 +167,7 @@ internal static class PorticoDiagnostics
     // a mistake that existed only because CliArgumentAttribute declared AllowMultiple = true and
     // then banned what it had just permitted. Setting AllowMultiple = false hands the check to the
     // C# compiler (CS0579), which is strictly stronger: no analyzer reference, no suppression, no
-    // way to turn it off. The ID is not reused; the next free rule is POR011.
+    // way to turn it off. The ID is not reused; the next free rule is POR012.
 
     /// <summary>
     /// POR008: a method decorated with <c>[CliRoute]</c> must return <c>int</c> or
@@ -265,4 +265,26 @@ internal static class PorticoDiagnostics
             "own with no converter cannot be bound, and the framework rejects it at " +
             "CliApplication.Create — this rule moves that failure to the build.",
         helpLinkUri: HelpBase + "por010");
+
+    /// <summary>
+    /// POR011: a <c>[CliRoute]</c> string repeats the same <c>{placeholder}</c> name. The second
+    /// slot overwrites the first at dispatch — a silent data loss that <c>CliContractValidator</c>
+    /// does not catch. The runtime rejects it at <c>CliApplication.Create</c>; the analyzer moves
+    /// it into the edit loop.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicateRoutePlaceholder = new(
+        id: "POR011",
+        title: "Route declares the same placeholder twice",
+        messageFormat:
+            "Route \"{0}\" on '{1}' repeats placeholder '{{{2}}}'. Each placeholder name must " +
+            "appear once — use distinct names for distinct positions (e.g. '{{src}}' and '{{dst}}').",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description:
+            "A repeated {placeholder} in a [CliRoute] string resolves both slots to the same " +
+            "parameter. At dispatch the second value overwrites the first — silent data loss that " +
+            "the contract validator does not catch, making it a false green in the framework's " +
+            "central verification mechanism. Use distinct placeholder names for distinct positions.",
+        helpLinkUri: HelpBase + "por011");
 }

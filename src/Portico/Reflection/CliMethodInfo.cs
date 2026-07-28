@@ -285,9 +285,19 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         out List<CliArgumentAttribute> placeholderArgs)
     {
         placeholderArgs = new List<CliArgumentAttribute>();
+        var seenPlaceholders = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < parts.Count; i++)
         {
             if (parts[i] is not CliPlaceholderSegment placeholder) continue;
+
+            if (!seenPlaceholders.Add(placeholder.Name))
+            {
+                var route = string.Join(" ", parts.Select(p => p is CliPlaceholderSegment ph ? $"{{{ph.Name}}}" : p.ToString()));
+                throw new CliConfigurationException(
+                    $"Method '{DeclaringType?.FullName}.{Name}': route \"{route}\" repeats " +
+                    $"placeholder '{{{placeholder.Name}}}'. Each placeholder name must appear once — " +
+                    $"use distinct names for distinct positions (e.g. '{{src}}' and '{{dst}}').");
+            }
 
             if (!parameters.Any(p => string.Equals(p.Name, placeholder.Name, StringComparison.Ordinal)))
             {
