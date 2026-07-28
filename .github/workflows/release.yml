@@ -17,7 +17,19 @@ jobs:
     permissions:
       contents: write   # to create the GitHub Release
 
+    # A nuget.org version is immutable. Everything that can fail is therefore checked BEFORE the
+    # push: a bad changelog or a misversioned package discovered afterwards cannot be corrected,
+    # only superseded. `--skip-duplicate` makes a corrective re-tag worse, not better — it would
+    # silently skip the republish and leave nuget.org serving the original artifacts.
     steps:
+      # Checkout first: actions/checkout cleans the workspace, so it must precede the download.
+      - name: Checkout (release preflight)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: |
+            eng
+            CHANGELOG.md
+
       - name: Download packages
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -27,25 +39,22 @@ jobs:
       - name: Show what will be published
         run: ls -la ./artifacts
 
-      - name: Publish to nuget.org
-        run: >
-          dotnet nuget push "./artifacts/*.nupkg"
-          --source https://api.nuget.org/v3/index.json
-          --api-key ${{ secrets.NUGET_API_KEY }}
-          --skip-duplicate
-
-      - name: Checkout (for changelog extraction)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          sparse-checkout: |
-            eng
-            CHANGELOG.md
+      - name: Verify the packed artifacts carry the tagged version
+        run: bash eng/verify-release-artifacts.sh "${GITHUB_REF_NAME#v}" ./artifacts
 
       - name: Extract release notes from CHANGELOG.md
         run: |
           version="${GITHUB_REF_NAME#v}"
           bash eng/extract-changelog-section.sh "$version" CHANGELOG.md > release-notes.md
           echo "--- extracted notes for $version ($(wc -l < release-notes.md) lines) ---"
+
+      # Past this line the release is irreversible.
+      - name: Publish to nuget.org
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --skip-duplicate
 
       - name: Create the GitHub Release
         env:
