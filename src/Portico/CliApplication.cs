@@ -537,6 +537,13 @@ public sealed partial class CliApplication
 
     private void OnActionNotFound(CliInvocation invocation)
     {
+        var nearMisses = FindNearMisses(invocation);
+        if (nearMisses.Count > 0)
+        {
+            ReportShapeMismatch(invocation, nearMisses);
+            return;
+        }
+
         // Deliberately renders the executable and route segments ONLY — never the option values.
         // No route matched, so there is no option metadata and the framework cannot know which
         // values are secrets. Echoing them would put a --connection-string or --token into stderr,
@@ -546,11 +553,10 @@ public sealed partial class CliApplication
             .Prepend(invocation.ExecutableName)
             .Select(token => token.HasWhiteSpaces() ? token.Quote() : token)
             .Join(" ");
-        // The typed command line is attacker-influenced input, and this is the framework echoing it
-        // straight back to stderr. Strip ANSI escapes and invisible codepoints (POR-48): in a
-        // container, stderr is the log stream; increasingly it is also an agent's context window.
         var header = $"Unknown command: {CliSanitizer.Sanitize(typed)}.";
-        var suggestions = GetSuggestions(invocation).ToArray();
+        var nearMatchSignatures = new HashSet<string>(
+            nearMisses.Select(a => a.RouteSignature), StringComparer.OrdinalIgnoreCase);
+        var suggestions = GetSuggestions(invocation, nearMatchSignatures).ToArray();
         if (suggestions.Length == 0)
         {
             _console.Error.WriteLine($"{header} Run with --help to list available commands.");
@@ -563,7 +569,82 @@ public sealed partial class CliApplication
         _console.Error.WriteLine(string.Join(Environment.NewLine, lines));
     }
 
-    private IEnumerable<string> GetSuggestions(CliInvocation invocation)
+    private List<CliAction> FindNearMisses(CliInvocation invocation)
+    {
+        if (invocation.Segments.Length == 0) return [];
+
+        var result = new List<CliAction>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var action in _actions)
+        {
+            if (!seen.Add(action.RouteSignature)) continue;
+
+            var literals = action.LiteralPrefix;
+            if (literals.Count == 0 || invocation.Segments.Length < literals.Count) continue;
+
+            var prefixMatches = true;
+            for (int i = 0; i < literals.Count; i++)
+            {
+                if (!string.Equals(literals[i], invocation.Segments[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    prefixMatches = false;
+                    break;
+                }
+            }
+            if (!prefixMatches) continue;
+
+            var model = action.RouteModel;
+            if (invocation.Segments.Length >= model.MinSegmentCount &&
+                invocation.Segments.Length <= model.Segments.Length)
+            {
+                continue;
+            }
+
+            result.Add(action);
+        }
+
+        return result;
+    }
+
+    private void ReportShapeMismatch(CliInvocation invocation, List<CliAction> nearMisses)
+    {
+        var best = nearMisses[0];
+        var model = best.RouteModel;
+        var argCount = model.Segments.Length - best.LiteralPrefix.Count;
+        var minArgCount = model.MinSegmentCount - best.LiteralPrefix.Count;
+        var suppliedArgCount = invocation.Segments.Length - best.LiteralPrefix.Count;
+
+        var expected = minArgCount == argCount
+            ? $"{argCount}"
+            : $"{minArgCount}–{argCount}";
+
+        var lines = new List<string>
+        {
+            $"Command '{best.RouteSignature}' expects {expected} " +
+            $"argument{(argCount == 1 ? "" : "s")}, got {suppliedArgCount}."
+        };
+
+        var unrecognized = invocation.Options
+            .Where(opt => !best.DeclaresOptionAlias(opt.Name))
+            .Select(opt => opt.Name)
+            .ToList();
+
+        if (unrecognized.Count > 0 && suppliedArgCount < minArgCount)
+        {
+            var names = unrecognized.Select(n => $"'{n}'").Join(", ");
+            lines.Add(
+                $"If {names} {(unrecognized.Count == 1 ? "is" : "are")} " +
+                $"meant as positional, pass {(unrecognized.Count == 1 ? "it" : "them")} " +
+                $"after the '--' terminator (e.g. '… -- {unrecognized[0].TrimStart('-')}').");
+        }
+
+        _console.Error.WriteLine(string.Join(Environment.NewLine, lines));
+    }
+
+    private IEnumerable<string> GetSuggestions(
+        CliInvocation invocation,
+        IReadOnlySet<string>? exclude = null)
     {
         if (invocation.Segments.Length == 0) return [];
 
@@ -571,6 +652,7 @@ public sealed partial class CliApplication
 
         return _actions
             .Where(a => seen.Add(a.RouteSignature))
+            .Where(a => exclude is null || !exclude.Contains(a.RouteSignature))
             .Select(action =>
             {
                 var literals = action.LiteralPrefix;
