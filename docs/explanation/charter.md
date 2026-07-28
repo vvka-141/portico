@@ -26,7 +26,7 @@ A CLI is an HTTP API without the H.
 | `[Route("api/projects/{id}")]`| `[CliRoute("projects get {id}")]`                 |
 | `[FromRoute] string id`       | `[CliArgument("which project")] string id`        |
 | `[FromQuery] string format`   | `[CliOption("--format")]`                         |
-| `?cfg[env]=prod`              | `--cfg[env] prod` (map option)                    |
+| `?cfg[env]=prod`              | `'--cfg[env]' prod` (map option; quote the brackets in zsh) |
 | `[FromBody] RequestDto`       | `CliOptions`                                 |
 | `IActionFilter`               | `CliMiddleware.OnExecuting/Executed`      |
 | Action selector ranking       | `CliMethodInfo.RankByOptions`                     |
@@ -40,7 +40,8 @@ A CLI is an HTTP API without the H.
    No fluent `.AddCommand(c => c.WithSubcommand(...))` trees.
 2. **Examples are tests.** `[CliCommandExample("init . --template basic")]` is executable documentation validated
    by `CliContractValidator<T>` via `DispatchProxy`. This is the signature feature.
-3. **Map options (`--cfg[key] value`) are first-class.** They parse cleanly into `IDictionary<string, T>`.
+3. **Map options (`'--cfg[key]' value`) are first-class.** They parse cleanly into `IDictionary<string, T>`.
+   The brackets must be quoted in zsh and any shell with `NOMATCH` or `failglob` enabled (macOS defaults to zsh).
 4. **Interface-first contracts are supported.** You can decorate an interface, validate examples, then implement —
    OpenAPI-for-CLI.
 5. **Stable from 1.0.** Semver applies from the 1.0 cut forward; surface drift before then is contained to active initiatives and announced in the changelog.

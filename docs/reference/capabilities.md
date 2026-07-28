@@ -81,8 +81,15 @@ free, shipped answer to a live concern.
 ```
 
 ```
-admin reindex --shard[eu] 3 --shard[us] 5
+admin reindex '--shard[eu]' 3 '--shard[us]' 5
 ```
+
+> **Shell quoting required.** The brackets in `--shard[eu]` are filename-expansion
+> characters. On **zsh** (the default shell on macOS) an unquoted `--shard[eu]`
+> fails with `zsh: no matches found` before Portico ever sees it. **Quote the
+> option name** — `'--shard[eu]'` or `--shard\[eu\]` — in any shell invocation.
+> Inside `[CliCommandExample]` attributes the value is an argv array and must
+> *not* be quoted.
 
 First-class, not a parsing trick: the key is a string, the value is converted like any other option.
 
@@ -135,7 +142,7 @@ it.)
 
 ```
 admin db seed --rows 250        admin db seed --rows=250
-admin reindex --shard[eu] 3     admin reindex --shard[eu]=3
+admin reindex '--shard[eu]' 3   admin reindex '--shard[eu]=3'
 admin drain --timeout "90 sec"  admin drain --timeout="90 sec"
 ```
 
