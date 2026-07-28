@@ -223,16 +223,44 @@ public sealed class CliContractValidator<T> where T : class
             {
                 failureReason = ExplainFailure(console, exitCode);
             }
-            else if (!string.Equals(dispatch.Handler, declaringMethod.Name, StringComparison.Ordinal))
+            else if (!IsSameMethod(dispatch.Method, declaringMethod))
             {
-                failureReason = $"the example dispatched to '{dispatch.Handler}' instead of " +
-                                $"'{declaringMethod.Name}', which is the method it is declared on.";
+                var (reached, declared) = Describe(dispatch.Method, declaringMethod);
+                failureReason = $"the example dispatched to '{reached}' instead of " +
+                                $"'{declared}', which is the method it is declared on.";
             }
 
             results.Add((attribute, dispatch, failureReason));
         }
         return results;
     }
+
+    /// <summary>
+    /// Whether the dispatch reached the method the example is declared on. Names alone do not
+    /// answer that: two overloads share a name, so a name-only comparison reports a pass for an
+    /// example that reached the wrong one. The parameter types settle it — overloads differ in
+    /// them by definition. <c>MethodInfo</c> identity is checked first and is what normally
+    /// matches; the signature comparison is the part that does not depend on the runtime handing
+    /// back the same instance.
+    /// </summary>
+    private static bool IsSameMethod(MethodInfo reached, MethodInfo declared) =>
+        reached == declared ||
+        (string.Equals(reached.Name, declared.Name, StringComparison.Ordinal) &&
+         string.Equals(Signature(reached), Signature(declared), StringComparison.Ordinal));
+
+    /// <summary>
+    /// How to name the two methods in the failure message. Bare names read better and are what
+    /// the user wrote — but when the mismatch <em>is</em> between overloads the names are equal,
+    /// and "dispatched to 'Seed' instead of 'Seed'" tells nobody anything. Fall back to the
+    /// signature exactly then.
+    /// </summary>
+    private static (string Reached, string Declared) Describe(MethodInfo reached, MethodInfo declared) =>
+        string.Equals(reached.Name, declared.Name, StringComparison.Ordinal)
+            ? ($"{reached.Name}{Signature(reached)}", $"{declared.Name}{Signature(declared)}")
+            : (reached.Name, declared.Name);
+
+    private static string Signature(MethodInfo method) =>
+        "(" + string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name)) + ")";
 
     /// <summary>
     /// Why an example failed to dispatch, in the framework's own words. stderr is where the
@@ -286,7 +314,16 @@ public sealed class CliContractValidator<T> where T : class
     /// <see cref="CliRouteProxy"/> at the moment of dispatch — the one place where "did this
     /// example do what it says" is actually observable.
     /// </summary>
-    private sealed record CliDispatch(string Handler, IReadOnlyDictionary<string, object?> Arguments);
+    /// <remarks>
+    /// The <see cref="MethodInfo"/>, not the name: a name cannot distinguish two overloads, and
+    /// "did this example reach the method it is declared on" is exactly the question the
+    /// validator exists to answer. <see cref="Handler"/> stays a name because that is what
+    /// <see cref="CliContractExample.Handler"/> promises its callers.
+    /// </remarks>
+    private sealed record CliDispatch(MethodInfo Method, IReadOnlyDictionary<string, object?> Arguments)
+    {
+        public string Handler => Method.Name;
+    }
 
     // NOT sealed: DispatchProxy.Create generates a subclass of TProxy at runtime and throws
     // ArgumentException ("The base type ... cannot be sealed") if it cannot.
@@ -301,10 +338,10 @@ public sealed class CliContractValidator<T> where T : class
             if (targetMethod == null)
                 throw new ArgumentNullException(nameof(targetMethod));
 
-            // Capture BEFORE short-circuiting: the bound arguments are the whole point. Discarding
-            // them is what reduced this validator to a routability smoke test — an example could
-            // start dispatching to a different overload, or binding a different value, and still
-            // report a pass.
+            // Capture BEFORE short-circuiting: the reached method and the bound arguments are the
+            // whole point. Discarding them is what reduced this validator to a routability smoke
+            // test — an example could start dispatching to a different overload, or binding a
+            // different value, and still report a pass.
             var parameters = targetMethod.GetParameters();
             var arguments = new Dictionary<string, object?>(parameters.Length, StringComparer.Ordinal);
             for (int i = 0; i < parameters.Length; i++)
@@ -314,7 +351,7 @@ public sealed class CliContractValidator<T> where T : class
                 arguments[name] = args is not null && i < args.Length ? args[i] : null;
             }
 
-            Dispatch = new CliDispatch(targetMethod.Name, arguments);
+            Dispatch = new CliDispatch(targetMethod, arguments);
 
             // Empty message is non-printable by the framework's stderr discipline, so the
             // contract-validation path prints nothing. An "Ok" message here used to leak into
