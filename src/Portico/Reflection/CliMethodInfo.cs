@@ -390,30 +390,40 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         var result = new List<ParameterInfoDecorator>(parameters.Length);
         foreach (var parameter in parameters)
         {
-            if (argumentByParameter.TryGetValue(parameter, out var arg))
+            try
             {
-                if (parameter.GetCustomAttributes(typeof(CliOptionAttribute), true).Any())
+                if (argumentByParameter.TryGetValue(parameter, out var arg))
                 {
-                    throw new CliConfigurationException(
-                        $"Parameter '{parameter.Name}' on method '{parameter.Member.DeclaringType?.FullName}.{parameter.Member.Name}' " +
-                        $"is bound to a route argument (via [CliRoute] placeholder or [CliArgument]) and also carries a [CliOption] " +
-                        $"attribute. A parameter is either a positional argument or a named option — pick one. " +
-                        $"Remove the [CliOption] to keep it as an argument, or rename it (and drop the placeholder / [CliArgument]) to keep it as an option.");
+                    if (parameter.GetCustomAttributes(typeof(CliOptionAttribute), true).Any())
+                    {
+                        throw new CliConfigurationException(
+                            $"Parameter '{parameter.Name}' on method '{parameter.Member.DeclaringType?.FullName}.{parameter.Member.Name}' " +
+                            $"is bound to a route argument (via [CliRoute] placeholder or [CliArgument]) and also carries a [CliOption] " +
+                            $"attribute. A parameter is either a positional argument or a named option — pick one. " +
+                            $"Remove the [CliOption] to keep it as an argument, or rename it (and drop the placeholder / [CliArgument]) to keep it as an option.");
+                    }
+                    result.Add(new CliArgumentParameterInfo(parameter, arg.Attribute, arg.Position));
                 }
-                result.Add(new CliArgumentParameterInfo(parameter, arg.Attribute, arg.Position));
+                else if (CliOptions.IsAssignableFrom(parameter.ParameterType))
+                {
+                    result.Add(new CliOptionsParameterInfo(parameter));
+                }
+                else if (parameter.ParameterType == typeof(CancellationToken) &&
+                         !parameter.GetCustomAttributes(typeof(CliOptionAttribute), true).Any())
+                {
+                    result.Add(new CliCancellationTokenParameterInfo(parameter));
+                }
+                else
+                {
+                    result.Add(new CliOptionParameterInfo(parameter));
+                }
             }
-            else if (CliOptions.IsAssignableFrom(parameter.ParameterType))
+            catch (Exception ex) when (ex is ArgumentException || ex.InnerException is ArgumentException)
             {
-                result.Add(new CliOptionsParameterInfo(parameter));
-            }
-            else if (parameter.ParameterType == typeof(CancellationToken) &&
-                     !parameter.GetCustomAttributes(typeof(CliOptionAttribute), true).Any())
-            {
-                result.Add(new CliCancellationTokenParameterInfo(parameter));
-            }
-            else
-            {
-                result.Add(new CliOptionParameterInfo(parameter));
+                var specEx = ex.InnerException as ArgumentException ?? (ArgumentException)ex;
+                throw new CliConfigurationException(
+                    $"Parameter '{parameter.Name}' on '{parameter.Member.DeclaringType?.Name}.{parameter.Member.Name}': " +
+                    CliOptionMaterializer.Explain(specEx));
             }
         }
         return result;

@@ -30,11 +30,22 @@ internal sealed class CliOptionsParameterInfo : CliParameterInfo
                 "or expose them via [CliOption] properties.");
         }
 
-        var properties = CliOptionsType
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(CliOptionsPropertyInfo.IsBundleProperty)
-            .Select(p => new CliOptionsPropertyInfo(p))
-            .ToList();
+        var properties = new List<CliOptionsPropertyInfo>();
+        foreach (var p in CliOptionsType.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            try
+            {
+                if (CliOptionsPropertyInfo.IsBundleProperty(p))
+                    properties.Add(new CliOptionsPropertyInfo(p));
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex.InnerException is ArgumentException)
+            {
+                var specEx = ex.InnerException as ArgumentException ?? (ArgumentException)ex;
+                throw new CliConfigurationException(
+                    $"Property '{p.Name}' on bundle type '{CliOptionsType.Name}': " +
+                    CliOptionMaterializer.Explain(specEx));
+            }
+        }
         _properties = [.. properties];
     }
 #pragma warning restore IL2072, IL2075
