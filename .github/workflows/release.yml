@@ -34,11 +34,24 @@ jobs:
           --api-key ${{ secrets.NUGET_API_KEY }}
           --skip-duplicate
 
+      - name: Checkout (for changelog extraction)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: |
+            eng
+            CHANGELOG.md
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          bash eng/extract-changelog-section.sh "$version" CHANGELOG.md > release-notes.md
+          echo "--- extracted notes for $version ($(wc -l < release-notes.md) lines) ---"
+
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "${{ github.ref_name }}"
           --title "${{ github.ref_name }}"
-          --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)."
+          --notes-file release-notes.md
           ./artifacts/*.nupkg
