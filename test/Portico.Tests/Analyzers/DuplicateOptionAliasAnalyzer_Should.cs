@@ -181,6 +181,29 @@ public sealed class DuplicateOptionAliasAnalyzer_Should
     }
 
     [Fact]
+    public async Task Flag_A_Self_Collision_Within_One_Spec()
+    {
+        const string source = """
+            using Portico;
+
+            public sealed class S
+            {
+                [CliRoute("a")]
+                [CliCommandExample("a --name x")]
+                public int A([CliOption("--name|--NAME")] string name) => 0;
+            }
+            """;
+
+        var diagnostic = Assert.Single(
+            await AnalyzerTestRunner.RunAsync(new DuplicateOptionAliasAnalyzer(), source));
+        var message = diagnostic.GetMessage();
+
+        Assert.Contains("'--NAME'", message);
+        Assert.Contains("'--name'", message);
+        Assert.Contains("differ only by case", message);
+    }
+
+    [Fact]
     public async Task Ignore_The_Same_Alias_On_Two_Different_Commands()
     {
         // Aliases are scoped to a command. Two commands both taking --name is ordinary.

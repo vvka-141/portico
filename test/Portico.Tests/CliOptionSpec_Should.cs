@@ -50,4 +50,18 @@ public sealed class CliOptionSpec_Should
     [Fact]
     public void Reject_duplicate_alias() =>
         Assert.Throws<ArgumentException>(() => CliOptionSpec.Parse("--name|--name"));
+
+    [Fact]
+    public void Reject_case_variant_long_alias()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => CliOptionSpec.Parse("--name|--NAME"));
+        Assert.Contains("differ only by case", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Accept_case_variant_short_alias()
+    {
+        var spec = CliOptionSpec.Parse("-v|-V");
+        Assert.Equal(2, spec.Aliases.Count);
+    }
 }

@@ -216,6 +216,28 @@ internal static class PorticoDiagnostics
         helpLinkUri: HelpBase + "por009");
 
     /// <summary>
+    /// POR009 variant: one <c>[CliOption]</c> declaration's spec lists aliases that collide with
+    /// each other under <c>CliAliasComparer</c> — typically <c>--name|--NAME</c>. Uses the same
+    /// diagnostic ID as <see cref="DuplicateOptionAlias"/> (both are duplicate-alias errors) with a
+    /// message that names the single declaration rather than two.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SelfDuplicateOptionAlias = new(
+        id: "POR009",
+        title: "Option spec declares the same alias twice",
+        messageFormat:
+            "[CliOption] on {0} declares alias '{1}' twice. '{2}' and '{1}' differ only by case, " +
+            "and long aliases are compared case-insensitively.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description:
+            "A single [CliOption] specification lists two aliases that are the same under the " +
+            "framework's alias comparison rule: single-character short aliases are case-SENSITIVE " +
+            "('-v' and '-V' are distinct), while longer aliases are case-insensitive ('--name' and " +
+            "'--NAME' collide). Remove one of the two aliases from the pipe-separated specification.",
+        helpLinkUri: HelpBase + "por009");
+
+    /// <summary>
     /// POR010: a <c>[CliOption]</c> parameter or property whose type cannot be built from a
     /// command-line string — no <c>TypeConverter</c> can produce it. The runtime rejects it at
     /// <c>CliApplication.Create</c>; the analyzer catches it while the type is still on screen.

@@ -103,7 +103,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
         // CliAliasComparer, not StringComparer.Ordinal: this guard MUST agree with the matcher in
         // CliOptionSpec. When it used Ordinal and the matcher used OrdinalIgnoreCase, `-v` and `-V`
         // passed this check as distinct options and then both matched the same token at dispatch.
-        var seen = new Dictionary<string, string>(CliAliasComparer.Instance);
+        var seen = new Dictionary<string, (string Origin, string Alias)>(CliAliasComparer.Instance);
 
         // Seed with the middleware-declared global options so a route option that reuses a global
         // alias is caught (POR-65). Seeded directly (no self-collision check) — two globals sharing an
@@ -113,7 +113,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             if (global.Aliases.IsDefaultOrEmpty) continue;
             foreach (var alias in global.Aliases)
             {
-                seen[alias] = $"global option '{global.Name}' (declared by middleware)";
+                seen[alias] = ($"global option '{global.Name}' (declared by middleware)", alias);
             }
         }
 
@@ -135,20 +135,30 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             }
         }
 
-        void CheckAliases(ImmutableArray<string> aliases, string origin, Dictionary<string, string> seenAliases)
+        void CheckAliases(
+            ImmutableArray<string> aliases,
+            string origin,
+            Dictionary<string, (string Origin, string Alias)> seenAliases)
         {
             if (aliases.IsDefaultOrEmpty) return;
             foreach (var alias in aliases)
             {
                 if (seenAliases.TryGetValue(alias, out var existing))
                 {
+                    if (existing.Origin == origin)
+                    {
+                        throw new CliConfigurationException(
+                            $"Method '{DeclaringType?.FullName}.{Name}': [CliOption] on {origin} " +
+                            $"declares alias '{alias}' twice ('{existing.Alias}' and '{alias}' differ " +
+                            $"only by case, and long aliases are compared case-insensitively).");
+                    }
                     throw new CliConfigurationException(
                         $"Method '{DeclaringType?.FullName}.{Name}': option alias '{alias}' is declared by " +
-                        $"both {existing} and {origin}. Each alias must be unique per command — two " +
+                        $"both {existing.Origin} and {origin}. Each alias must be unique per command — two " +
                         $"parameters (or bundle properties) binding the same option would silently receive " +
                         $"the same captured value at dispatch time.");
                 }
-                seenAliases[alias] = origin;
+                seenAliases[alias] = (origin, alias);
             }
         }
     }

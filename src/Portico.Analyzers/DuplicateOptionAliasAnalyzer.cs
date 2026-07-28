@@ -38,7 +38,7 @@ public sealed class DuplicateOptionAliasAnalyzer : DiagnosticAnalyzer
     private const string CliOptionsFullName = "Portico.CliOptions";
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
-        ImmutableArray.Create(PorticoDiagnostics.DuplicateOptionAlias);
+        ImmutableArray.Create(PorticoDiagnostics.DuplicateOptionAlias, PorticoDiagnostics.SelfDuplicateOptionAlias);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -53,8 +53,7 @@ public sealed class DuplicateOptionAliasAnalyzer : DiagnosticAnalyzer
         var method = context.SemanticModel.GetDeclaredSymbol(methodSyntax, context.CancellationToken);
         if (method is null || !HasAttribute(method, CliRouteAttributeFullName)) return;
 
-        // alias -> the declaration that claimed it first.
-        var claimed = new Dictionary<string, string>(AliasComparer.Instance);
+        var claimed = new Dictionary<string, (string Origin, string Alias)>(AliasComparer.Instance);
 
         foreach (var parameter in method.Parameters)
         {
@@ -89,26 +88,38 @@ public sealed class DuplicateOptionAliasAnalyzer : DiagnosticAnalyzer
         SyntaxNodeAnalysisContext context,
         AttributeData option,
         string origin,
-        Dictionary<string, string> claimed,
+        Dictionary<string, (string Origin, string Alias)> claimed,
         ISymbol reportOn)
     {
         foreach (var alias in Aliases(option))
         {
-            if (claimed.TryGetValue(alias, out var firstOwner))
+            if (claimed.TryGetValue(alias, out var existing))
             {
                 var location = AttributeLocation(option, context) ?? reportOn.Locations.FirstOrDefault();
                 if (location is null) continue;
 
-                context.ReportDiagnostic(Diagnostic.Create(
-                    PorticoDiagnostics.DuplicateOptionAlias,
-                    location,
-                    alias,
-                    firstOwner,
-                    origin));
+                if (existing.Origin == origin)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        PorticoDiagnostics.SelfDuplicateOptionAlias,
+                        location,
+                        origin,
+                        alias,
+                        existing.Alias));
+                }
+                else
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        PorticoDiagnostics.DuplicateOptionAlias,
+                        location,
+                        alias,
+                        existing.Origin,
+                        origin));
+                }
                 continue;
             }
 
-            claimed[alias] = origin;
+            claimed[alias] = (origin, alias);
         }
     }
 
