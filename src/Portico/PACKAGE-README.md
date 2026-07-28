@@ -1,7 +1,9 @@
 # Portico
 
-**The command surface for .NET backend services.** Contract-first CLI routing where your
-examples are tests, verified at compile time by Roslyn analyzers. Zero dependencies.
+**The command surface for .NET backend services.** Contract-first CLI routing where **your
+examples are executable tests** — one `CliContractValidator<T>` test runs every
+`[CliCommandExample]` through the real pipeline, and Roslyn analyzers check the rest at compile
+time. Zero dependencies.
 
 ```
 dotnet add package Portico
