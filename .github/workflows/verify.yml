@@ -79,14 +79,26 @@ jobs:
             dotnet new portico-cli -n SmokeCli --porticoVersion "$version" --Framework "$tfm"
             cd SmokeCli
 
-            cat > nuget.config <<XML
-            <?xml version="1.0" encoding="utf-8"?>
-            <configuration>
-              <packageSources>
-                <add key="local" value="$GITHUB_WORKSPACE/artifacts" />
-              </packageSources>
-            </configuration>
-          XML
+            # printf, not a heredoc: a heredoc body inside a YAML block scalar keeps the
+            # indentation that makes it readable here, and an XML declaration with anything at
+            # all before it is invalid. That failed on both runners with "Unexpected XML
+            # declaration ... no whitespace characters are allowed to appear before it".
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="utf-8"?>' \
+              '<configuration>' \
+              '  <packageSources>' \
+              "    <add key=\"local\" value=\"$GITHUB_WORKSPACE/artifacts\" />" \
+              '  </packageSources>' \
+              '</configuration>' > nuget.config
+
+            # Prove the declaration is at byte zero before handing the file to restore, which
+            # reports a malformed config as a build error against every project and buries the
+            # cause several hundred lines down.
+            first_line=$(head -1 nuget.config)
+            if [[ "$first_line" != '<?xml'* ]]; then
+              echo "nuget.config does not open with its XML declaration: [$first_line]" >&2
+              exit 1
+            fi
 
             dotnet build -c Release
             dotnet test  -c Release --no-build
