@@ -8,6 +8,14 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.1.0] - 2026-07-28
+
+The first public release. Everything below is new to anyone outside the repository — the
+`Fixed`, `Changed` and `Removed` subsections record what moved during development, and are kept
+because *why* a decision was reversed is usually more useful than the decision itself.
+
 ### Added
 
 - `CliOptionAttribute.Sensitive` — mark an option's value a secret. It is redacted (`***`) wherever
@@ -190,4 +198,5 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   nobody meant to ship.
 - The shell-completion script's heredoc marker is `__PORTICO_ROUTES__`.
 
-[Unreleased]: https://github.com/vvka-141/portico/commits/main
+[Unreleased]: https://github.com/vvka-141/portico/compare/v0.1.0...main
+[0.1.0]: https://github.com/vvka-141/portico/releases/tag/v0.1.0
