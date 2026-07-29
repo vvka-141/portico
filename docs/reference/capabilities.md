@@ -120,12 +120,32 @@ misuse in the framework.
 A `TimeSpan` binds the way an operator actually types one:
 
 ```
+--timeout 90s             --timeout 1h30m       --timeout 500ms
 --timeout "30 seconds"    --timeout "5 min"     --timeout "1.5 hours"
---timeout PT30S           --timeout 00:00:30
+--timeout "2 days 4 hrs"  --timeout PT30S       --timeout 00:00:30
 ```
 
-All five bind. `TimeSpan?` behaves identically — which it did not, until a worked example caught it
-(the bug is in the changelog).
+`TimeSpan?` behaves identically — which it did not, until a worked example caught it (the bug is in
+the changelog).
+
+**The grammar**, so the boundary is discoverable rather than guessable:
+
+| Form | Shape | Examples |
+|------|-------|----------|
+| Duration | one or more `<number><unit>` pairs, whitespace optional | `90s`, `1h30m`, `500 ms`, `2 days 4 hrs` |
+| .NET | `TimeSpan.Parse` | `00:00:30`, `1.12:00:00` |
+| ISO 8601 | `XmlConvert.ToTimeSpan` | `PT30S`, `PT1H30M` |
+
+Units are `ms`, `s`, `m`, `h`, `d`, and their spelled-out forms (`msec`, `sec`, `min`, `hr`, `day`,
+each also plural and each also fully written out). Matching is case-insensitive, and the number may
+be fractional — `0.5d` is twelve hours.
+
+> **A bare number is refused.** `--timeout 30` does not bind thirty seconds; to .NET's `TimeSpan`
+> parser a bare number is a *day* count, so it would silently mean thirty **days**. Portico rejects
+> it and names the repairs (`30s`, `30 seconds`, `00:00:30`) rather than guessing. Reinterpreting it
+> as seconds would be friendlier and is deliberately not done — the same string would then mean one
+> thing in Portico and another in every other .NET tool. This is a .NET-wide trap that Portico
+> declines to inherit quietly, not a defect in any particular framework.
 
 ### `CliOptions` bundles — the `[FromBody]` analogue
 
