@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -75,8 +76,10 @@ public sealed class CliApplicationAutoCancel_Should
     /// <para>
     /// Raising the signal is indeed not possible here; counting the subscribers is. The event's
     /// backing delegate is a private static field on <see cref="Console"/>, so the invocation list is
-    /// reachable by reflection — and a missing field fails loudly rather than skipping, so this
-    /// cannot decay into the tautology it replaced.
+    /// reachable by reflection, and
+    /// <see cref="Observe_Its_Own_Subscriber_Counting_Mechanism_Working"/> proves that reading
+    /// actually observes a subscription — an apparatus that silently returned 0 would make this test
+    /// pass forever, which is the tautology it replaced wearing a different hat.
     /// </para>
     /// <para>
     /// The before/after comparison is only sound because <c>AssemblyInfo.cs</c> disables test
@@ -101,22 +104,61 @@ public sealed class CliApplicationAutoCancel_Should
     }
 
     /// <summary>
+    /// Proves the measurement above can measure. If the runtime ever stops exposing a reachable
+    /// backing delegate for <see cref="Console.CancelKeyPress"/>, this fails — and it fails
+    /// <em>here</em>, saying the mechanism is broken, instead of making the leak test report a
+    /// mysterious count.
+    /// </summary>
+    /// <remarks>
+    /// A test whose apparatus is unverified is the tautology problem one level up: a
+    /// <c>CancelKeyPressSubscriberCount</c> that always returned 0 would make the leak test pass
+    /// forever. So the apparatus gets its own test.
+    /// </remarks>
+    [Fact]
+    public void Observe_Its_Own_Subscriber_Counting_Mechanism_Working()
+    {
+        var before = CancelKeyPressSubscriberCount();
+
+        ConsoleCancelEventHandler sentinel = (_, _) => { };
+        Console.CancelKeyPress += sentinel;
+        try
+        {
+            Assert.Equal(before + 1, CancelKeyPressSubscriberCount());
+        }
+        finally
+        {
+            Console.CancelKeyPress -= sentinel;
+        }
+
+        Assert.Equal(before, CancelKeyPressSubscriberCount());
+    }
+
+    /// <summary>
     /// How many handlers are subscribed to <see cref="Console.CancelKeyPress"/>. The event exposes
     /// only <c>add</c>/<c>remove</c>, so the count comes from the private static delegate behind it.
     /// </summary>
+    /// <remarks>
+    /// Located by field <em>type</em> rather than by name. The name is an implementation detail that
+    /// differs nobody-knows-where — this suite runs on ubuntu and windows, and the first version of
+    /// this helper hard-coded <c>s_cancelCallbacks</c> after checking one of them. A search for "the
+    /// static field holding a <see cref="ConsoleCancelEventHandler"/>" is the property actually being
+    /// relied on, and it survives a rename.
+    /// </remarks>
     private static int CancelKeyPressSubscriberCount()
     {
-        var field = typeof(Console).GetField(
-            "s_cancelCallbacks",
-            BindingFlags.NonPublic | BindingFlags.Static);
+        var candidates = typeof(Console)
+            .GetFields(BindingFlags.NonPublic | BindingFlags.Static)
+            .Where(field => field.FieldType == typeof(ConsoleCancelEventHandler))
+            .ToArray();
 
         Assert.True(
-            field is not null,
-            "Console.s_cancelCallbacks is gone, so this test can no longer count CancelKeyPress " +
-            "subscribers. Find the new backing field — do not weaken the assertion back to a " +
-            "pass-through, which is the state this test shipped in.");
+            candidates.Length == 1,
+            $"Expected exactly one private static ConsoleCancelEventHandler field on Console, found " +
+            $"{candidates.Length}. This runtime does not expose the CancelKeyPress invocation list " +
+            "where the test looks for it. Find the new shape — do not weaken the leak assertion back " +
+            "to a pass-through, which is the state it shipped in.");
 
-        return (field!.GetValue(null) as Delegate)?.GetInvocationList().Length ?? 0;
+        return (candidates[0].GetValue(null) as Delegate)?.GetInvocationList().Length ?? 0;
     }
 
     // -----------------------------------------------------------------------------------------
