@@ -342,6 +342,63 @@ public sealed partial class CliApplication
         }
 
         (_shortOptionSchema, _registeredOptionNames) = BuildShortOptionSchema(_actions);
+
+        WarnAboutShadowedBuiltInTriggers(_actions, _helpTriggers, _versionTriggers);
+    }
+
+    /// <summary>
+    /// Tells the author when a route has claimed a help or version trigger as one of its own option
+    /// aliases, which stops the framework answering that token <em>for that command</em>.
+    /// </summary>
+    /// <remarks>
+    /// The precedence itself is deliberate and stays (SOL-75): a route's own option beats the
+    /// built-in, which is what lets <c>-h</c> mean <c>--host</c>. What was missing is that the author
+    /// got no signal, and the user got a type error about the word "help" with nothing pointing at
+    /// the cause (POR-120).
+    /// <para>
+    /// A trace warning rather than an exception, for the same reason as the short-option arity
+    /// conflict: the shape is legal and occasionally intended, so failing the build would reject a
+    /// working program. And it is computed against the <em>effective</em> triggers — an application
+    /// that replaced them with <c>WithHelp(h => h.Triggers(...))</c> is measured against its own set, which is
+    /// something a Roslyn analyzer could not do, since the configuration is a runtime call.
+    /// </para>
+    /// <para>
+    /// The message names only the triggers actually shadowed. A route declaring <c>-h</c> leaves
+    /// <c>--help</c> working, and claiming otherwise would be the same overreach the ticket was
+    /// filed about.
+    /// </para>
+    /// </remarks>
+    private static void WarnAboutShadowedBuiltInTriggers(
+        IReadOnlyList<CliAction> actions,
+        IReadOnlyList<string>? helpTriggers,
+        IReadOnlyList<string>? versionTriggers)
+    {
+        Warn("help", helpTriggers ?? CliBuiltInTriggers.OptionFormHelpTriggers);
+        Warn("version", versionTriggers ?? CliBuiltInTriggers.OptionFormVersionTriggers);
+
+        void Warn(string kind, IReadOnlyList<string> triggers)
+        {
+            var optionForms = triggers.Where(t => !string.IsNullOrEmpty(t) && t[0] == '-').ToArray();
+            if (optionForms.Length == 0) return;
+
+            foreach (var action in actions)
+            {
+                var shadowed = optionForms.Where(action.DeclaresOptionAlias).ToArray();
+                if (shadowed.Length == 0) continue;
+
+                var remaining = optionForms.Except(shadowed, CliAliasComparer.Instance).ToArray();
+
+                Trace.TraceWarning(
+                    $"Route '{action.RouteSignature}' declares {shadowed.Select(t => $"'{t}'").Join(", ")} " +
+                    $"as its own option{(shadowed.Length == 1 ? "" : "s")}, so Portico's built-in {kind} " +
+                    $"no longer answers {(shadowed.Length == 1 ? "it" : "them")} for that command. " +
+                    (remaining.Length > 0
+                        ? $"{remaining.Select(t => $"'{t}'").Join(", ")} still {(remaining.Length == 1 ? "works" : "work")}."
+                        : $"That command has no remaining way to show its {kind}.") +
+                    " This is deliberate — a route's own option wins over a built-in trigger — but it is " +
+                    "worth knowing before a user finds it.");
+            }
+        }
     }
 
     private static void RejectDuplicateGlobalOptionAliases(IEnumerable<CliMiddleware> middleware)
@@ -699,11 +756,11 @@ public sealed partial class CliApplication
     //  Help / version detection
     // ---------------------------------------------------------------------------------------
 
-    [GeneratedRegex(@"^(?:--help|help|-h|-\?|\?)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex DefaultHelpSignalRegex();
+    // The default trigger patterns live on CliBuiltInTriggers so the option materializer can consult
+    // the same definition when explaining a shadowed trigger (POR-120). Two copies would drift.
+    private static Regex DefaultHelpSignalRegex() => CliBuiltInTriggers.HelpSignal();
 
-    [GeneratedRegex(@"^(?:--version|-V)$", RegexOptions.CultureInvariant)]
-    private static partial Regex DefaultVersionSignalRegex();
+    private static Regex DefaultVersionSignalRegex() => CliBuiltInTriggers.VersionSignal();
 
     private bool IsVersionRequested(CliInvocation invocation, CliAction? matchedRoute = null)
     {
