@@ -204,9 +204,16 @@ gates, not nice-to-haves.
   semantics" is a hard blocker.
 - **`[CliCommandExample]` is required on every `[CliRoute]`.** This is already enforced by
   `MissingCommandExampleAnalyzer` (POR004) but also re-verified at release-gate time.
-- **`CliContractValidator<T>` runs all examples as tests.** No `[CliCommandExample]` ships
-  untested. The examples-are-tests feature is the central agent-friendly mechanism and must
-  be exercised on every shipped example.
+- **✅ `CliContractValidator<T>` runs all examples as tests — met, and ENFORCED.** No
+  `[CliCommandExample]` ships untested. The examples-are-tests feature is the central
+  agent-friendly mechanism and must be exercised on every shipped example.
+
+  POR004 covers half of this and always did: a `[CliRoute]` without a `[CliCommandExample]` fails
+  the build. The other half — that the example is *executed* — was unguarded, because each example
+  project's contract test names its interfaces by hand. A sixth contract added to `examples/` would
+  have shipped with declared-but-never-dispatched examples and left every gate green.
+  `ExamplesAreTests_Should` parses `examples/` with Roslyn for types declaring routed methods and
+  fails if any is not passed to a `CliContractValidator<T>`.
 - **No speculative `.With*` config methods — but "no internal caller" is _not_ the test.**
   Portico is a library: its public builder surface exists to be called by *downstream user
   projects*, so zero callers *inside this repository* is the normal, expected state for a
