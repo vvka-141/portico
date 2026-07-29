@@ -16,8 +16,8 @@
     "porticoVersion": {
       "type": "parameter",
       "datatype": "string",
-      "description": "The Portico package version to reference.",
-      "defaultValue": "0.1.*",
+      "description": "The Portico package version to reference. Defaults to the version this template package shipped with.",
+      "defaultValue": "PORTICO_PACKAGE_VERSION",
       "replaces": "PORTICO_VERSION"
     },
     "Framework": {

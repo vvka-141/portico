@@ -31,16 +31,72 @@
     <EnablePackageValidation>false</EnablePackageValidation>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <_TemplateConfigSource>$(MSBuildThisFileDirectory)content\PorticoCli\.template.config\template.json</_TemplateConfigSource>
+  </PropertyGroup>
+
   <ItemGroup>
     <!--
       PackagePath is explicit: ContentTargetFolders alone would nest these at content/content/…,
       and `dotnet new` would then find no template at all. The package must lay the files out as
       content/PorticoCli/… — verified by unzipping the nupkg and by scaffolding from it.
+
+      template.json is excluded here and re-added by GenerateTemplateConfig below: the copy that
+      ships is generated, not the tracked one.
     -->
     <Content Include="content\**\*"
-             Exclude="content\**\bin\**;content\**\obj\**"
+             Exclude="content\**\bin\**;content\**\obj\**;$(_TemplateConfigSource)"
              PackagePath="content\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Remove="**\*" />
   </ItemGroup>
+
+  <!--
+    The scaffolded csproj references `Portico` at whatever `porticoVersion` resolves to, and the
+    default is the one input a real user never supplies. It used to be the literal string "0.1.*",
+    hand-typed into the tracked template.json — so shipping 0.2.0 would still have scaffolded a
+    0.1.x reference, handing the newest user the oldest supported line while every doc they then
+    read described a version they were not on. Widening it to "0.*" is not the fix: 0.x explicitly
+    licenses breaking changes across minors, so a scaffold that floats over them breaks without the
+    user touching anything.
+
+    So the default is derived from MinVer at pack time, exactly like every other version in this
+    repo, and the tracked file carries a token rather than a number. The token is deliberately not
+    version-shaped: if this target ever stops running, restore fails on "PORTICO_PACKAGE_VERSION is
+    not a valid version" instead of silently pinning a line nobody chose.
+  -->
+  <Target Name="GenerateTemplateConfig"
+          BeforeTargets="_GetPackageFiles"
+          DependsOnTargets="MinVer">
+
+    <Error Condition="'$(PackageVersion)' == ''"
+           Text="PackageVersion is empty; MinVer did not run before GenerateTemplateConfig, so the template's porticoVersion default cannot be derived." />
+
+    <PropertyGroup>
+      <!--
+        Computed here rather than in a top-level PropertyGroup: IntermediateOutputPath is defined
+        by Microsoft.Common.CurrentVersion.targets, which the SDK imports at the BOTTOM of this
+        file, so anything above resolves it to the empty string and writes the generated config
+        into the source tree instead of obj/. It packs correctly either way, which is what makes
+        this worth a comment.
+      -->
+      <_TemplateConfigGenerated>$(IntermediateOutputPath)template.config\template.json</_TemplateConfigGenerated>
+      <_TemplateConfigText>$([System.IO.File]::ReadAllText('$(_TemplateConfigSource)'))</_TemplateConfigText>
+      <_TemplateConfigText>$(_TemplateConfigText.Replace('PORTICO_PACKAGE_VERSION', '$(PackageVersion)'))</_TemplateConfigText>
+    </PropertyGroup>
+
+    <Error Condition="$(_TemplateConfigText.Contains('PORTICO_PACKAGE_VERSION'))"
+           Text="The PORTICO_PACKAGE_VERSION token survived substitution in $(_TemplateConfigSource)." />
+
+    <WriteLinesToFile File="$(_TemplateConfigGenerated)"
+                      Lines="$([MSBuild]::Escape($(_TemplateConfigText)))"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+
+    <ItemGroup>
+      <Content Include="$(_TemplateConfigGenerated)"
+               PackagePath="content\PorticoCli\.template.config\template.json" />
+      <FileWrites Include="$(_TemplateConfigGenerated)" />
+    </ItemGroup>
+  </Target>
 
 </Project>

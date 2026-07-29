@@ -8,7 +8,14 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- `dotnet new portico-cli` now references the `Portico` version that its template package shipped
+  with. The default was the hardcoded string `0.1.*`, typed into the tracked `template.json` and
+  substituted by nothing — so every release after 0.1.x would have scaffolded a 0.1 reference,
+  handing the newest user the oldest supported line while the docs they then read described a
+  version they were not on. It is derived from the build now, like every other version in the
+  repo. Pass `--porticoVersion` to override it, as before.
 
 ## [0.1.1] - 2026-07-29
 
