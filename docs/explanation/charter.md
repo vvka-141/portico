@@ -72,7 +72,12 @@ A CLI is an HTTP API without the H.
      decorated with attributes), configure via `ICliApplicationBuilder`. Two extensibility
      dimensions (inheritance *and* config) create confusion and a public contract that is
      hard to evolve. If a user hits a wall config cannot solve, that's a signal to add an
-     opt-in primitive — not to unseal.
+     opt-in primitive — not to unseal. **Asserted, not assumed** —
+     `Portico_Extensibility_Should` reflects over the shipped assemblies: `CliApplication` must
+     be sealed with no public constructor, and every other exported class must be sealed unless
+     it is one of the four inheritance invitations documented in
+     [extensibility.md](extensibility.md). Unsealing is a one-keyword change that nothing else
+     in the suite would notice.
    - **YAGNI applies hard.** A hook, a renderer override, a custom handler — each is added
      only when a real user today hits a wall without it. Speculative extensibility is
      rejected. If we proposed a hook once and nobody asked for it again, delete the

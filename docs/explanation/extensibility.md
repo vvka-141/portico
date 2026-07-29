@@ -340,7 +340,9 @@ but cannot reshape in place. The charter explicitly rejects configuration surfac
   forwarding.
 - `CliApplication` is `sealed`. There is exactly one way to produce one:
   `CliApplication.Create(cfg => …)`. Extension happens through the contract (attributes)
-  and the config, not through inheritance.
+  and the config, not through inheritance. `Portico_Extensibility_Should` enforces both
+  halves of that sentence, and enforces that the four rows above are the *only* exported
+  classes open for inheritance — so this list cannot grow by accident.
 
 If you need something from this list, the right move is to propose a new opt-in
 primitive that covers your scenario — not a hook that modifies the default.
