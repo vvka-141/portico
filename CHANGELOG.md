@@ -44,6 +44,18 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **A nullable struct collection — `ImmutableArray<T>?` — now binds.** `ImmutableArray<T>` is a
+  struct, so the nullable form is the only way to write an *optional* immutable-array option; it was
+  refused at `CliApplication.Create` with *"has type 'Nullable\`1', which cannot be built from a
+  command-line string"*, telling the user to put a `[TypeConverter]` on a BCL generic they cannot
+  modify. `CanAccept` and the POR010 analyzer had unwrapped nullables all along — only the
+  materializer's shape detection disagreed. The same unwrap now reaches the map detector, so a
+  nullable map is diagnosed as a map instead of an unconvertible scalar.
+
+- **A refused option type is named the way it was written.** The last refusal still spelling raw CLR
+  names reported `Nullable\`1` or `Queue\`1`, which names nothing the user wrote and gives them no
+  type to act on.
+
 - **`[CliOption(DefaultValue = "…")]` on a collection now binds.** It was converted through the
   *element* converter, so `DefaultValue = "eu,us"` on a `string[]` produced a `string` and failed
   inside `MethodInfo.Invoke` at exit 1; an `int[]` failed earlier with *"1,2 is not a valid value for

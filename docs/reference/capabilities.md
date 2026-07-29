@@ -186,6 +186,11 @@ order they typed it, use a list shape.
 shapes that work — never at dispatch. `Queue<T>`, `Stack<T>`, `Collection<T>` and `LinkedList<T>` are
 the common near-misses.
 
+**The nullable form of a shape is the same shape.** `ImmutableArray<T>` is a struct, so
+`ImmutableArray<T>?` is the only way to write an *optional* immutable-array option that reads as
+optional at the declaration site — and it binds exactly as `ImmutableArray<T>` does, including the
+empty-when-absent rule below. There is no row for it in the table because it is not a separate shape.
+
 #### An absent optional collection binds empty, not null
 
 ```csharp

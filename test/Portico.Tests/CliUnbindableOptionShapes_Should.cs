@@ -79,6 +79,12 @@ public sealed class CliUnbindableOptionShapes_Should
         { typeof(ImmutableSortedSet<string>), "app run --v a b" },
         { typeof(ImmutableQueue<string>), "app run --v a b" },
         { typeof(ImmutableStack<string>), "app run --v a b" },
+        // Nullable struct collections (POR-157). The corpus had no nullable entry at all, which is
+        // why this survived POR-144 — and note that the invariant test alone would NOT have caught
+        // it: a refusal is a passing outcome here, and this shape was refused. It took asking whether
+        // the refusal was *right* to find it.
+        { typeof(ImmutableArray<string>?), "app run --v a b" },
+        { typeof(ImmutableArray<int>?), "app run --v 1 2" },
         // Maps
         { typeof(Dictionary<string, string>), "app run --v[k] a" },
         { typeof(IDictionary<string, string>), "app run --v[k] a" },
@@ -210,6 +216,77 @@ public sealed class CliUnbindableOptionShapes_Should
         Assert.Contains("--v", map.Message);
         Assert.Contains("SortedList<string, string>", map.Message);
         Assert.Contains("Dictionary<string,V>", map.Message);
+    }
+
+    /// <summary>
+    /// The <c>Nullable`1</c> half of POR-157: a refusal that names the wrapper instead of the type
+    /// tells the user to put a <c>[TypeConverter]</c> on a BCL generic they cannot modify.
+    /// <para>
+    /// Two separate defects produced that message. The nullable struct <em>map</em> was not detected
+    /// as a map at all and fell to the scalar terminal — now it is diagnosed as the map it is, and
+    /// refused on the merits of its own shape like <c>SortedList</c>. And the scalar terminal itself
+    /// still spelled raw CLR names, so <em>any</em> generic that reached it was reported as
+    /// <c>Something`1</c>; every other refusal in the file has used the friendly name since POR-144.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void Never_Blame_A_Nullable_Wrapper_For_A_Shape_It_Only_Wraps()
+    {
+        var map = Assert.Throws<CliConfigurationException>(() =>
+            CliTestHarness.ForApplication(cfg => cfg.AddCommands(new NullableStructMapService()))
+                .Run("app run --v[k] a"));
+
+        Assert.DoesNotContain("Nullable", map.Message, StringComparison.Ordinal);
+        Assert.Contains("StructMap?", map.Message, StringComparison.Ordinal);
+        Assert.Contains("map type", map.Message, StringComparison.Ordinal);
+
+        var scalar = Assert.Throws<CliConfigurationException>(() =>
+            CliTestHarness.ForApplication(cfg => cfg.AddCommands(new NullableMoneyService()))
+                .Run("app run --v 5"));
+
+        Assert.DoesNotContain("`1", scalar.Message, StringComparison.Ordinal);
+        Assert.Contains("Money?", scalar.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A struct with no converter — the scalar terminal's own refusal, in nullable form.</summary>
+    public readonly struct Money
+    {
+        public Money(decimal amount) => Amount = amount;
+        public decimal Amount { get; }
+    }
+
+    public sealed class NullableMoneyService
+    {
+        [CliRoute("run")]
+        [CliCommandExample("run --v 5")]
+        public int Run([CliOption("--v")] Money? value = null) => 0;
+    }
+
+    /// <summary>
+    /// A user struct that <em>is</em> a map but is not one Portico can construct. It exists to prove
+    /// the nullable unwrap reaches the dictionary detector: without it this type answers "not a map"
+    /// and is misdiagnosed as an unconvertible scalar. With it, the diagnosis is correct and the
+    /// refusal is the ordinary unbuildable-map one.
+    /// </summary>
+    public readonly struct StructMap : IReadOnlyDictionary<string, string>
+    {
+        private readonly IReadOnlyDictionary<string, string> _inner;
+        public StructMap(IReadOnlyDictionary<string, string> inner) => _inner = inner;
+        public string this[string key] => _inner[key];
+        public IEnumerable<string> Keys => _inner.Keys;
+        public IEnumerable<string> Values => _inner.Values;
+        public int Count => _inner.Count;
+        public bool ContainsKey(string key) => _inner.ContainsKey(key);
+        public bool TryGetValue(string key, out string value) => _inner.TryGetValue(key, out value!);
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => _inner.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public sealed class NullableStructMapService
+    {
+        [CliRoute("run")]
+        [CliCommandExample("run --v[k] a")]
+        public int Run([CliOption("--v")] StructMap? value = null) => 0;
     }
 
     /// <summary>

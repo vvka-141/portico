@@ -354,6 +354,9 @@ public sealed class CliCollectionTypes_Should
         typeof(ImmutableList<string>),
         typeof(ImmutableHashSet<string>),
         typeof(ImmutableSortedSet<string>),
+        // The nullable form of the one struct shape (POR-157). It binds empty when absent like every
+        // other entry — the `?` is how C# spells "optional" for a struct, not a request for null.
+        typeof(ImmutableArray<string>?),
     };
 
     [Theory]
@@ -438,6 +441,92 @@ public sealed class CliCollectionTypes_Should
         [CliRoute("run")]
         [CliCommandExample("run")]
         public int Run([CliOption("--regions", DefaultValue = "eu,us")] string[]? regions = null)
+        {
+            Received = regions;
+            return 0;
+        }
+    }
+
+    // --- A nullable struct collection is the same collection (POR-157) -------------------------
+    //
+    // ImmutableArray<T> is a struct, so ImmutableArray<T>? is the only way to write an OPTIONAL
+    // immutable-array option that reads as optional at the declaration site. It was refused at
+    // startup with "Option '--tags' has type 'Nullable`1'", telling the user to put a [TypeConverter]
+    // on a BCL generic they cannot modify.
+    //
+    // What makes this a plain bug rather than a design question is that the rest of the pipeline had
+    // already answered it: CliOptionAttribute.CanAccept unwraps nullables (POR-37, TimeSpan?), and so
+    // does the POR010 analyzer, which therefore never flagged the shape it was being blamed for.
+    // Only the materializer's shape detection disagreed.
+
+    public sealed class NullableImmutableArrayService
+    {
+        public ImmutableArray<string>? Received;
+
+        [CliRoute("run")]
+        [CliCommandExample("run --tags a b")]
+        public int Run([CliOption("--tags")] ImmutableArray<string>? tags = null)
+        {
+            Received = tags;
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Values bind through to the handler. The materializer builds the <em>underlying</em> shape and
+    /// hands <c>MethodInfo.Invoke</c> a boxed <c>ImmutableArray&lt;string&gt;</c>, which the runtime
+    /// binds to a <c>Nullable&lt;T&gt;</c> parameter — so detection and construction have to agree
+    /// about the unwrap, or the shape is recognised and then cannot be built.
+    /// </summary>
+    [Fact]
+    public void Bind_A_Nullable_Struct_Collection()
+    {
+        var svc = new NullableImmutableArrayService();
+        CliTestHarness.ForApplication(cfg => cfg.AddCommands(svc))
+            .Run("app run --tags a b").ExpectExit(0);
+
+        Assert.True(svc.Received.HasValue);
+        Assert.Equal(new[] { "a", "b" }, svc.Received!.Value.ToArray());
+    }
+
+    /// <summary>
+    /// Absent binds an empty array, not <c>null</c> — POR-150's rule, applied to the nullable form
+    /// too. A shape that bound empty when written <c>ImmutableArray&lt;string&gt;</c> and null when
+    /// written <c>ImmutableArray&lt;string&gt;?</c> would make the <c>?</c> mean something no other
+    /// collection shape lets it mean.
+    /// </summary>
+    [Fact]
+    public void Bind_An_Empty_Nullable_Struct_Collection_When_Absent()
+    {
+        var svc = new NullableImmutableArrayService();
+        CliTestHarness.ForApplication(cfg => cfg.AddCommands(svc)).Run("app run").ExpectExit(0);
+
+        Assert.True(svc.Received.HasValue);
+        Assert.Empty(svc.Received!.Value);
+    }
+
+    /// <summary>
+    /// The nullable form reaches every other collection feature too — here the comma-split attribute
+    /// default from POR-156, which resolves through <c>CliOptionDefaultResolver</c> rather than the
+    /// materializer. The unwrap lives in the shared detection helpers precisely so features do not
+    /// have to be re-fixed one path at a time.
+    /// </summary>
+    [Fact]
+    public void Apply_A_Comma_Split_Default_To_The_Nullable_Form()
+    {
+        var svc = new NullableDefaultService();
+        CliTestHarness.ForApplication(cfg => cfg.AddCommands(svc)).Run("app run").ExpectExit(0);
+
+        Assert.Equal(new[] { "eu", "us" }, svc.Received!.Value.ToArray());
+    }
+
+    public sealed class NullableDefaultService
+    {
+        public ImmutableArray<string>? Received;
+
+        [CliRoute("run")]
+        [CliCommandExample("run")]
+        public int Run([CliOption("--regions", DefaultValue = "eu,us")] ImmutableArray<string>? regions = null)
         {
             Received = regions;
             return 0;
