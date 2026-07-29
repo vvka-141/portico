@@ -271,6 +271,33 @@ POSIX conventions are already built in:
   on `--version`/`-V`. Don't call it → no `--version` flow.
 - **`--help` / `-h` / `help` / `?`** — detected automatically. Don't like it? Register
   your own `[CliRoute("help")]` — yours wins.
+
+#### A route's own option beats a built-in trigger, and that cuts both ways
+
+If a command declares one of those tokens as its own `[CliOption]` alias, **the command wins for that
+command** and the framework stops answering it there:
+
+```csharp
+[CliOption("--host|-h")] string host      // -h means --host on this route. `--help` still works.
+[CliOption("--help")]    string help      // this route can no longer show its help at all.
+```
+
+This is deliberate, and the first line is why: `-h` for `--host` is a near-universal convention, and
+a framework that reserved it would be fighting its users. The same rule applies to `--version` / `-V`.
+
+The cost is that the second line is *also* legal, and it makes that command's help unreachable. So:
+
+- **Portico traces a warning at `CliApplication.Create`** naming the route and the shadowed
+  trigger — and naming which triggers still work, because shadowing `-h` leaves `--help` alone.
+  It is a warning rather than an error because the shape is legal and sometimes intended.
+- **The runtime error says so too.** `app run --help` against a route that declares `--help` as a
+  `string` reports that the command declares it as its own option, rather than only *"cannot be used
+  as a flag"* — which read as a fault in the tool.
+
+The trace warning is computed against the **effective** triggers, so an application that replaced
+them with `WithHelp(h => h.Triggers(...))` is measured against its own set. That is also why this is not a Roslyn
+analyzer: the trigger list is a runtime call, and an analyzer would warn about a shadow that is not
+one, or miss a real one.
 - **`CancellationToken` parameter** — declare one on any action; the framework injects
   the ambient token. Ctrl+C cancels it and the processor returns exit 130.
 

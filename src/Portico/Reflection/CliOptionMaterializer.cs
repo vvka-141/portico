@@ -594,8 +594,17 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
                       $"({string.Join(", ", collection.Values.Select(v => $"'{v}'"))}). " +
                       $"If the extra values are positional arguments, pass them after the '--' terminator " +
                       $"(e.g. '{option.Name} {collection.Values[0]} -- {string.Join(" ", collection.Values.Skip(1))}')."),
+            // A user typing `--help` on a command that declares --help as its own option got only
+            // "cannot be used as a flag", which reads as a fault in the tool rather than as a
+            // consequence of the contract (POR-120). The route legitimately wins over the built-in
+            // trigger — that is what makes `-h` for `--host` work — so the fix is to say so.
             CliFlagOptionCapture => throw new CliOptionMaterializationException(
-                $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead."),
+                CliBuiltInTriggers.IsDefaultTrigger(option.Name)
+                    ? $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead. " +
+                      $"Note that this command declares '{option.Name}' as one of its own options, so it " +
+                      $"takes precedence over the built-in one — if you were asking for help, this command " +
+                      $"does not answer '{option.Name}'."
+                    : $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead."),
             _ => throw new CliOptionMaterializationException(
                 $"The option '{option.Name}' is not in the expected format. Refer to the documentation for valid usage.")
         };
