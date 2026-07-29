@@ -756,14 +756,17 @@ public sealed class CliApplication_Should
         }
     }
 
+    // POR-150: this asserted null until 0.2.0. An absent optional collection now binds an EMPTY
+    // collection, matching what a map option in the same position always did.
     [Fact]
-    public void Allow_Missing_Optional_Collection_Option()
+    public void Bind_An_Empty_Collection_When_An_Optional_Collection_Option_Is_Missing()
     {
         var svc = new OptionalCollectionService();
         var processor = CliApplication.Create(cfg => cfg.AddCommands(svc));
 
         Assert.Equal(0, processor.Run("app.exe list"));
-        Assert.Null(svc.Captured);
+        Assert.NotNull(svc.Captured);
+        Assert.Empty(svc.Captured);
     }
 
     public sealed class NegativeCollectionService

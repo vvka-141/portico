@@ -830,7 +830,20 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
                     $"The required option '{_attribute.DisplayAliases}' is missing. " +
                     $"Supply one or more values, e.g. --opt a b c.");
             }
-            return _defaultValue;
+
+            // Absent and optional binds an EMPTY collection, not null (POR-150). Two reasons, and
+            // the first is a fact rather than a preference: a map option in the same position has
+            // always bound an empty dictionary — CliDictionaryOptionMaterializer builds its
+            // accumulator unconditionally — so `null` here made two collection-shaped options in one
+            // signature behave differently for no reason a user could see. The second: argv has no
+            // syntax for an explicitly empty list, so "absent" and "supplied with zero values" are
+            // indistinguishable at the terminal, and a distinction the CLI surface cannot express
+            // should not survive into the handler.
+            //
+            // A default the author actually supplied still wins — this only replaces the null that
+            // C# forced on them, since a parameter default must be a compile-time constant and null
+            // is the only one a collection type can express.
+            return _defaultValue ?? _collectionFactory([]);
         }
 
         var rawValues = new List<string>();
