@@ -235,6 +235,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
     private readonly Func<IDictionary> _factory;
     private readonly Func<IDictionary, object> _convert;          // accumulator -> declared type
     private readonly Func<string, string, object> _valueParser;   // (key, value) -> parsed value
+    private readonly Func<object[], object>? _valuesPerKey;       // parsed items -> the key's collection
     private readonly bool _isRequired;
 
     private CliDictionaryOptionMaterializer(
@@ -242,6 +243,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         Func<IDictionary> factory,
         Func<IDictionary, object> convert,
         Func<string, string, object> valueParser,
+        Func<object[], object>? valuesPerKey,
         bool isOptional)
     {
         // A map option does not read the environment, and it says so at STARTUP rather than binding
@@ -264,6 +266,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         _factory = factory;
         _convert = convert;
         _valueParser = valueParser;
+        _valuesPerKey = valuesPerKey;
         _isRequired = !isOptional;
     }
 
@@ -289,6 +292,33 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                     attribute.CanAccept(pair.Value, out TypeConverter valueConverter))
                 {
                     var valueType = pair.Value;
+
+                    // Does the VALUE type accumulate? `Dictionary<string, string[]>` means one key
+                    // may carry several values, so a repeated key appends instead of erroring
+                    // (POR-151). HTTP headers, k8s labels and `docker --label` all look like this,
+                    // and the framework's own metaphor argues for it: a map option exists because
+                    // `?cfg[env]=prod` is a query string, and `?tag=a&tag=b` is canonical query-string
+                    // form that ASP.NET Core binds to string[] without ceremony.
+                    //
+                    // Deliberately decided on the VALUE shape alone, independent of the CONTAINER
+                    // shape. The per-key collection is built here and the container conversion runs
+                    // after it, so ImmutableDictionary<string, string[]> and
+                    // IReadOnlyDictionary<string, List<T>> accumulate for free rather than needing a
+                    // container x value matrix nobody could remember.
+                    var itemType = CliCollectionOptionMaterializer.GetCollectionItemType(valueType);
+                    Func<object[], object>? valuesPerKey = null;
+                    if (itemType is not null && attribute.CanAccept(itemType, out var itemConverter))
+                    {
+                        valuesPerKey = CliCollectionOptionMaterializer.BuildCollectionFactory(valueType, itemType);
+                        if (valuesPerKey is not null)
+                        {
+                            // Values are parsed one element at a time, through the same converter a
+                            // collection option would use — so a bad value produces the same usage
+                            // error, with the key named.
+                            valueConverter = itemConverter;
+                        }
+                    }
+
                     var comparer = attribute.GetValueComparer();
                     var targetType = typeof(Dictionary<,>).MakeGenericType([typeof(string), valueType]);
                     var ctor = targetType.GetConstructor([typeof(IEqualityComparer<string>)])!;
@@ -352,7 +382,8 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                     }
                     return new[]
                     {
-                        new CliDictionaryOptionMaterializer(attribute, CreateDictionary, convert, ParseValue, isOptional),
+                        new CliDictionaryOptionMaterializer(
+                            attribute, CreateDictionary, convert, ParseValue, valuesPerKey, isOptional),
                     };
                 }
 
@@ -478,6 +509,14 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         }
 
         var result = _factory.Invoke();
+
+        // A multi-valued map gathers first and builds each key's collection once, so the two ways of
+        // writing the same thing agree: `--h[a] x y` (one capture, several values) and
+        // `--h[a] x --h[a] y` (several captures) produce an identical result. Insertion order of
+        // keys is preserved; the accumulator carries the attribute's key comparer either way.
+        var pending = _valuesPerKey is null ? null : new Dictionary<string, List<object>>(_attribute.GetValueComparer());
+        var keyOrder = _valuesPerKey is null ? null : new List<string>();
+
         foreach (var option in options)
         {
             // Empty-key form (`--config[]`): surface a targeted usage error rather than a raw
@@ -490,9 +529,15 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 
             switch (option)
             {
+                case CliKeyValueOptionCapture capture when pending is not null:
+                    Accumulate(pending, keyOrder!, capture.Key, [capture.Value]);
+                    break;
+
                 case CliKeyValueOptionCapture capture:
                     // Duplicate key is a defined usage error (not last-wins): the dictionary uses
                     // the attribute's comparer, so this honors the configured key case-sensitivity.
+                    // Only for a single-valued map — where the value type accumulates, a repeated
+                    // key is the feature rather than the mistake.
                     if (result.Contains(capture.Key))
                     {
                         throw new CliOptionMaterializationException(
@@ -500,6 +545,10 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                             $"Each map key may be specified only once.");
                     }
                     result.Add(capture.Key, _valueParser.Invoke(capture.Key, capture.Value));
+                    break;
+
+                case CliKeyCollectionOptionCapture collection when pending is not null:
+                    Accumulate(pending, keyOrder!, collection.Key, collection.Values);
                     break;
 
                 case CliKeyCollectionOptionCapture collection:
@@ -516,7 +565,30 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
             }
         }
 
+        if (pending is not null)
+        {
+            foreach (var key in keyOrder!)
+            {
+                result.Add(key, _valuesPerKey!.Invoke(pending[key].ToArray()));
+            }
+        }
+
         return _convert.Invoke(result);
+
+        void Accumulate(Dictionary<string, List<object>> sink, List<string> order, string key, IEnumerable<string> values)
+        {
+            if (!sink.TryGetValue(key, out var parsed))
+            {
+                parsed = new List<object>();
+                sink[key] = parsed;
+                order.Add(key);
+            }
+
+            foreach (var value in values)
+            {
+                parsed.Add(_valueParser.Invoke(key, value));
+            }
+        }
     }
 
     /// <summary>A copy-pasteable usage hint, e.g. <c>--config[key] value</c>.</summary>
@@ -1011,7 +1083,7 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
     ///     appropriate BCL constructor or <c>CreateRange</c> helper.</description></item>
     /// </list>
     /// </summary>
-    private static Func<object[], object>? BuildCollectionFactory(Type declaredType, Type itemType)
+    internal static Func<object[], object>? BuildCollectionFactory(Type declaredType, Type itemType)
     {
         if (declaredType.IsArray)
         {

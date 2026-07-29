@@ -21,6 +21,12 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   gate, which read the exit code and nothing else, that is a green build over a broken migration.
   The code fix adds `when (ex is not CliExitException)`. The rule sees the handler body only; its
   limits are documented in `docs/reference/analyzer-rules.md`.
+- A map option accumulates repeated keys when its value type is a collection —
+  `Dictionary<string,string[]>` binds `--header[Accept] json html` and
+  `--header[Accept] json --header[Accept] html` identically. Headers, labels and selectors repeat
+  keys as a matter of course, and `?tag=a&tag=b` is canonical query-string form, which is where map
+  options come from. `Dictionary<string,T>` still rejects a repeated key — nothing became last-wins.
+  The rule is independent of the container, so every supported map shape accumulates.
 - `--help` names the environment variable an option falls back to — `(env: APP_HOST)` — for method
   parameters and `CliOptions` bundle properties alike. **The name, never the value**: reading the
   value is the leak that kept this out of the ecosystem
