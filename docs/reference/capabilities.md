@@ -50,6 +50,23 @@ Distinct from a C# default (`int rows = 42`), and useful when the parameter has 
 parsed through the same converter a typed value would be, so it is written the way a *user* would
 type it, not the way C# would.
 
+**On a collection, it comma-splits** — the same rule as the
+[environment-variable path](#environment-variable-fallback), for the same reason: one authored
+string has to carry several values, and argv remains the escape hatch for a value that contains a
+comma.
+
+```csharp
+[CliOption("--regions", DefaultValue = "eu,us")] string[]? regions = null   // ["eu", "us"]
+```
+
+A bad element is a `CliConfigurationException` at `CliApplication.Create`, naming the element rather
+than the whole list.
+
+**On a map it is refused**, at `Create`. One string cannot carry key/value pairs without an encoding
+that nests one separator inside another and breaks on the first value containing either — the same
+reasoning that declined `EnvironmentVariable` on map options. It used to be accepted and then
+silently ignored.
+
 ### `Sensitive` — the value never reaches an echo of the command line
 
 ```csharp

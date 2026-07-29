@@ -44,6 +44,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **`[CliOption(DefaultValue = "…")]` on a collection now binds.** It was converted through the
+  *element* converter, so `DefaultValue = "eu,us"` on a `string[]` produced a `string` and failed
+  inside `MethodInfo.Invoke` at exit 1; an `int[]` failed earlier with *"1,2 is not a valid value for
+  Int32"*, which never said the value was being read as a list. It comma-splits now, matching the
+  environment-variable path. On a **map** it is refused at `CliApplication.Create` — one string
+  cannot carry key/value pairs — where it was previously accepted and then **silently ignored**.
+
 - **`Portico.DependencyInjection`'s package README sample now compiles** against the dependencies the
   package declares. It called `BuildServiceProvider()`, which lives in
   `Microsoft.Extensions.DependencyInjection` — a package the adapter deliberately does not depend on
