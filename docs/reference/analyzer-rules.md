@@ -116,7 +116,7 @@ banned what the attribute had just permitted. The attribute now declares `AllowM
 the C# compiler reports it as **CS0579** before any analyzer runs: no package reference required, no
 suppression path, nothing to disable.
 
-The ID is not reused. The next free rule is POR012.
+The ID is not reused. The next free rule is POR014.
 
 ## POR008
 
