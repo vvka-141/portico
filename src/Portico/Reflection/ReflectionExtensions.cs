@@ -145,9 +145,22 @@ internal static class ReflectionExtensions
     }
 
     /// <summary>
-    /// The key and value types of every generic <see cref="IDictionary{TKey, TValue}"/> the type
-    /// implements.
+    /// The distinct key and value types of every generic <see cref="IDictionary{TKey, TValue}"/> or
+    /// <see cref="IReadOnlyDictionary{TKey, TValue}"/> the type is or implements.
     /// </summary>
+    /// <remarks>
+    /// This is the single answer to "is this declared type a map?" — option arity, acceptance and
+    /// materialization all read it, and they must not be able to disagree (POR-144).
+    /// <para>
+    /// Three cases, not one. A concrete <c>Dictionary&lt;K,V&gt;</c> <em>implements</em>
+    /// <see cref="IDictionary{TKey, TValue}"/>. An interface does not appear in its own
+    /// <see cref="Type.GetInterfaces"/>, so a parameter declared as
+    /// <c>IDictionary&lt;string,int&gt;</c> matched nothing until the type itself was considered.
+    /// And <see cref="IReadOnlyDictionary{TKey, TValue}"/> is a separate hierarchy that never
+    /// passes through <see cref="IDictionary{TKey, TValue}"/> — the most idiomatic signature type
+    /// of the three, and the one a fix aimed only at "the interface itself" still misses.
+    /// </para>
+    /// </remarks>
     /// <example><code>
     /// foreach (var kv in typeof(Dictionary&lt;string, int&gt;).GetGenericDictionaryArgumentTypes())
     ///     Console.WriteLine($"{kv.Key} -&gt; {kv.Value}");
@@ -159,14 +172,29 @@ internal static class ReflectionExtensions
     {
         ThrowIf.ArgumentNull(type);
 
-        foreach (var interfaceType in type.GetInterfaces())
+        // Dedup: a concrete dictionary implements both interfaces over the same arguments, and a
+        // caller asking "what map is this?" must get one answer, not two identical ones.
+        var seen = new HashSet<(Type Key, Type Value)>();
+
+        foreach (var candidate in SelfAndInterfaces(type))
         {
-            if (interfaceType.IsGenericType &&
-                ReferenceEquals(interfaceType.GetGenericTypeDefinition(), typeof(IDictionary<,>)))
+            if (!candidate.IsGenericType) continue;
+
+            var definition = candidate.GetGenericTypeDefinition();
+            if (!ReferenceEquals(definition, typeof(IDictionary<,>)) &&
+                !ReferenceEquals(definition, typeof(IReadOnlyDictionary<,>))) continue;
+
+            var genericArguments = candidate.GetGenericArguments();
+            if (seen.Add((genericArguments[0], genericArguments[1])))
             {
-                var genericArguments = interfaceType.GetGenericArguments();
                 yield return new KeyValuePair<Type, Type>(genericArguments[0], genericArguments[1]);
             }
+        }
+
+        static IEnumerable<Type> SelfAndInterfaces(Type type)
+        {
+            if (type.IsInterface) yield return type;
+            foreach (var interfaceType in type.GetInterfaces()) yield return interfaceType;
         }
     }
 
