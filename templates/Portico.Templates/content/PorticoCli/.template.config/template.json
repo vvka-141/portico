@@ -23,12 +23,19 @@
     "Framework": {
       "type": "parameter",
       "datatype": "choice",
+      "description": "The target framework for the scaffolded projects.",
       "choices": [
-        { "choice": "net10.0", "description": ".NET 10 (STS)" },
-        { "choice": "net8.0", "description": ".NET 8 (LTS)" }
+        { "choice": "net10.0", "description": ".NET 10 (STS) — needs the .NET 10 SDK" },
+        { "choice": "net8.0", "description": ".NET 8 (LTS) — needs the .NET 8 SDK or later" }
       ],
       "defaultValue": "net10.0",
-      "replaces": "net10.0"
+      "replaces": "TARGET_FRAMEWORK"
+    }
+  },
+  "constraints": {
+    "sdk": {
+      "type": "sdk-version",
+      "args": "[8.0.100-*)"
     }
   },
   "primaryOutputs": [
@@ -40,6 +47,16 @@
       "description": "Restore NuGet packages",
       "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
       "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    },
+    {
+      "description": "Next steps",
+      "manualInstructions": [
+        {
+          "text": "cd into the new directory, then:\n\n  dotnet test        every [CliCommandExample] runs against the real pipeline\n\nThen break it on purpose: rename --name to --who in IGreetTool.cs and run\ndotnet test again. The example stops dispatching and the build goes red — your help\noutput cannot drift from the CLI you shipped, because it is the test.\n\nMore in README.md."
+        }
+      ],
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
       "continueOnError": true
     }
   ]

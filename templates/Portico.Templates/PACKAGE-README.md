@@ -22,6 +22,16 @@ scaffolds `Portico` 0.2.0 and never a stale line. Pass `--porticoVersion` to pic
 dotnet new portico-cli -n MyCli --porticoVersion 0.1.1
 ```
 
+Pick the target framework with `-f` / `--framework` — `net10.0` (default) or `net8.0`:
+
+```
+dotnet new portico-cli -n MyCli -f net8.0
+```
+
+The template requires an 8.0.100 SDK or later and hides itself on anything older, rather than
+scaffolding a project you cannot build. Note that `-f net10.0` still needs the .NET 10 SDK: a
+`dotnet new` constraint is evaluated before your choices are known, so it can only enforce the floor.
+
 **Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico) · **Issues and feedback:** [github.com/vvka-141/portico/issues](https://github.com/vvka-141/portico/issues)
 
 Portico is 0.x. The API is still being shaped by what breaks, so a rough edge is worth an
