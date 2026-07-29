@@ -26,6 +26,61 @@ public sealed class AdminTool : IAdminTool
         return 0;
     }
 
+    public async Task<int> BackfillAsync(
+        string? connectionString,
+        int[]? ids,
+        CliFlag? dryRun,
+        TimeSpan? timeout,
+        CancellationToken cancellation)
+    {
+        // Neither argv nor PGCONNSTR supplied one. A named exit code, not a bare literal — an
+        // operator reading `echo $?` in a pipeline gets 2 (usage), which is what "you configured
+        // this wrong" means, distinct from 1 (the run failed).
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new CliExitException(
+                "No connection string. Pass --connection-string, or set PGCONNSTR.")
+            {
+                ExitCode = CliExitException.UsageErrorExitCode,
+            };
+        }
+
+        // `ids ?? []` rather than a bare `foreach`: the framework binds an empty array when --ids is
+        // absent, so this cannot throw at run time — but the `?` that makes the option optional is
+        // also what makes the compiler ask. Honest version of the POR-150 guarantee: no
+        // NullReferenceException, and nullable reference types still want the acknowledgement.
+        var rows = ids ?? [];
+        if (rows.Length == 0)
+        {
+            Console.WriteLine("no ids given; nothing to backfill.");
+            return 0;
+        }
+
+        var budget = timeout ?? TimeSpan.FromMinutes(1);
+
+        if (dryRun is not null)
+        {
+            Console.WriteLine($"dry run: would backfill {rows.Length} row(s) within {budget.TotalSeconds:0}s.");
+            return 0;
+        }
+
+        // The token is cancelled by Ctrl+C and by SIGTERM. Honouring it is what turns `docker stop`
+        // into a drain instead of a kill — the framework maps the signal to an exit code, but only
+        // the handler can decide what "finish cleanly" means.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        deadline.CancelAfter(budget);
+
+        foreach (var id in rows)
+        {
+            deadline.Token.ThrowIfCancellationRequested();
+            await Task.Delay(1, deadline.Token);
+            Console.WriteLine($"backfilled row {id}.");
+        }
+
+        Console.WriteLine($"backfilled {rows.Length} row(s).");
+        return 0;
+    }
+
     public int Seed(int rows)
     {
         Console.WriteLine($"seeded {rows} rows.");

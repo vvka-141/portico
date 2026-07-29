@@ -330,11 +330,12 @@ organised by [Diataxis](https://diataxis.fr/).
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
 - [Capabilities](docs/reference/capabilities.md) — the whole surface, every entry backed by a test
 - [The agent-first CLI contract, scored](docs/explanation/agent-first-contract.md) — what Portico answers, what it declines, and why
-- [Analyzer rules](docs/reference/analyzer-rules.md) — the ten compile-time checks, and how to suppress one
+- [Analyzer rules](docs/reference/analyzer-rules.md) — the eleven compile-time checks, and how to suppress one
 - [The alternatives, honestly](docs/explanation/alternatives.md) — what every competitor is better at, and the one claim we make
+- [Your first operational command](docs/how-to/operational-command.md) — env fallback, secret redaction, durations, exit codes and drain-on-SIGTERM, in one walkthrough
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
 - [Migrating from Cocona](docs/how-to/migrate-from-cocona.md) — the concept mapping, and when another framework is the better move
-- [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `reindex`, `drain`, `health`), built and contract-tested by CI
+- [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `backfill`, `reindex`, `drain`, `health`), built and contract-tested by CI
 - [`examples/ReferenceCli`](examples/ReferenceCli) — the full-surface reference: map options, bundles with validation, `RankByOptions`, middleware with DI, composition — the ground truth for correct Portico code
 - [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
 

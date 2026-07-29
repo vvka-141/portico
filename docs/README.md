@@ -14,6 +14,7 @@ to a specific question.
 
 | | |
 |---|---|
+| [Your first operational command](how-to/operational-command.md) | The niche, demonstrated: env fallback, redaction, durations, exit codes, drain-on-SIGTERM |
 | [Composing CLIs](how-to/compose-clis.md) | Mount several contracts into one binary |
 | [Migrating from Cocona](how-to/migrate-from-cocona.md) | The concept mapping, and when another framework is the better move |
 
