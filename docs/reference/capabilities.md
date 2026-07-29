@@ -84,6 +84,32 @@ admin reindex '--shard[eu]' 3 '--shard[us]' 5
 
 First-class, not a parsing trick: the key is a string, the value is converted like any other option.
 
+**A repeated key accumulates when the value type is a collection.** Headers, labels and selectors
+repeat keys as a matter of course, so the declared value type chooses the semantics:
+
+```csharp
+[CliOption("--header")] Dictionary<string, string>?   one    // repeated key → usage error
+[CliOption("--header")] Dictionary<string, string[]>? many   // repeated key → accumulates
+```
+
+```
+admin call '--header[Accept]' json html            one option, several values
+admin call '--header[Accept]' json '--header[Accept]' html   the option repeated
+```
+
+Both forms bind the same thing. Key order and value order are preserved as typed, and each value
+converts through the same path a collection option would — so `Dictionary<string,int[]>` reports a
+bad element as a usage error naming the key.
+
+This follows the query-string metaphor the feature comes from: `?tag=a&tag=b` is canonical, and it is
+the *single*-value restriction that has no expression in it. A `Dictionary<string,T>` still rejects a
+repeated key, so nothing silently became last-wins.
+
+The value-collection rule is independent of the container: any map container below combined with any
+[collection shape](#collection-options--many-values-or-a-repeated-option) as its value accumulates.
+`ILookup<K,V>` is **not** supported — it has no public constructor — and is refused at
+`CliApplication.Create` rather than failing at dispatch.
+
 The key must be `string` — it is the text between the brackets. The declaration may be any of
 `Dictionary<string,V>`, `IDictionary<string,V>`, `IReadOnlyDictionary<string,V>`,
 `SortedDictionary<string,V>`, `ImmutableDictionary<string,V>`, `IImmutableDictionary<string,V>` or
