@@ -1,9 +1,9 @@
 # Analyzer message actionability audit
 
 **Audited 2026-07-27 against `src/Portico.Analyzers/PorticoDiagnostics.cs` and each analyzer's
-`Diagnostic.Create` call site; POR011 added 2026-07-28.** Every live diagnostic (POR001–POR011,
-excluding the retired POR007) was assessed against four criteria — **POR013 postdates this audit
-(added 2026-07-29) and has not been assessed** — drawn from
+`Diagnostic.Create` call site; POR011 added 2026-07-28, POR012 and POR013 assessed 2026-07-29.**
+Every live diagnostic (POR001–POR013, excluding the retired POR007) is assessed against four
+criteria drawn from
 [SHERLOC (arXiv 2606.24820)](https://arxiv.org/abs/2606.24820), which measured a 3.8× swing in
 agent resolution rate between "Very High" and "Low" diagnostic quality:
 
@@ -31,12 +31,22 @@ adding one is cheap, that is flagged.
 | [POR009](#por009) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 | [POR010](#por010) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 | [POR011](#por011) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
+| [POR012](#por012) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
+| [POR013](#por013) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 
 ✅ = fully met. ○ = present but implicit / could be added cheaply.
 
-No message rewrites were required. Two rules (POR001, POR004) were rewritten in `14d9beb`; seven
+No message rewrites were required. Two rules (POR001, POR004) were rewritten in `14d9beb`; the rest
 were written to this standard from the start. The prior commit improved two messages without
 recording the standard it applied — this document records it.
+
+> **This table used to stop at POR011, and the omission was not caught by reading.** POR012 shipped
+> and simply never appeared here; POR013 shipped and got a parenthetical in the header saying it
+> "has not been assessed", which is how an unassessed rule looks when someone notices the gap but
+> not the shape of it. `PorticoAnalyzerDocs_Should.Assess_Every_Live_Rule_In_The_Message_Audit` now
+> compares this table against the analyzers' own `SupportedDiagnostics`, so a rule cannot ship
+> unassessed again — the same guard POR-158 built for the README and the agent asset, extended to
+> the file it did not cover.
 
 ---
 
@@ -291,14 +301,72 @@ despite the runtime already rejecting it at `CliApplication.Create`.
 
 ---
 
+## POR012 — `[CliOption]` on a `bool` is probably meant to be a switch
+
+**Message format:**
+```
+Option '--force' is a 'bool', which reads a VALUE — a user must type '--force true'. For an
+ordinary presence-only switch ('--force' on its own), declare it 'CliFlag? force = null'. If a
+two-state value is what you meant, this warning is safe to suppress.
+```
+
+| Criterion | Assessment |
+|-----------|------------|
+| What | ✅ States the type and its consequence ("reads a VALUE"), not merely "wrong type". |
+| Why | ✅ In the framework's own model: value option vs. presence-only, spelled out in the description as "absent and false collapse into the same answer". |
+| Fix | ✅ Gives the replacement declaration as a correct fragment, parameter name substituted. |
+| Names | ✅ Alias, declared type, and parameter name. |
+
+**Code fix:** `BoolUsedAsSwitchCodeFix` — rewrites the parameter to `CliFlag? … = null`.
+
+**Note:** The only `Warning` in the audit alongside POR013, and the message carries the escape
+hatch in its last sentence ("safe to suppress"). That sentence is load-bearing rather than
+decorative: this repository and the `portico-cli` template both set `TreatWarningsAsErrors`, so for
+a scaffolded project the warning *is* a build failure, and a user who genuinely meant a two-state
+option needs to be told so at the point of failure.
+
+**Verdict: PASS.** Clean from inception.
+
+---
+
+## POR013 — A `catch` clause swallows `CliExitException`
+
+**Message format:**
+```
+This 'catch (Exception ex)' in command handler 'Migrate' swallows CliExitException, so a controlled
+exit is downgraded to whatever the handler returns — a failed command can exit 0. Add
+'when (ex is not CliExitException)', or rethrow it.
+```
+
+| Criterion | Assessment |
+|-----------|------------|
+| What | ✅ Names the construct and what it destroys, not "possible exception handling issue". |
+| Why | ✅ States the observable consequence in one clause — "a failed command can exit 0" — which is the whole reason the rule exists. |
+| Fix | ✅ Two fixes, both as fragments: the exception filter, or a rethrow. |
+| Names | ✅ The catch clause and the enclosing handler. |
+
+**Code fix:** `SwallowedCliExitExceptionCodeFix` — adds the `when (ex is not CliExitException)`
+filter.
+
+**Note:** The description is explicit that the analyzer sees the handler body only, so an exception
+swallowed several frames deep is out of reach. Saying so in the message is what stops a user reading
+silence as "no such problem here" — a rule that closes the common case and admits it beats one that
+implies coverage it does not have.
+
+**Verdict: PASS.** Clean from inception.
+
+---
+
 ## Where code fixes would be cheap to add
 
-Two rules already ship code fixes:
+Four rules already ship code fixes:
 
 | Rule | Code fix | What it does |
 |------|----------|-------------|
 | POR004 | `MissingCommandExampleCodeFix` | Inserts a `[CliCommandExample("TODO")]` stub |
 | POR006 | `BundleMissingCtorCodeFix` | Inserts a `public TypeName() { }` constructor |
+| POR012 | `BoolUsedAsSwitchCodeFix` | Rewrites a `bool` option to `CliFlag? … = null` |
+| POR013 | `SwallowedCliExitExceptionCodeFix` | Adds `when (ex is not CliExitException)` to the catch |
 
 One rule has a cheap opportunity:
 
@@ -308,13 +376,14 @@ One rule has a cheap opportunity:
 
 The remaining seven rules involve ambiguous intent (POR001, POR002, POR009, POR011), structurally different
 fixes per sub-case (POR003), return-type changes that require method-body rewrites (POR008), or
-whole-type rewrites (POR010). None is cheap.
+whole-type rewrites (POR010). None is cheap. (Four shipped + one cheap + seven not cheap = the
+twelve live rules; POR007 is retired.)
 
 ---
 
 ## Part 2 — measurement (outstanding)
 
-Part 1 of POR-49 is complete: written verdicts for all ten live rules, no rewrites required. Part 2
+Part 1 of POR-49 is complete: written verdicts for all twelve live rules, no rewrites required. Part 2
 — giving an agent deliberately-broken contracts and measuring first-pass fix rate under three arms
 (current messages, rewritten messages, analyzers suppressed) — is not started. Because no messages
 were rewritten, the arm A/arm B distinction in Part 2 collapses: there is no "before" and "after" to

@@ -37,6 +37,7 @@ public sealed class PorticoAnalyzerDocs_Should
     private const string ReadmePath = "README.md";
     private const string AgentsPath = "PORTICO-FOR-AGENTS.md";
     private const string RulesPath = "docs/reference/analyzer-rules.md";
+    private const string AuditPath = "docs/explanation/analyzer-message-audit.md";
     private const string ManifestPath = "src/Portico.Analyzers/AnalyzerReleases.Unshipped.md";
     private const string ShippedManifestPath = "src/Portico.Analyzers/AnalyzerReleases.Shipped.md";
 
@@ -95,6 +96,53 @@ public sealed class PorticoAnalyzerDocs_Should
 
         AssertSameRules(LiveRuleIds().ToHashSet(StringComparer.Ordinal), documented, AgentsPath,
             "Add a row to the table under '## The analyzers'.");
+    }
+
+    /// <summary>
+    /// The message-actionability audit scores every rule's message against four criteria. A rule
+    /// missing from its summary table has shipped a message nobody assessed — and that is not
+    /// hypothetical: POR012 shipped and never appeared there at all, while POR013 shipped and got a
+    /// header note conceding it "has not been assessed". A standard that silently exempts the newest
+    /// rules is not a standard, so the table is compared against the analyzers rather than read.
+    /// </summary>
+    /// <remarks>
+    /// This is the same guard the three tables above get. It is separate only because the audit's
+    /// first column is a markdown link (<c>[POR012](#por012)</c>) rather than a bare or backticked
+    /// ID, so <see cref="TableRuleIds"/>'s pattern does not match it.
+    /// </remarks>
+    [Fact]
+    public void Assess_Every_Live_Rule_In_The_Message_Audit()
+    {
+        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), AuditPath));
+
+        var assessed = lines
+            .Select(line => Regex.Match(line, @"^\|\s*\[(?<id>POR\d{3})\]\(#por\d{3}\)\s*\|"))
+            .Where(match => match.Success)
+            .Select(match => match.Groups["id"].Value)
+            .ToArray();
+
+        Assert.True(assessed.Length > 0,
+            $"No rule rows parsed out of the summary table in {AuditPath}. If the table moved or " +
+            "changed shape, update this test — do not delete the guard.");
+
+        AssertSameRules(LiveRuleIds().ToHashSet(StringComparer.Ordinal), assessed, AuditPath,
+            "Assess the message against the four criteria and add a row to the '## Summary' table, " +
+            "plus a '## PORxxx' section with the per-criterion verdict.");
+
+        // A row in the summary is a link to a section; a summary entry without one is a dead anchor.
+        var sections = lines
+            .Select(line => Regex.Match(line, @"^##\s+(?<id>POR\d{3})\b"))
+            .Where(match => match.Success)
+            .Select(match => match.Groups["id"].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var dangling = assessed.Where(id => !sections.Contains(id))
+            .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+
+        Assert.True(dangling.Length == 0,
+            $"{AuditPath} scores {string.Join(", ", dangling)} in the summary table but has no " +
+            "'## PORxxx' section for it, so the row links nowhere and the verdict has no reasoning " +
+            "behind it.");
     }
 
     /// <summary>
