@@ -412,29 +412,23 @@ public sealed class CliCollectionTypes_Should
     /// <summary>
     /// The empty-collection default replaces <b>only</b> the <c>null</c> that C# forced on the
     /// author — a parameter default must be a compile-time constant, and <c>null</c> is the only one
-    /// a collection type can express. A non-null default is passed through untouched.
+    /// a collection type can express. A default the author actually supplied is bound, not replaced.
     /// </summary>
     /// <remarks>
-    /// The only other route to a default is <c>[CliOption(DefaultValue = "…")]</c>, and on a
-    /// collection <b>that is broken</b>: the string is converted through the ELEMENT converter, so a
-    /// <c>string</c> reaches a <c>string[]</c> parameter and dies at <c>MethodInfo.Invoke</c> with
-    /// <c>exit 1</c>. Pre-existing, found while implementing POR-150, filed as <b>POR-156</b>.
-    /// <para>
-    /// This test asserts that failure still happens, which is the point: POR-150 must not quietly
-    /// swallow a non-null default and substitute an empty collection, because that would convert a
-    /// visible bug into a silent wrong value. When POR-156 lands this test goes red and should be
-    /// rewritten to assert the corrected binding.
-    /// </para>
+    /// Rewritten when POR-156 landed, exactly as this test's previous form said it should be. It
+    /// used to assert that <c>[CliOption(DefaultValue = "…")]</c> on a collection <em>failed</em>,
+    /// because it did — the string was converted through the element converter and died at
+    /// <c>MethodInfo.Invoke</c>. The point then was that POR-150 must not swallow a non-null default
+    /// and substitute an empty collection, turning a visible bug into a silent wrong value. The point
+    /// now is the same invariant with the bug gone: the author's default wins over the empty default.
     /// </remarks>
     [Fact]
-    public void Pass_A_Non_Null_Default_Through_Untouched()
+    public void Bind_A_Default_The_Author_Supplied_Rather_Than_An_Empty_One()
     {
-        var result = CliTestHarness
-            .ForApplication(cfg => cfg.AddCommands(new AttributeDefaultService()))
-            .Run("app run");
+        var svc = new AttributeDefaultService();
+        CliTestHarness.ForApplication(cfg => cfg.AddCommands(svc)).Run("app run").ExpectExit(0);
 
-        Assert.Equal(CliExitException.RuntimeErrorExitCode, result.ExitCode);
-        Assert.Contains("cannot be converted", result.StandardError, StringComparison.Ordinal);
+        Assert.Equal(new[] { "eu", "us" }, svc.Received);
     }
 
     public sealed class AttributeDefaultService
