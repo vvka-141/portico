@@ -30,6 +30,33 @@ public interface IAdminTool
         [CliOption("--dry-run", "Print the plan; change nothing")] CliFlag? dryRun = null,
         CancellationToken cancellation = default);
 
+    /// <summary>
+    /// Backfill a column for specific rows. This is the route
+    /// <c>docs/how-to/operational-command.md</c> walks through — it carries one of each capability
+    /// that earns the "backend services" claim, so the walkthrough can quote a command CI builds
+    /// rather than a snippet nobody compiles.
+    /// </summary>
+    [Description("Backfill a column for specific rows")]
+    [CliRoute("db backfill")]
+    [CliCommandExample("db backfill --ids 41 42 43 --dry-run")]
+    [CliCommandExample("db backfill --ids 41 42 43 --timeout \"5 min\"")]
+    [CliCommandExample("db backfill")]
+    Task<int> BackfillAsync(
+        // EnvironmentVariable: an operator sets PGCONNSTR once in the container and stops typing it.
+        // argv still wins when both are present. Sensitive keeps the value out of every message the
+        // framework composes — and --help names the VARIABLE without ever reading it.
+        [CliOption("--connection-string|-c", "Postgres connection string",
+            EnvironmentVariable = "PGCONNSTR", Sensitive = true)]
+        string? connectionString = null,
+        // A collection option: `--ids 41 42 43` and `--ids 41 --ids 42 --ids 43` are the same thing.
+        // Absent, it binds an EMPTY array rather than null.
+        [CliOption("--ids", "Row ids to backfill (repeatable)")] int[]? ids = null,
+        [CliOption("--dry-run", "Print the plan; change nothing")] CliFlag? dryRun = null,
+        // "5 min", "90s", "1h30m", "PT5M" or "00:05:00" all bind. A bare "5" is refused, because to
+        // .NET that means five DAYS.
+        [CliOption("--timeout", "Give up after this long")] System.TimeSpan? timeout = null,
+        CancellationToken cancellation = default);
+
     /// <summary>Seed reference data.</summary>
     [Description("Seed reference data")]
     [CliRoute("db seed")]
