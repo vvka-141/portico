@@ -1,0 +1,27 @@
+<Project>
+
+  <!--
+    These projects are OUTSIDE the solution and must not inherit the repository's build. They exist
+    to compile the samples that ship inside each package against THAT PACKAGE'S OWN declared
+    dependency closure, restored from ./artifacts exactly as a consumer would restore it.
+
+    The isolation is the point, and it has to be per package. Portico.Hosting depends on
+    Microsoft.Extensions.Hosting, which drags Microsoft.Extensions.DependencyInjection in
+    transitively — so a single project referencing all three would have compiled the
+    Portico.DependencyInjection sample successfully and proved nothing. That is a weaker version of
+    the same mistake that let two defects ship: checking the code against a context the reader does
+    not have (POR-155).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <RestoreSources>$(MSBuildThisFileDirectory)../../artifacts;https://api.nuget.org/v3/index.json</RestoreSources>
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+  </PropertyGroup>
+
+</Project>

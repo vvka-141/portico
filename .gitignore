@@ -52,3 +52,6 @@ website/resources/
 # untracked directory that appears whenever tests run is how unrelated junk eventually gets
 # committed. Root-anchored so it cannot mask a real directory nested in a project.
 /.dotnet-home/
+
+# Package-sample restore output (test/Portico.PackageSamples restores from ./artifacts).
+test/Portico.PackageSamples/**/packages/

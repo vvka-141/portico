@@ -44,6 +44,14 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **`Portico.DependencyInjection`'s package README sample now compiles** against the dependencies the
+  package declares. It called `BuildServiceProvider()`, which lives in
+  `Microsoft.Extensions.DependencyInjection` — a package the adapter deliberately does not depend on
+  — and showed no `using` directives, so `using Portico.DependencyInjection;` was missing and the
+  compiler bound to the core package's `AddCommands<T>(Func<T>)` instead. Both defects shipped in
+  0.1.0 and 0.1.1. The samples in every package README are now compiled in CI against each
+  package's own dependency closure, one project per package.
+
 - **Breaking:** an absent optional collection option binds an **empty collection**, not `null`, so a
   handler can iterate it without a null check. A map option in the same position already bound an
   empty dictionary, so this removes an inconsistency rather than inventing a convention; and argv has

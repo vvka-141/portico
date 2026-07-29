@@ -1,0 +1,12 @@
+<Project>
+
+  <!--
+    Stops the upward walk to the repository's Directory.Packages.props. These projects restore like
+    a consumer's would — a version on the PackageReference, from ./artifacts — rather than through
+    the repo's central package management, which does not exist outside this repository.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+</Project>

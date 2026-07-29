@@ -8,13 +8,20 @@ dotnet add package Portico.DependencyInjection
 ```
 
 ```csharp
-var services = new ServiceCollection()
-    .AddScoped<IAdminTool, AdminTool>()
-    .AddScoped<IDbConnection>(_ => new NpgsqlConnection(cs))
-    .BuildServiceProvider();
+using Portico;
+using Portico.DependencyInjection;   // the IServiceProvider overload lives here
 
+// `services` is the IServiceProvider your service already builds.
 CliApplication.Create(cfg => cfg.AddCommands<IAdminTool>(services)).Run(args);
 ```
+
+Register your contract in that container as you would anything else —
+`services.AddScoped<IAdminTool, AdminTool>()` — and its dependencies alongside it.
+
+> Building a container from scratch rather than reusing one? `BuildServiceProvider()` is in
+> **`Microsoft.Extensions.DependencyInjection`**, which this package does not depend on and you
+> would add yourself. Depending only on `.Abstractions` is deliberate: it is what lets an adapter
+> sit next to a container you already have without opinions about which one.
 
 Each dispatched command gets its own `IServiceScope`, disposed when the command finishes —
 whether it succeeded, threw, or was cancelled. `AddScoped` means what it means.
