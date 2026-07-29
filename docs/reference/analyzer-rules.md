@@ -21,6 +21,7 @@ anything.
 | [POR009](#por009) | Error | Two options on one command declaring the same alias |
 | [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
 | [POR011](#por011) | Error | A route declares the same `{placeholder}` twice |
+| [POR012](#por012) | Warning | A `[CliOption]` on a `bool` is probably meant to be a switch |
 | [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` |
 
 ---
@@ -181,6 +182,58 @@ Both slots resolve to the same parameter. At dispatch the second value silently 
 data loss that `CliContractValidator<T>` does not catch, making it a false green in the framework's
 central verification mechanism. Use distinct placeholder names for distinct positions:
 `[CliRoute("copy {src} {dst}")]`.
+
+## POR012
+
+**A `[CliOption]` on a `bool` is probably meant to be a switch.** *(Warning)*
+
+```csharp
+[CliOption("--verbose")] bool verbose = false     // ← a user must type `--verbose true`
+[CliOption("--verbose")] CliFlag? verbose = null  // ← `--verbose` on its own
+```
+
+`CliFlag?` is **presence-only**: the option is on by being there, and absent means off. A `bool` is a
+two-state **value**, so it reads one — `--verbose` alone is not how it is used, and "absent" and
+"false" collapse into the same answer.
+
+This compiles cleanly and produces a CLI nobody can drive as intended, which is why it is a
+diagnostic rather than a documentation note. Portico's own reference calls it
+[the most common misuse in the framework](capabilities.md#cliflag-versus-bool--presence-versus-value).
+
+`bool?` is reported too, with the same message. A three-state value is almost never what a command
+line wants, and an author reaching for it is usually trying to express "absent" — which is what
+`CliFlag?` already means.
+
+**The code fix rewrites the declaration only.** Portico's contract normally lives on an interface
+while the body lives on an implementing class, often in another file, so a fix that also rewrote
+`if (verbose)` to `if (verbose is not null)` would be guessing at which implementation was meant.
+Changing the declaration produces ordinary compile errors at exactly the sites that need attention —
+the normal shape of a type-change refactor, and more honest than a partial rewrite that looks
+complete.
+
+### `bool` is still supported, and this is a Warning because of that
+
+A genuine two-state value option — `--park-on-failure true` versus `--park-on-failure false`, where
+the difference between "the author said no" and "the author said nothing" matters — is exactly what
+`bool` is for. This rule cannot tell that case from the mistake, so it may not fail a build on its
+own authority.
+
+Suppress it the ordinary way when you meant the value:
+
+```csharp
+#pragma warning disable POR012
+[CliOption("--force", "Cancel in-flight jobs instead of waiting")] bool force = false,
+#pragma warning restore POR012
+```
+
+That example is real: `examples/ReferenceCli` carries two of them, because the rule fired on its
+deliberate two-state options the first time it was built.
+
+> **Know what Warning means here.** This repository and the `portico-cli` template both set
+> `TreatWarningsAsErrors`, so in a scaffolded project POR012 *is* a build failure. That is deliberate
+> rather than an oversight: `Info` severity is invisible in `dotnet build` and in CI, which is
+> precisely where this mistake ships from. Meeting the distinction once, at the moment you write it,
+> with a fix on the lightbulb, is the outcome the rule exists for.
 
 ## POR013
 

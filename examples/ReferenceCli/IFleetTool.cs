@@ -59,7 +59,14 @@ public interface IFleetTool
         [CliOption("--timeout", "How long to wait for in-flight jobs")] TimeSpan? timeout = null,
         // A `bool` is TWO-STATE: `--force true` / `--force false`. Bare `--force` is an error — use
         // a CliFlag? (see --verbose above) when you want presence-only.
+        //
+        // POR012 fires here, and suppressing it is the point: this parameter demonstrates the
+        // legitimate two-state option, which is the one case the rule cannot distinguish from the
+        // mistake it exists to catch. This is what the rule's "safe to suppress" escape hatch looks
+        // like in practice — a pragma and a sentence saying which you meant.
+#pragma warning disable POR012
         [CliOption("--force", "Cancel in-flight jobs instead of waiting")] bool force = false,
+#pragma warning restore POR012
         // Declare a CancellationToken parameter and the framework injects the ambient one — the same
         // token that trips to exit 130 on Ctrl+C when the app runs via RunAsync.
         CancellationToken cancellation = default);

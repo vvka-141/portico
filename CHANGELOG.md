@@ -10,6 +10,11 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Added
 
+- **POR012** (Warning) reports a `[CliOption]` on a `bool` — the framework's own most common misuse.
+  `CliFlag?` is presence-only (`--dry-run`); a `bool` reads a value (`--force true`), so a bare
+  `--force` does not set it. The code fix rewrites the declaration to `CliFlag? … = null`. `bool`
+  stays fully supported for a genuine two-state option, which is why this is a Warning — suppress it
+  with `#pragma warning disable POR012` when you meant the value.
 - **POR013** (Warning) reports a `catch` clause in a command handler that swallows
   `CliExitException`. A catch-all between the throw and the framework's exit boundary silently
   downgrades a controlled exit, so a failed command can return 0 — and for a CI step or a deployment
