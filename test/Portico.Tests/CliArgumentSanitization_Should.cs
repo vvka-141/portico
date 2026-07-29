@@ -58,6 +58,45 @@ public sealed class CliArgumentSanitization_Should
         Assert.DoesNotContain(ZeroWidth, result.StandardError);
     }
 
+    /// <summary>
+    /// The Trojan Source set (CVE-2021-42574) is nine bidi controls, and the sanitizer used to strip
+    /// five of them: U+202A-U+202E, the embeddings and overrides Unicode 6.3 *deprecated*. The four
+    /// isolates that replaced them — and the Arabic letter mark — reached stderr verbatim, which is
+    /// the spelling an attacker reaching for the attack today would actually use. Verified by
+    /// running each through the real pipeline before the fix, not reasoned from the source.
+    /// </summary>
+    [Theory]
+    [InlineData(0x061C, "ARABIC LETTER MARK")]
+    [InlineData(0x202A, "LEFT-TO-RIGHT EMBEDDING")]
+    [InlineData(0x202B, "RIGHT-TO-LEFT EMBEDDING")]
+    [InlineData(0x202C, "POP DIRECTIONAL FORMATTING")]
+    [InlineData(0x202D, "LEFT-TO-RIGHT OVERRIDE")]
+    [InlineData(0x202E, "RIGHT-TO-LEFT OVERRIDE")]
+    [InlineData(0x2066, "LEFT-TO-RIGHT ISOLATE")]
+    [InlineData(0x2067, "RIGHT-TO-LEFT ISOLATE")]
+    [InlineData(0x2068, "FIRST STRONG ISOLATE")]
+    [InlineData(0x2069, "POP DIRECTIONAL ISOLATE")]
+    public void Strip_Every_Bidi_Control_From_An_Unconvertible_Argument(int codepoint, string name)
+    {
+        var control = (char)codepoint;
+
+        var result = Run($"app square 1{control}2");
+
+        result.ExpectExit(2);
+        Assert.DoesNotContain(
+            control,
+            result.StandardError);
+        Assert.DoesNotContain(
+            control,
+            result.StandardOut);
+
+        // Named in the message so a failure reads as the codepoint that leaked, not "a char".
+        Assert.True(
+            !result.StandardError.Contains(control),
+            $"U+{codepoint:X4} {name} reached stderr. Reordering controls make rendered text disagree " +
+            "with the bytes behind it (CVE-2021-42574); the whole family must be stripped, not half.");
+    }
+
     [Fact]
     public void Strip_Ansi_Escapes_From_A_Missing_Argument_Message()
     {
