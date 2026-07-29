@@ -21,6 +21,25 @@ Config layering without a config file, declared on the option itself.
 The command line wins over the environment; the environment wins over the default. An operator sets
 `PORTICO_API_TOKEN` once in the container and stops typing it.
 
+**`--help` names the variable**, because for a containerized service `--help` is frequently the only
+surface an operator has — they did not write the tool and have no checkout:
+
+```
+Options:
+  --token             API token  (env: PORTICO_API_TOKEN)
+  --host              Target host  (default: localhost)  (env: APP_HOST)
+```
+
+**The name, never the value.** Rendering the *value* is the leak that
+[dotnet/command-line-api#1191](https://github.com/dotnet/command-line-api/issues/1191) raised in 2021
+and nobody fixed. Portico never reads the variable on the help path, for a `Sensitive` option or any
+other — a variable nobody marked sensitive can still hold something its author did not anticipate.
+The variable's *name* is a declaration in source, safe to print, and exactly what the operator needs.
+A `Sensitive` option shows its variable name and still renders its default as `***`.
+
+Only options that declare a variable get the suffix, and **map options never do** — they reject
+`EnvironmentVariable` at startup (see the table below), so there is nothing for help to show.
+
 What the variable means depends on the option's shape, because a string has to answer questions argv
 never asks:
 

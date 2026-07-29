@@ -61,6 +61,8 @@ internal sealed class CliOptionsPropertyInfo : PropertyInfoDecorator,  ICliOptio
 
     public bool IsSensitive => _optionAttribute.Sensitive;
 
+    public string? EnvironmentVariable => _optionAttribute.EnvironmentVariable;
+
     public static bool IsBundleProperty(PropertyInfo propertyInfo)
     {
         return propertyInfo.GetCustomAttribute<CliOptionAttribute>() is not null;

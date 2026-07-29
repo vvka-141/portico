@@ -16,6 +16,12 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   gate, which read the exit code and nothing else, that is a green build over a broken migration.
   The code fix adds `when (ex is not CliExitException)`. The rule sees the handler body only; its
   limits are documented in `docs/reference/analyzer-rules.md`.
+- `--help` names the environment variable an option falls back to — `(env: APP_HOST)` — for method
+  parameters and `CliOptions` bundle properties alike. **The name, never the value**: reading the
+  value is the leak that kept this out of the ecosystem
+  ([dotnet/command-line-api#1191](https://github.com/dotnet/command-line-api/issues/1191), open since
+  2021), and it stays a leak whether or not the option is marked `Sensitive`. A sensitive option
+  shows its variable name and still renders its default as `***`.
 - Compact durations bind: `--timeout 90s`, `1h30m`, `500ms`, in any case and with optional
   whitespace. These are the forms operators arrive with from Go durations, `kubectl --timeout`,
   systemd and Prometheus. Milliseconds are new; units are now `ms`, `s`, `m`, `h`, `d` and their

@@ -223,10 +223,29 @@ internal static class CliHelpRenderer
             if (!desc.Contains("default:", StringComparison.OrdinalIgnoreCase))
             {
                 var rendered = option.IsSensitive ? "***" : $"{option.DefaultValue}";
-                var suffix = $"  (default: {rendered})";
-                desc = !string.IsNullOrWhiteSpace(desc) ? desc + suffix : suffix.TrimStart();
+                desc = Append(desc, $"(default: {rendered})");
             }
         }
+
+        // The variable's NAME, never its value. For a containerized service, --help is often the
+        // only surface an operator has — they did not write the tool and have no checkout — so an
+        // option fed by APP_PASSWORD whose help says nothing is an option they cannot operate.
+        //
+        // Reading the value here is the leak that stopped the rest of the ecosystem shipping this
+        // (dotnet/command-line-api#1191, open since 2021). It stays a leak regardless of Sensitive:
+        // a variable nobody marked sensitive can still hold something its author did not anticipate.
+        // Note there is deliberately no IsSensitive branch below — there is no value to redact,
+        // which is the point, and CliHelpEnvironmentVariable_Should pins that a set variable's value
+        // never appears in the rendered help.
+        if (!string.IsNullOrWhiteSpace(option.EnvironmentVariable) &&
+            !desc.Contains("env:", StringComparison.OrdinalIgnoreCase))
+        {
+            desc = Append(desc, $"(env: {option.EnvironmentVariable})");
+        }
+
         return desc.Trim();
+
+        static string Append(string description, string suffix) =>
+            string.IsNullOrWhiteSpace(description) ? suffix : $"{description}  {suffix}";
     }
 }
