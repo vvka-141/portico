@@ -337,8 +337,58 @@ binds `name=foo`, and a quoted value with spaces survives.
 After the POSIX `--` terminator, a token that looks like an option is a positional and is left exactly
 as typed: `echo -- --name=x` passes `--name=x` through as text.
 
-Short options glue POSIX-style (`-n5` ≡ `-n 5`), and `-n=5` is read as an assignment (`5`), not as the
-literal value `=5`.
+### Short options bundle, POSIX-style
+
+Take a command declaring four shorts — two flags, a scalar and a map:
+
+```csharp
+[CliRoute("sync")]
+[CliCommandExample("sync -av")]
+public int Sync(
+    [CliOption("--all|-a")]     CliFlag? all = null,
+    [CliOption("--verbose|-v")] CliFlag? verbose = null,
+    [CliOption("--number|-n")]  int number = 0,
+    [CliOption("--env|-e")]     Dictionary<string, string>? env = null)
+```
+
+| You type | Portico reads |
+|---|---|
+| `-av` | `-a -v` — a cluster of flags |
+| `-avn5` | `-a -v -n 5` — a scalar in the cluster takes the rest as its value |
+| `-n5` | `-n 5` — the glued POSIX form |
+| `-n=5` | `-n=5` — an assignment, so the value is `5`, never `=5` |
+| `-e[region] eu` | unchanged — a map short keeps its `[key]` |
+| `-ax` | unchanged — `x` is not a declared short |
+| `--all` | unchanged — a long option is never split |
+
+Every row is executed by `CliShortOptionDocs_Should`, which also fails if this table lists a form the
+tests do not cover.
+
+The rule behind the right-hand column is **never introduce ambiguity**. Splitting happens only when
+every letter in the cluster is a short this application declared, so an unknown letter leaves the
+token whole and you get *"Unrecognized option(s): -ax"* rather than a silent misreading. Long options,
+assignments and map shorts are left alone for the same reason: each of them means something the split
+would destroy.
+
+#### One letter, one arity — application-wide
+
+Bundling has a cost worth knowing before it surprises you. `-fx` has to be split **before** the parser
+knows which command it belongs to, so a letter's arity is agreed across the whole application, not per
+command.
+
+If two commands declare the same letter differently — `-f` as a `CliFlag?` on one route and as a
+`string` on another — Portico cannot know which split `-fx` means, so **the letter stops bundling
+everywhere**, including on the command that declares it consistently. You will see:
+
+```
+Unrecognized option(s): -fx. Did you mean: -f, -x?
+```
+
+Nothing else changes: `-f -x` written out still binds on every route, and both commands keep working.
+Only the glued form goes away. `CliApplication.Create` traces a warning naming both routes and the
+letter, so the cause is visible at startup rather than at the first user report.
+
+The repair is to give one of the two options a different letter.
 
 ## Routing
 
