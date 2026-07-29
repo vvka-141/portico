@@ -10,6 +10,30 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 _Nothing yet._
 
+## [0.1.1] - 2026-07-29
+
+**The three companion packages that 0.1.0 promised but did not ship.** No code changed between
+0.1.0 and 0.1.1 — `Portico` 0.1.1 is 0.1.0 rebuilt from the same tree.
+
+`Portico.DependencyInjection`, `Portico.Hosting` and `Portico.Templates` were rejected by
+nuget.org at 0.1.0 with *"The package ID is reserved"*: the `Portico.*` prefix was reserved,
+while the bare `Portico` was not, so the core package published and its three children did not.
+The prefix has since been reserved for this account, and all four IDs now publish together.
+
+`Portico` 0.1.0 remains listed and usable — the framework, the analyzers and `Portico.Testing`
+all ship inside it. Take 0.1.1 if you want the DI or Hosting adapters, or the
+`dotnet new portico-cli` template.
+
+### Fixed
+
+- The release workflow no longer passes `--skip-duplicate` to `dotnet nuget push`. That flag
+  turned three 409 Conflicts into a green 0.1.0 that shipped one package out of four. A conflict
+  during a release is never benign: the version is immutable, so a silent skip means the release
+  did nothing, and a conflict on a new id means the id is unavailable.
+- A new gate polls nuget.org after the push and fails the job unless **every** package resolves
+  at the tagged version, before the GitHub Release is created. A 201 from the push endpoint means
+  the upload was accepted, not that the package exists.
+
 ## [0.1.0] - 2026-07-28
 
 The first public release. Everything below is new to anyone outside the repository — the
@@ -220,5 +244,6 @@ because *why* a decision was reversed is usually more useful than the decision i
   nobody meant to ship.
 - The shell-completion script's heredoc marker is `__PORTICO_ROUTES__`.
 
-[Unreleased]: https://github.com/vvka-141/portico/compare/v0.1.0...main
+[Unreleased]: https://github.com/vvka-141/portico/compare/v0.1.1...main
+[0.1.1]: https://github.com/vvka-141/portico/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vvka-141/portico/releases/tag/v0.1.0
