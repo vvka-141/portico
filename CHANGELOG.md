@@ -10,6 +10,12 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Added
 
+- **POR013** (Warning) reports a `catch` clause in a command handler that swallows
+  `CliExitException`. A catch-all between the throw and the framework's exit boundary silently
+  downgrades a controlled exit, so a failed command can return 0 — and for a CI step or a deployment
+  gate, which read the exit code and nothing else, that is a green build over a broken migration.
+  The code fix adds `when (ex is not CliExitException)`. The rule sees the handler body only; its
+  limits are documented in `docs/reference/analyzer-rules.md`.
 - Compact durations bind: `--timeout 90s`, `1h30m`, `500ms`, in any case and with optional
   whitespace. These are the forms operators arrive with from Go durations, `kubectl --timeout`,
   systemd and Prometheus. Milliseconds are new; units are now `ms`, `s`, `m`, `h`, `d` and their

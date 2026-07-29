@@ -21,6 +21,7 @@ anything.
 | [POR009](#por009) | Error | Two options on one command declaring the same alias |
 | [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
 | [POR011](#por011) | Error | A route declares the same `{placeholder}` twice |
+| [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` |
 
 ---
 
@@ -180,6 +181,64 @@ Both slots resolve to the same parameter. At dispatch the second value silently 
 data loss that `CliContractValidator<T>` does not catch, making it a false green in the framework's
 central verification mechanism. Use distinct placeholder names for distinct positions:
 `[CliRoute("copy {src} {dst}")]`.
+
+## POR013
+
+**A `catch` clause in a command handler swallows `CliExitException`.** *(Warning)*
+
+```csharp
+[CliRoute("migrate")]
+[CliCommandExample("migrate")]
+public int Migrate()
+{
+    try { throw new CliExitException("fatal: schema locked") { ExitCode = 17 }; }
+    catch (Exception) { return 0; }     // ← exit 0. The migration failed.
+}
+```
+
+`CliExitException` is the controlled-exit mechanism: the framework catches it at the application
+boundary, writes its message to stderr and returns its `ExitCode`. A catch-all between the throw and
+that boundary defeats it, and nothing reports that it happened.
+
+This is the failure an operational CLI can least afford. A CI step, a Kubernetes job or a deployment
+gate reads the exit code and nothing else — exit 0 from a failed migration is a green build over a
+broken database. It is also invisible in review: `catch (Exception ex) { _log.Error(ex); return 1; }`
+is ordinary defensive C# that a reviewer would wave through.
+
+**Either fix works:**
+
+```csharp
+catch (Exception ex) when (ex is not CliExitException) { ... }   // let the exit through
+catch (Exception) { throw; }                                     // rethrow it
+```
+
+The code fix writes the first, adding the `ex` identifier if the clause has none.
+
+**Why this is a build error rather than a runtime guard.** There is no CLR mechanism that makes a
+managed exception uncatchable, and every ambient workaround — `FirstChanceException`, an `AsyncLocal`
+"exit requested" flag — cannot tell *swallowed by accident* from *caught on purpose*, which makes
+overriding the handler's exit code on that guess worse than the bug. The decision and its reasoning
+are recorded in [ROADMAP.md](../ROADMAP.md) so they are not re-proposed.
+
+### What the rule does not see
+
+**The handler body only.** A `CliExitException` thrown three frames deep and swallowed by a catch-all
+in a helper class is out of reach — inter-procedural exception-flow analysis is not something this
+suite attempts. The rule closes the common case, a defensive `try`/`catch` wrapped around the
+handler's own work. It is not a guarantee that no controlled exit is ever swallowed.
+
+**A clause with any `when` filter is left alone**, not only one that names `CliExitException`. A
+filter means the author considered which exceptions the clause takes, and deciding in general whether
+an arbitrary filter excludes a type is not worth a false positive.
+
+A **type-level** `[CliRoute]` does not make a method a handler — it is a route prefix, and a method
+without its own `[CliRoute]` is not reachable as a command. Only a method carrying `[CliRoute]`, or
+implementing an interface method that carries it, is examined.
+
+> **The framework itself does the thing this rule forbids**, at
+> `CliApplication.SafeRunAsync`: a `catch (Exception e)` with no filter. It is correct there because
+> it sits *after* the `catch (CliExitException)` arm — ordering protects it, not filtering. Inside a
+> handler there is no such preceding arm, which is the whole difference.
 
 ---
 

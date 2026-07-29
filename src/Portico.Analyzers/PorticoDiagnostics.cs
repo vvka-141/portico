@@ -287,4 +287,45 @@ internal static class PorticoDiagnostics
             "the contract validator does not catch, making it a false green in the framework's " +
             "central verification mechanism. Use distinct placeholder names for distinct positions.",
         helpLinkUri: HelpBase + "por011");
+
+    // POR012 is reserved for POR-80 ("bool used where CliFlag? was meant"), allocated during backlog
+    // refinement on 2026-07-29 after that ticket lost the ID twice to rules that shipped ahead of it.
+    // This manifest — not a ticket summary — is the register: read it before claiming an ID.
+
+    /// <summary>
+    /// POR013: a <c>catch</c> clause in a command handler swallows <c>CliExitException</c>, so a
+    /// failed command returns the handler's exit code instead of the one it asked for.
+    /// </summary>
+    /// <remarks>
+    /// <b>Warning, not Error.</b> A catch-all is legal C# with defensible uses, and it does not break
+    /// a framework guarantee the way a route with no example does (POR004). Revisit if it proves a
+    /// common trap.
+    /// <para>
+    /// <b>This cannot be enforced at run time and should not be attempted</b> — see
+    /// <c>docs/ROADMAP.md</c>, "Resolved decisions". No CLR mechanism makes a managed exception
+    /// uncatchable, and every ambient workaround (<c>FirstChanceException</c>, an <c>AsyncLocal</c>
+    /// "exit requested" flag) is unable to tell "swallowed by accident" from "caught on purpose".
+    /// Overriding a handler's returned exit code on that guess is worse than the bug.
+    /// </para>
+    /// </remarks>
+    public static readonly DiagnosticDescriptor SwallowedCliExitException = new(
+        id: "POR013",
+        title: "Catch clause swallows CliExitException",
+        messageFormat:
+            "This '{0}' in command handler '{1}' swallows CliExitException, so a controlled " +
+            "exit is downgraded to whatever the handler returns — a failed command can exit 0. Add " +
+            "'when (ex is not CliExitException)', or rethrow it.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description:
+            "CliExitException is the controlled-exit mechanism: the framework catches it at the " +
+            "application boundary, writes its message to stderr and returns its ExitCode. A catch-all " +
+            "between the throw and that boundary defeats it silently, and the failure is invisible in " +
+            "review — 'catch (Exception ex) { _log.Error(ex); return 1; }' is ordinary defensive C#. " +
+            "For a CI step, a Kubernetes job or a deployment gate, which read the exit code and " +
+            "nothing else, that is a green build over a failed migration. The analyzer sees the " +
+            "handler body only: an exception swallowed by a catch-all several frames deep is out of " +
+            "reach, so this closes the common case rather than the general one.",
+        helpLinkUri: HelpBase + "por013");
 }

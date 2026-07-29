@@ -77,6 +77,38 @@ guessing wrong is permanent — wait for a named scenario.
 **To reopen:** name the concrete user scenario that `[TypeConverter]` and a `CliOptionAttribute`
 subclass together cannot express. That, not a hypothetical, is the bar.
 
+### Making `CliExitException` unswallowable at run time: **NO**. Resolved 2026-07-29 (POR-145).
+
+A `catch (Exception)` in a handler swallows `CliExitException`, so a failed command can exit 0 —
+verified, and the worst failure this framework's audience can have, since a CI step or a deployment
+gate reads the exit code and nothing else. The obvious wish is to make the exception impossible to
+swallow. **It cannot be done, and it should not be attempted.**
+
+There is no CLR mechanism that makes a managed exception uncatchable. `catch (Exception)` and a bare
+`catch` take everything; the special-cased types (`StackOverflowException`, the removed
+`ThreadAbortException`) are runtime-privileged and not constructible by a library. Corrupted-state
+exception filtering does not exist on .NET Core, and never applied to ordinary exceptions anyway.
+
+Two workarounds were considered and rejected:
+
+1. **`AppDomain.CurrentDomain.FirstChanceException`** — fires before any handler, so the framework
+   could observe "an exit was requested" and override the returned code. It is process-global, it
+   fires for exceptions that are *legitimately* caught (a retry loop, a nested `CliApplication.Run`,
+   a test asserting a throw), and it costs something on a hot path for a purely diagnostic signal.
+2. **An `AsyncLocal` "exit requested" flag** scoped to the invocation, checked when the handler
+   returns normally. The same objection in milder form.
+
+Neither can distinguish *swallowed by accident* from *caught on purpose*, and **overriding a
+handler's returned exit code from an ambient side channel is worse than the bug.**
+
+The answer is [POR013](reference/analyzer-rules.md#por013), a build-time warning: it fails in the
+author's editor rather than in production and costs nothing at run time. That is also the on-charter
+answer — Portico's identity is *verified at compile time by Roslyn analyzers*, and a runtime
+interception trick is exactly the magic the CHARTER's HTTP-metaphor test rejects.
+
+**To reopen:** a CLR mechanism that did not exist in .NET 10. Not a cleverer side channel — the
+objection is to the guess, not to the plumbing.
+
 ---
 
 ## Parked — explicitly deferred. Do not pick these up without revisiting the Charter.

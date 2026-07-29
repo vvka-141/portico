@@ -18,3 +18,4 @@ POR008  | Portico  | Error    | [CliRoute] method has an invalid return type
 POR009  | Portico  | Error    | Two options on one command declare the same alias
 POR010  | Portico  | Error    | [CliOption] type cannot be built from a command-line string
 POR011  | Portico  | Error    | Route declares the same placeholder twice
+POR013  | Portico  | Warning  | Catch clause in a handler swallows CliExitException
