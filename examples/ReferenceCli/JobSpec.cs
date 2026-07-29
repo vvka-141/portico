@@ -46,8 +46,13 @@ public sealed class JobSpec : CliOptions, IValidatableObject
     public int MaxRetries { get; set; }
 
     /// <summary>Park a job that exhausts its retries instead of dropping it. A two-state option.</summary>
+    // Deliberately a bool, and deliberately suppressed: the cross-property rule below needs to
+    // distinguish "the author said no" from "the author said yes", which is what a two-state value
+    // is for. POR012 cannot tell that from the mistake it catches, so it warns and this says which.
+#pragma warning disable POR012
     [CliOption("--park-on-failure", "Keep an exhausted job for inspection", DefaultValue = "false")]
     public bool ParkOnFailure { get; set; }
+#pragma warning restore POR012
 
     /// <summary>
     /// Cross-property rule: a job that is not parked on failure must not also demand retries it will

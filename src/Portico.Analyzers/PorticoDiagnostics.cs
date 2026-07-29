@@ -288,9 +288,48 @@ internal static class PorticoDiagnostics
             "central verification mechanism. Use distinct placeholder names for distinct positions.",
         helpLinkUri: HelpBase + "por011");
 
-    // POR012 is reserved for POR-80 ("bool used where CliFlag? was meant"), allocated during backlog
-    // refinement on 2026-07-29 after that ticket lost the ID twice to rules that shipped ahead of it.
-    // This manifest — not a ticket summary — is the register: read it before claiming an ID.
+    /// <summary>
+    /// POR012: a <c>[CliOption]</c> on a <c>bool</c> is probably meant to be a switch. <c>bool</c> is
+    /// a two-state <em>value</em> (<c>--force true</c>); <c>CliFlag?</c> is presence-only
+    /// (<c>--dry-run</c>). Portico's own reference documentation calls this its most common misuse.
+    /// </summary>
+    /// <remarks>
+    /// <b>Warning, not Error, and the reasoning belongs on the record</b> — the other rules are all
+    /// Error, and an unexplained asymmetry reads as an oversight.
+    /// <para>
+    /// Error would be wrong because <c>bool</c> is legitimate: a genuine two-state option that reads
+    /// a value is exactly what it is for, and this rule cannot tell that case from the mistake. It
+    /// rejects code that compiles and runs, on a judgement about intent, which is the definition of a
+    /// warning.
+    /// </para>
+    /// <para>
+    /// The interaction to know about: this repository and the <c>portico-cli</c> template both set
+    /// <c>TreatWarningsAsErrors</c>, so for a scaffolded project this <em>is</em> a build failure.
+    /// That is accepted deliberately rather than softened to <c>Info</c>. A first-time user meeting
+    /// the distinction once, at the moment they write it, with a code fix on the lightbulb, is the
+    /// outcome this rule exists for; <c>Info</c> is invisible in <c>dotnet build</c> and in CI, which
+    /// is precisely where the mistake ships from. A user who meant the two-state option suppresses it
+    /// once, and the message says how.
+    /// </para>
+    /// </remarks>
+    public static readonly DiagnosticDescriptor BoolUsedAsSwitch = new(
+        id: "POR012",
+        title: "[CliOption] on a bool is probably meant to be a switch",
+        messageFormat:
+            "Option '{0}' is a '{1}', which reads a VALUE — a user must type '{0} true'. For an " +
+            "ordinary presence-only switch ('{0}' on its own), declare it 'CliFlag? {2} = null'. " +
+            "If a two-state value is what you meant, this warning is safe to suppress.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description:
+            "CliFlag? is presence-only: the option is on by being there, and absent means off. A bool " +
+            "is a two-state value option, so it requires a value — '--force' alone does not set it, " +
+            "and 'absent' and 'false' collapse into the same answer. Using bool where CliFlag? was " +
+            "meant compiles cleanly and produces a CLI nobody can drive as intended, which is why " +
+            "this is a diagnostic rather than a documentation note. bool remains fully supported for " +
+            "the case it fits.",
+        helpLinkUri: HelpBase + "por012");
 
     /// <summary>
     /// POR013: a <c>catch</c> clause in a command handler swallows <c>CliExitException</c>, so a

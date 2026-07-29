@@ -171,6 +171,7 @@ attribute-routing and contract-validation model. If you see one, the message nam
 | POR009 | two options on one command share an alias |
 | POR010 | a `[CliOption]` type cannot be built from a command-line string |
 | POR011 | a route repeats a `{placeholder}` name (the second slot would overwrite the first) |
+| POR012 | a `[CliOption]` on a `bool` is probably meant to be a `CliFlag?` switch (Warning) |
 | POR013 | a `catch` in a handler swallows `CliExitException`, so a failed command can exit 0 (Warning) |
 
 ## Worked reference

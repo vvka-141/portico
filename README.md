@@ -140,6 +140,7 @@ checking your CLI:
 | `POR009` | two options on one command declaring the same alias |
 | `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
 | `POR011` | a route that declares the same `{placeholder}` twice |
+| `POR012` | a `[CliOption]` on a `bool` that is probably meant to be a `CliFlag?` switch (Warning) |
 | `POR013` | a `catch` in a handler that swallows `CliExitException` — a failed command exiting 0 (Warning) |
 
 Portico is not the only .NET CLI library with compile-time diagnostics —
@@ -330,7 +331,7 @@ organised by [Diataxis](https://diataxis.fr/).
 - [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
 - [Capabilities](docs/reference/capabilities.md) — the whole surface, every entry backed by a test
 - [The agent-first CLI contract, scored](docs/explanation/agent-first-contract.md) — what Portico answers, what it declines, and why
-- [Analyzer rules](docs/reference/analyzer-rules.md) — the eleven compile-time checks, and how to suppress one
+- [Analyzer rules](docs/reference/analyzer-rules.md) — the twelve compile-time checks, and how to suppress one
 - [The alternatives, honestly](docs/explanation/alternatives.md) — what every competitor is better at, and the one claim we make
 - [Your first operational command](docs/how-to/operational-command.md) — env fallback, secret redaction, durations, exit codes and drain-on-SIGTERM, in one walkthrough
 - [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you

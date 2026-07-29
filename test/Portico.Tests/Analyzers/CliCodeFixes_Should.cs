@@ -51,6 +51,57 @@ public sealed class MyOptions : CliOptions
         CodeFixTestRunner.AssertCompiles(fixedSource);
     }
 
+    [Fact]
+    public async Task POR012_Rewrite_A_Bool_Option_To_A_Presence_Only_Flag()
+    {
+        var source = """
+using Portico;
+
+public interface ITool
+{
+    [CliRoute("run")]
+    [CliCommandExample("run")]
+    int Run([CliOption("--verbose")] bool verbose = false);
+}
+""";
+
+        var fixedSource = await CodeFixTestRunner.ApplyAsync(
+            new BoolUsedAsSwitchAnalyzer(),
+            new BoolUsedAsSwitchCodeFix(),
+            source);
+
+        Assert.Contains("CliFlag? verbose = null", fixedSource);
+        Assert.DoesNotContain("bool verbose", fixedSource);
+        CodeFixTestRunner.AssertCompiles(fixedSource);
+
+        // The fix must silence the rule it fixes.
+        var remaining = await AnalyzerTestRunner.RunAsync(new BoolUsedAsSwitchAnalyzer(), fixedSource);
+        Assert.DoesNotContain(remaining, d => d.Id == "POR012");
+    }
+
+    [Fact]
+    public async Task POR012_Rewrite_A_Bool_Bundle_Property()
+    {
+        var source = """
+using Portico;
+
+public sealed class Options : CliOptions
+{
+    [CliOption("--force")] public bool Force { get; set; } = false;
+}
+""";
+
+        var fixedSource = await CodeFixTestRunner.ApplyAsync(
+            new BoolUsedAsSwitchAnalyzer(),
+            new BoolUsedAsSwitchCodeFix(),
+            source);
+
+        Assert.Contains("CliFlag? Force", fixedSource);
+        // A `= false` initializer would not compile against CliFlag?.
+        Assert.DoesNotContain("= false", fixedSource);
+        CodeFixTestRunner.AssertCompiles(fixedSource);
+    }
+
     [Theory]
     // The three catch-all shapes, including the bare `catch` that has no identifier to name in a
     // filter — the fix writes the declaration too, which is a formatting change rather than a

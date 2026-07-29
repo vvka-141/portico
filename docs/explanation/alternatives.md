@@ -167,7 +167,7 @@ ship them, and they are good:
 - **DotMake.CommandLine** — DMCLI01–DMCLI42, mixed Error/Warning. Accessibility, constructors,
   bindability, and parent/child wiring.
 
-Portico's eleven rules ([POR001–POR013](../../README.md); POR007 retired, POR012 unshipped) cover
+Portico's twelve rules ([POR001–POR013](../../README.md); POR007 retired) cover
 overlapping but different ground.
 POR001/POR005 (route-placeholder binding) and POR004 (a `[CliRoute]` with no `[CliCommandExample]`)
 have no counterpart in the others, because they follow from the attribute-routing model and the

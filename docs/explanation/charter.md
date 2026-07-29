@@ -153,10 +153,22 @@ gates, not nice-to-haves.
   it is exactly how a DI container injects into it. The rule previously conflated the two lifecycles
   because `CliMiddleware` inherits from `CliOptions`, and in doing so forbade the ordinary DI shape.
 
-  There is no `[CliFlag]` attribute to analyze (`CliFlag` is a `readonly record struct`, a flag-arity
-  *type*), so **no `[CliFlag]` analyzer is warranted**. The one adjacent agent-hostile choice — using
-  `bool` (a two-state value option, `--x true|false`) where `CliFlag?` (presence-only) was meant — is
-  a candidate future rule, deferred rather than shoehorned onto a non-existent attribute.
+  There is no `[CliFlag]` attribute to analyze — `CliFlag` is a `readonly record struct`, a
+  flag-arity *type*. This bullet used to conclude from that: *"so no `[CliFlag]` analyzer is
+  warranted"*, treating the adjacent mistake — using `bool` (a two-state value option,
+  `--x true|false`) where `CliFlag?` (presence-only) was meant — as a candidate deferred for want of
+  an attribute to hang it on.
+
+  **That reasoning was wrong and is superseded by POR012 (POR-80).** The absence of a `[CliFlag]`
+  attribute was never the obstacle: the analyzable symbol is the `bool` parameter carrying
+  `[CliOption]`, which exists and is inspectable. The rule needed no new attribute, and it shipped
+  once someone looked for the symbol that was actually there rather than the one the sentence
+  assumed. POR012 is a **Warning**, because `bool` remains correct for a genuine two-state option and
+  no rule can tell that case from the mistake.
+
+  The generalizable lesson, and the reason this correction is kept rather than quietly edited: *"there
+  is no X to analyze"* is a claim about the shape of the code, and it needs checking against the code
+  rather than against the feature's name.
 
   New conventions introduced post-1.0 ship with their analyzer or are explicitly deferred with a
   charter-level rationale.
