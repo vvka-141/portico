@@ -216,6 +216,7 @@ worked example in [`examples/PlatformCli`](examples/PlatformCli).
 | `[Route("api/projects/{id}")]` | `[CliRoute("projects get {id}")]` |
 | `[FromQuery] string format` | `[CliOption("--format")]` |
 | `?cfg[env]=prod` | `'--cfg[env]' prod` (map options are first-class; [quote the brackets](docs/reference/capabilities.md#map-options--the-cfgenvprod-analogue)) |
+| `?tag=a&tag=b` | `--tags a b` or `--tag a --tag b` — [17 collection shapes bind](docs/reference/capabilities.md#collection-options--many-values-or-a-repeated-option), including the immutable ones |
 | `[FromBody] RequestDto` | `CliOptions` bundle |
 | `IActionFilter` | `CliMiddleware` |
 | Integration tests | `CliContractValidator<T>` |

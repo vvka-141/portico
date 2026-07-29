@@ -943,7 +943,11 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
     /// duplicates), set-like shapes (dedup), and their immutable counterparts. Dictionaries and
     /// map-like types handled separately earlier in the cascade.
     /// </summary>
-    private static readonly HashSet<Type> SupportedCollectionDefinitions = new()
+    // internal, not private: docs/reference/capabilities.md publishes this list as a table, and
+    // CliCollectionBindingDocs_Should compares the two so the page cannot drift from the code
+    // (POR-152). A framework whose central claim is that documentation cannot drift must not ship a
+    // hand-maintained reference table.
+    internal static readonly HashSet<Type> SupportedCollectionDefinitions = new()
     {
         // List-like
         typeof(IEnumerable<>),
