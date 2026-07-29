@@ -788,37 +788,93 @@ public sealed partial class CliApplication
     //  Short-option arity schema
     // ---------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// The application-wide char → arity map the POSIX preprocessor splits clusters with, plus every
+    /// registered option name.
+    /// </summary>
+    /// <remarks>
+    /// <b>The schema is application-wide, and it has to be.</b> Expansion runs on raw argv before any
+    /// route has matched — <c>-fx</c> must be split before the parser can know which command it
+    /// belongs to — so there is no route whose schema could be consulted.
+    /// <para>
+    /// The consequence is real: when two commands declare the same short letter with different
+    /// arities, the letter is dropped from the schema and <b>bundling stops working for it
+    /// everywhere</b>, including on a command that never had a conflict. That is deliberate — the
+    /// expander refuses to guess rather than split a cluster the wrong way — but it used to be
+    /// entirely silent, so an author had no way to learn that registering one command degraded
+    /// another (POR-119).
+    /// </para>
+    /// <para>
+    /// It is reported as a <b>trace warning, not a <see cref="CliConfigurationException"/></b>. Two
+    /// independently-developed tools composed into one binary may each legitimately use <c>-f</c>
+    /// with a different arity, and that is a composition <c>docs/how-to/compose-clis.md</c> actively
+    /// promotes; throwing would fail a program that works, to prevent a degradation the user can
+    /// resolve by typing <c>-f -x</c> instead of <c>-fx</c>. Both commands keep working unbundled.
+    /// </para>
+    /// </remarks>
     private static (CliShortOptionSchema, HashSet<string>) BuildShortOptionSchema(IEnumerable<CliAction> actions)
     {
         var arity = new Dictionary<char, CliShortOptionArity>();
         var registered = new HashSet<string>(StringComparer.Ordinal);
-        var conflicting = new HashSet<char>();
+        var declaredBy = new Dictionary<char, string>();
+        var conflicting = new Dictionary<char, string>();
 
-        foreach (var info in actions.SelectMany(a => a.GetOptionInfos()))
+        foreach (var action in actions)
         {
-            foreach (var alias in info.Aliases) registered.Add(alias);
-
-            foreach (var shortChar in info.Aliases
-                         .Where(a => a.Length == 2 && a[0] == '-' && a[1] != '-')
-                         .Select(a => a[1]))
+            foreach (var info in action.GetOptionInfos())
             {
-                var thisArity =
-                    info.IsFlagArity ? CliShortOptionArity.Flag :
-                    info.IsMapArity ? CliShortOptionArity.Map :
-                    CliShortOptionArity.Scalar;
-                if (arity.TryGetValue(shortChar, out var existing))
+                foreach (var alias in info.Aliases) registered.Add(alias);
+
+                foreach (var shortChar in info.Aliases
+                             .Where(a => a.Length == 2 && a[0] == '-' && a[1] != '-')
+                             .Select(a => a[1]))
                 {
-                    if (existing != thisArity) conflicting.Add(shortChar);
-                }
-                else
-                {
-                    arity[shortChar] = thisArity;
+                    var thisArity =
+                        info.IsFlagArity ? CliShortOptionArity.Flag :
+                        info.IsMapArity ? CliShortOptionArity.Map :
+                        CliShortOptionArity.Scalar;
+
+                    if (arity.TryGetValue(shortChar, out var existing))
+                    {
+                        if (existing != thisArity && !conflicting.ContainsKey(shortChar))
+                        {
+                            conflicting[shortChar] =
+                                $"'-{shortChar}' is declared as {Describe(existing)} by route " +
+                                $"'{declaredBy[shortChar]}' and as {Describe(thisArity)} by route " +
+                                $"'{action.RouteSignature}'. Portico cannot know which a bundled token " +
+                                $"like '-{shortChar}x' means, so short-option bundling is disabled for " +
+                                $"'-{shortChar}' across the whole application — including on commands " +
+                                $"that declare it consistently. Both options still work when written " +
+                                $"separately ('-{shortChar} -x'). Give one of them a different letter " +
+                                $"to restore bundling.";
+                        }
+                    }
+                    else
+                    {
+                        arity[shortChar] = thisArity;
+                        declaredBy[shortChar] = action.RouteSignature;
+                    }
                 }
             }
         }
 
-        foreach (var c in conflicting) arity.Remove(c);
-        return (new CliShortOptionSchema(arity), registered);
+        foreach (var (shortChar, explanation) in conflicting)
+        {
+            arity.Remove(shortChar);
+
+            // Trace, not throw — see the remarks above. This is the only channel that can carry a
+            // framework concern without failing a legal composition.
+            Trace.TraceWarning(explanation);
+        }
+
+        return (new CliShortOptionSchema(arity, conflicting.Keys), registered);
+
+        static string Describe(CliShortOptionArity value) => value switch
+        {
+            CliShortOptionArity.Flag => "a flag (takes no value)",
+            CliShortOptionArity.Map => "a map (takes a [key] and a value)",
+            _ => "a scalar (takes one value)",
+        };
     }
 
     // ---------------------------------------------------------------------------------------
