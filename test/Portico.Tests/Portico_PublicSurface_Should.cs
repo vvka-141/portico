@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Portico;
@@ -116,11 +118,162 @@ public sealed class Portico_PublicSurface_Should
         Assert.All(expected, name => Assert.Contains(name, exported));
     }
 
+    private const string SurfaceDocPath = "docs/explanation/public-surface.md";
+
+    /// <summary>
+    /// <c>public-surface.md</c> claims to classify every exported type, and
+    /// <see cref="Track_every_exported_type_by_name"/> tells its next editor to update that document
+    /// too. An instruction is not a gate: the identical arrangement in the analyzer tables let POR013
+    /// ship while the README and the agent asset still said POR011, and it took four tickets to
+    /// notice. Both directions are checked — a type missing a row is undocumented surface, and a row
+    /// with no type is a promise about something a user cannot reach.
+    /// </summary>
+    [Fact]
+    public void Classify_Every_Exported_Type_In_The_Public_Surface_Doc()
+    {
+        var documented = SurfaceDocRows();
+
+        Assert.True(documented.Count > 0,
+            $"No type rows parsed out of {SurfaceDocPath}. If the tables changed shape, update this " +
+            "test — do not delete the guard.");
+
+        var exported = AllShippedAssemblies
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .Select(SimpleName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var undocumented = exported.Except(documented.Keys, StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        var phantom = documented.Keys.Except(exported, StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal).ToArray();
+
+        Assert.True(undocumented.Length == 0,
+            $"{SurfaceDocPath} does not classify {string.Join(", ", undocumented)}. Every exported " +
+            "type needs a row with its Kind, Tag and the reason it is public.");
+
+        Assert.True(phantom.Length == 0,
+            $"{SurfaceDocPath} classifies {string.Join(", ", phantom)}, which nothing exports. " +
+            "Remove the row — documented surface a user cannot reach is worse than none.");
+    }
+
+    /// <summary>
+    /// The doc's <c>Kind</c> column records whether each type is sealed, abstract or static — the same
+    /// facts <c>Portico_Extensibility_Should</c> pins in code. Here they are checked as prose against
+    /// reflection, so sealing <c>CliOptionAttribute</c> (or unsealing <c>CliRouteAttribute</c>) cannot
+    /// leave the document quietly describing the opposite.
+    /// </summary>
+    [Fact]
+    public void Record_The_Right_Kind_For_Every_Exported_Type()
+    {
+        var byName = AllShippedAssemblies
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .ToDictionary(SimpleName, type => type, StringComparer.Ordinal);
+
+        var wrong = new List<string>();
+
+        foreach (var (name, kind) in SurfaceDocRows())
+        {
+            if (!byName.TryGetValue(name, out var type)) continue;   // the other test reports these
+
+            var actual = ActualKind(type);
+            var claimed = ClaimedKind(kind);
+
+            if (!string.Equals(actual, claimed, StringComparison.Ordinal))
+            {
+                wrong.Add($"{name}: documented as '{kind}' (reads as {claimed}), actually {actual}");
+            }
+        }
+
+        Assert.True(wrong.Count == 0,
+            $"{SurfaceDocPath}'s Kind column disagrees with the assemblies:{Environment.NewLine}" +
+            string.Join(Environment.NewLine, wrong.Select(line => "  " + line)));
+    }
+
+    /// <summary>Type name → the text of the <c>Kind</c> column, from every table in the doc.</summary>
+    private static Dictionary<string, string> SurfaceDocRows()
+    {
+        var rows = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryRoot(), SurfaceDocPath)))
+        {
+            // | `CliApplication` | sealed class | primitive | The entry point. … |
+            var match = Regex.Match(line, @"^\|\s*`(?<name>[A-Za-z]\w*)(?<generic><[^`]*>)?`\s*\|\s*(?<kind>[^|]+?)\s*\|");
+            if (!match.Success) continue;
+
+            var kind = match.Groups["kind"].Value;
+
+            // The classification-key table at the top has the same shape but describes tags, not
+            // types; its first column is a bolded tag rather than a backticked type name, so it does
+            // not match. Anything whose Kind cell is not a type kind is skipped for the same reason.
+            if (!LooksLikeATypeKind(kind)) continue;
+
+            rows[match.Groups["name"].Value] = kind;
+        }
+
+        return rows;
+    }
+
+    private static bool LooksLikeATypeKind(string kind) =>
+        kind.Contains("class", StringComparison.Ordinal) ||
+        kind.Contains("interface", StringComparison.Ordinal) ||
+        kind.Contains("record", StringComparison.Ordinal) ||
+        kind.Contains("struct", StringComparison.Ordinal) ||
+        kind.Contains("enum", StringComparison.Ordinal) ||
+        kind.Contains("delegate", StringComparison.Ordinal);
+
+    /// <summary>
+    /// The doc's <c>Kind</c> text reduced to the one fact reflection can confirm. The record/struct
+    /// vocabulary is deliberately collapsed away: whether a type is a <c>record</c> is a syntax
+    /// choice with no reliable reflection answer, while sealed/abstract/static is the extensibility
+    /// claim and is exactly what the charter cares about.
+    /// </summary>
+    private static string ClaimedKind(string kind) =>
+        kind.Contains("interface", StringComparison.Ordinal) ? "interface"
+        : kind.Contains("enum", StringComparison.Ordinal) ? "enum"
+        : kind.Contains("struct", StringComparison.Ordinal) ? "struct"
+        : kind.Contains("static", StringComparison.Ordinal) ? "static class"
+        : kind.Contains("sealed", StringComparison.Ordinal) ? "sealed class"
+        : kind.Contains("abstract", StringComparison.Ordinal) ? "abstract class"
+        : "open class";
+
+    private static string ActualKind(Type type) =>
+        type.IsInterface ? "interface"
+        : type.IsEnum ? "enum"
+        : type.IsValueType ? "struct"
+        // A static class is `abstract sealed` in IL; check that pairing before either alone.
+        : type is { IsAbstract: true, IsSealed: true } ? "static class"
+        : type.IsSealed ? "sealed class"
+        : type.IsAbstract ? "abstract class"
+        : "open class";
+
+    /// <summary><c>CliContractValidator`1</c> → <c>CliContractValidator</c>, which is how docs spell it.</summary>
+    private static string SimpleName(Type type) =>
+        type.Name.IndexOf('`') is var tick && tick >= 0 ? type.Name[..tick] : type.Name;
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return directory!.FullName;
+    }
+
     /// <summary>
     /// POR-104: adding or removing an exported type is a deliberate act — it must update both this
     /// list and docs/explanation/public-surface.md. The test covers all shipped assemblies (core +
     /// adapters), not just the core, because consumer NuGet references resolve all three.
     /// </summary>
+    /// <remarks>
+    /// The "and the document" half of that instruction is no longer advisory —
+    /// <see cref="Classify_Every_Exported_Type_In_The_Public_Surface_Doc"/> enforces it. This list
+    /// stays because it is the deliberate-act tripwire: it fails on a surface change even when the
+    /// author dutifully updated the document, which is the case the doc check alone would wave
+    /// through.
+    /// </remarks>
     [Fact]
     public void Track_every_exported_type_by_name()
     {
