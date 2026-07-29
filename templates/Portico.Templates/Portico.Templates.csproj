@@ -4,8 +4,8 @@
     <PackageType>Template</PackageType>
     <PackageId>Portico.Templates</PackageId>
     <Title>Portico CLI template</Title>
-    <Description>dotnet new template for Portico, the contract-first CLI framework for .NET. The "dotnet new portico-cli" command scaffolds a runnable net8.0 or net10.0 command-line application with an attributed route, a documented example, and passing contract tests that run that example through the real dispatch pipeline. The point is the loop: the example cannot drift from the CLI you shipped without turning a test red.</Description>
-    <PackageTags>portico;cli;command-line;dotnet-new;project-template;console-application;net8;net10;testing</PackageTags>
+    <Description>dotnet new templates for Portico, the contract-first CLI framework for .NET. "dotnet new portico-cli" scaffolds a runnable net8.0 or net10.0 command-line application with an attributed route, a documented example, and passing contract tests. "dotnet new portico-command" adds one command — contract, implementation and an example that already dispatches — to a service you already have. The point is the loop: the example cannot drift from the CLI you shipped without turning a test red.</Description>
+    <PackageTags>portico;cli;command-line;dotnet-new;project-template;item-template;scaffolding;console-application;net8;net10;testing</PackageTags>
 
     <TargetFramework>net10.0</TargetFramework>
     <IncludeContentInPack>true</IncludeContentInPack>

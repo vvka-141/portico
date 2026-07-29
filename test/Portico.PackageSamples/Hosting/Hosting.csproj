@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Portico.Hosting" Version="$(PorticoSampleVersion)" />
+  </ItemGroup>
+</Project>

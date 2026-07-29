@@ -70,6 +70,24 @@ jobs:
           -e PORTICO_ARTIFACTS=${{ github.workspace }}/artifacts
           --verbosity normal
 
+      # Compile the samples that ship INSIDE each package, against that package's own declared
+      # dependency closure restored from ./artifacts. Two defects in a six-line snippet shipped in
+      # 0.1.0 and again in 0.1.1 because nothing ever compiled them the way a reader would — inside
+      # the solution every namespace and assembly resolves for free (POR-155). One project per
+      # package, because Portico.Hosting pulls the DI implementation in transitively and a shared
+      # project would have hidden exactly the defect this exists to catch.
+      - name: Compile the package README samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          nupkg=$(ls artifacts/Portico.[0-9]*.nupkg | head -1)
+          version=$(basename "$nupkg" .nupkg)
+          version=${version#Portico.}
+          echo "Compiling package samples against Portico $version"
+          for sample in Core DependencyInjection Hosting; do
+            dotnet build "test/Portico.PackageSamples/$sample" -c Release -p:PorticoSampleVersion="$version"
+          done
+
       - name: Smoke-test the dotnet new template
         shell: bash
         run: |

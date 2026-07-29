@@ -16,9 +16,11 @@ builder.Services.AddPorticoCommands<IAdminTool, AdminTool>();
 return await builder.Build().RunPorticoAsync(args);
 ```
 
-Graceful shutdown is the host's: Ctrl+C and SIGTERM go through `IHostApplicationLifetime`,
-and Portico stands down rather than installing a second handler to race it. The command's
-exit code reaches `Main`.
+**This is the reason to pick this package over `Portico.DependencyInjection`.** Graceful shutdown
+becomes the host's: Ctrl+C and SIGTERM go through `IHostApplicationLifetime`, and Portico detects a
+cancellable token and installs **no** signal handler of its own rather than racing the host's. Your
+`CancellationToken` parameters are cancelled once, by one owner, and the command's exit code still
+reaches `Main` — so `docker stop` drains instead of killing, and the shell sees 143.
 
 **Depends on:** `Portico`, `Portico.DependencyInjection` (both pulled automatically),
 and `Microsoft.Extensions.Hosting`.

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Only the adapter. Adding Microsoft.Extensions.DependencyInjection here would restore the
+         very dependency the README must not assume the reader has. -->
+    <PackageReference Include="Portico.DependencyInjection" Version="$(PorticoSampleVersion)" />
+  </ItemGroup>
+</Project>
