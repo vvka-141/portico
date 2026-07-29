@@ -93,6 +93,15 @@ admin reindex '--shard[eu]' 3 '--shard[us]' 5
 
 First-class, not a parsing trick: the key is a string, the value is converted like any other option.
 
+The key must be `string` — it is the text between the brackets. The declaration may be any of
+`Dictionary<string,V>`, `IDictionary<string,V>`, `IReadOnlyDictionary<string,V>`,
+`SortedDictionary<string,V>`, `ImmutableDictionary<string,V>`, `IImmutableDictionary<string,V>` or
+`ImmutableSortedDictionary<string,V>`. Anything else map-shaped — `SortedList<,>`,
+`ConcurrentDictionary<,>`, a non-string key — is refused at `CliApplication.Create` with a message
+naming the shapes that work. **A shape Portico cannot construct is a startup error, never a
+dispatch-time one** (POR-144); the same rule holds for collection options, where `Queue<T>`,
+`Stack<T>`, `Collection<T>` and `LinkedList<T>` are refused rather than half-bound.
+
 ### `CliFlag?` versus `bool` — presence versus value
 
 This distinction is easy to miss and worth stating plainly.

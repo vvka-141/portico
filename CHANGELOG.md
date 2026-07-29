@@ -8,7 +8,22 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
+### Added
+
+- Map options bind to `IDictionary<string,V>`, `IReadOnlyDictionary<string,V>`,
+  `SortedDictionary<string,V>`, `ImmutableDictionary<string,V>`, `IImmutableDictionary<string,V>`
+  and `ImmutableSortedDictionary<string,V>`, not only `Dictionary<string,V>`. The two interfaces are
+  the most idiomatic way to declare a map in a signature and were previously rejected outright.
+
 ### Fixed
+
+- An option whose declared type Portico cannot construct is now refused at `CliApplication.Create`
+  with a message naming the option and the shapes that work. Acceptance and construction were
+  decided in two places that could disagree: `CanAccept` answers on the *element* type, so
+  `Queue<string>`, `Collection<string>`, `SortedDictionary<string,string>` and five other
+  collection- or map-shaped types looked bindable, fell through to the scalar materializer, and
+  failed inside `MethodInfo.Invoke` at exit 1 with a raw .NET type name — no startup error, no usage
+  error, no compile error.
 
 - `dotnet new portico-cli` now references the `Portico` version that its template package shipped
   with. The default was the hardcoded string `0.1.*`, typed into the tracked `template.json` and

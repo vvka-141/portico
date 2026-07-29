@@ -129,12 +129,100 @@ internal abstract class CliOptionMaterializer
     {
         // Scalar is the terminal builder: it either returns a materializer or throws a
         // type-specific CliConfigurationException. The three leading Try* forms return null only
-        // when they don't apply, so the cascade never yields null — no outer guard is needed.
-        return
+        // when they don't apply.
+        var materializer =
             CliDictionaryOptionMaterializer.TryCreateMaterializer(attribute, declaredType, isOptional) ??
             CliFlagOptionMaterializer.TryCreateMaterializer(attribute, declaredType, isOptional, defaultValue) ??
-            CliCollectionOptionMaterializer.TryCreateMaterializer(attribute, declaredType, isOptional, defaultValue) ??
-            CliScalarOptionMaterializer.Create(attribute, declaredType, isOptional, defaultValue);
+            CliCollectionOptionMaterializer.TryCreateMaterializer(attribute, declaredType, isOptional, defaultValue);
+
+        if (materializer is not null) return materializer;
+
+        RefuseUnbuildableCollectionShape(attribute, declaredType);
+
+        return CliScalarOptionMaterializer.Create(attribute, declaredType, isOptional, defaultValue);
+    }
+
+    /// <summary>
+    /// Stops a collection-shaped declared type that no collection builder could fill from reaching
+    /// the scalar terminal.
+    /// </summary>
+    /// <remarks>
+    /// Acceptance and construction used to be decided in two places that could disagree.
+    /// <c>CliOptionAttribute.CanAccept</c> answers on the <em>element</em> — it recurses through
+    /// <c>IEnumerable&lt;T&gt;</c> — so <c>Collection&lt;string&gt;</c> or <c>Queue&lt;string&gt;</c>
+    /// looked acceptable, the scalar materializer bound a bare <c>string</c>, and the mismatch
+    /// surfaced inside <c>MethodInfo.Invoke</c> as <c>exit 1 "Unhandled error"</c> carrying a raw
+    /// BCL type name — not a configuration error at startup, not a usage error, and not a POR010
+    /// compile error. The type is refused here instead (POR-144).
+    /// <para>
+    /// A declared type that converts from a string in its own right is left alone: a user type may
+    /// legitimately implement <c>IEnumerable&lt;T&gt;</c> and carry a <c>[TypeConverter]</c>, and
+    /// binding it as a scalar is correct.
+    /// </para>
+    /// </remarks>
+    private static void RefuseUnbuildableCollectionShape(CliOptionAttribute attribute, Type declaredType)
+    {
+        if (declaredType == typeof(string)) return;
+        if (CliCollectionOptionMaterializer.GetCollectionItemType(declaredType) is not { } itemType) return;
+
+        // IL2026/IL2067: TypeDescriptor.GetConverter uses reflection; CliApplication.Create/Run
+        // warn consumers about trimming incompatibility.
+#pragma warning disable IL2026, IL2067
+        if (TypeDescriptor.GetConverter(declaredType).SupportsCliOperandConversion()) return;
+#pragma warning restore IL2026, IL2067
+
+        throw new CliConfigurationException(
+            $"Option '{attribute.DisplayAliases}' has collection type '{FriendlyName(declaredType)}', which Portico " +
+            $"cannot construct. Declare it as one of: {FriendlyName(itemType)}[], List<{FriendlyName(itemType)}>, " +
+            $"IEnumerable/IList/ICollection/IReadOnlyList/IReadOnlyCollection, a set shape " +
+            $"(HashSet/SortedSet/ISet/IReadOnlySet), or an immutable shape (ImmutableArray/ImmutableList/" +
+            $"IImmutableList/ImmutableHashSet/IImmutableSet/ImmutableSortedSet).");
+    }
+
+    /// <summary>
+    /// The C# keyword for the types that have one. A message telling someone to change a declaration
+    /// should spell the type the way it appears in their source: <c>Dictionary&lt;string, int&gt;</c>,
+    /// not <c>Dictionary&lt;String, Int32&gt;</c>.
+    /// </summary>
+    private static readonly Dictionary<Type, string> CSharpKeywords = new()
+    {
+        [typeof(bool)] = "bool",
+        [typeof(byte)] = "byte",
+        [typeof(sbyte)] = "sbyte",
+        [typeof(char)] = "char",
+        [typeof(decimal)] = "decimal",
+        [typeof(double)] = "double",
+        [typeof(float)] = "float",
+        [typeof(int)] = "int",
+        [typeof(uint)] = "uint",
+        [typeof(long)] = "long",
+        [typeof(ulong)] = "ulong",
+        [typeof(short)] = "short",
+        [typeof(ushort)] = "ushort",
+        [typeof(object)] = "object",
+        [typeof(string)] = "string",
+    };
+
+    /// <summary>
+    /// A generic type's name with its arguments spelled out — <c>Queue&lt;string&gt;</c> rather than
+    /// the <c>Queue`1</c> that <see cref="System.Reflection.MemberInfo.Name"/> yields. A configuration error the user has to
+    /// act on should name the type the way they wrote it.
+    /// </summary>
+    internal static string FriendlyName(Type type)
+    {
+        if (CSharpKeywords.TryGetValue(type, out var keyword)) return keyword;
+
+        if (type.IsArray) return $"{FriendlyName(type.GetElementType()!)}[]";
+
+        if (Nullable.GetUnderlyingType(type) is { } underlying) return $"{FriendlyName(underlying)}?";
+
+        if (!type.IsGenericType) return type.Name;
+
+        var name = type.Name;
+        var tick = name.IndexOf('`');
+        if (tick >= 0) name = name[..tick];
+
+        return $"{name}<{type.GetGenericArguments().Select(FriendlyName).Join(", ")}>";
     }
 }
 
@@ -145,12 +233,14 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 {
     private readonly CliOptionAttribute _attribute;
     private readonly Func<IDictionary> _factory;
+    private readonly Func<IDictionary, object> _convert;          // accumulator -> declared type
     private readonly Func<string, string, object> _valueParser;   // (key, value) -> parsed value
     private readonly bool _isRequired;
 
     private CliDictionaryOptionMaterializer(
         CliOptionAttribute attribute,
         Func<IDictionary> factory,
+        Func<IDictionary, object> convert,
         Func<string, string, object> valueParser,
         bool isOptional)
     {
@@ -172,6 +262,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 
         _attribute = attribute;
         _factory = factory;
+        _convert = convert;
         _valueParser = valueParser;
         _isRequired = !isOptional;
     }
@@ -202,6 +293,22 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                     var targetType = typeof(Dictionary<,>).MakeGenericType([typeof(string), valueType]);
                     var ctor = targetType.GetConstructor([typeof(IEqualityComparer<string>)])!;
                     IDictionary CreateDictionary() => (IDictionary)ctor.Invoke([comparer]);
+
+                    // The accumulator is always a Dictionary<string,V> — duplicate-key detection
+                    // needs the attribute's equality comparer, and every supported shape can be
+                    // built from it. The declared type is produced once, at the end. Without this
+                    // step a SortedDictionary or ImmutableDictionary parameter received a raw
+                    // Dictionary and failed inside MethodInfo.Invoke at exit 1 (POR-144).
+                    var convert = BuildDictionaryConverter(declaredType, valueType, comparer);
+                    if (convert is null)
+                    {
+                        throw new CliConfigurationException(
+                            $"Option '{attribute.DisplayAliases}' has map type '{FriendlyName(declaredType)}', which " +
+                            $"Portico cannot construct. Declare it as one of: Dictionary<string,V>, " +
+                            $"IDictionary<string,V>, IReadOnlyDictionary<string,V>, SortedDictionary<string,V>, " +
+                            $"ImmutableDictionary<string,V>, IImmutableDictionary<string,V>, or " +
+                            $"ImmutableSortedDictionary<string,V>.");
+                    }
 
                     // Mirror the scalar/collection paths: wrap converter faults in a
                     // CliOptionMaterializationException so a bad map value lands on the usage-error
@@ -243,13 +350,118 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                                 ex);
                         }
                     }
-                    return [new CliDictionaryOptionMaterializer(attribute, CreateDictionary, ParseValue, isOptional)];
+                    return new[]
+                    {
+                        new CliDictionaryOptionMaterializer(attribute, CreateDictionary, convert, ParseValue, isOptional),
+                    };
                 }
 
-                return Enumerable.Empty<CliDictionaryOptionMaterializer>();
+                // Map-shaped, but Portico cannot fill it. Returning null here would drop through
+                // the cascade to the scalar terminal, which "accepts" the type — CanAccept recurses
+                // into the element — and then hands MethodInfo.Invoke a value of the wrong type.
+                // A map option is a map option; if it cannot bind, that is a configuration error.
+                throw new CliConfigurationException(
+                    pair.Key != typeof(string)
+                        ? $"Option '{attribute.DisplayAliases}' has map type '{FriendlyName(declaredType)}', whose key " +
+                          $"is '{FriendlyName(pair.Key)}'. Map option keys are the text between the brackets in " +
+                          $"'--opt[key] value', so they must be string."
+                        : $"Option '{attribute.DisplayAliases}' has map type '{FriendlyName(declaredType)}', whose " +
+                          $"value type '{FriendlyName(pair.Value)}' cannot be built from a command-line string. " +
+                          $"Give '{FriendlyName(pair.Value)}' a [TypeConverter], or use a value type that already " +
+                          $"has one (a primitive, enum, string, TimeSpan, Guid, Uri, or DateTime).");
             })
             .SingleOrDefault();
     }
+
+    /// <summary>
+    /// Produces the step that turns the <c>Dictionary&lt;string,V&gt;</c> accumulator into the
+    /// declared parameter type, or <c>null</c> when the declared shape is not one Portico builds.
+    /// Mirrors <see cref="CliCollectionOptionMaterializer"/>'s per-shape factory dispatch.
+    /// </summary>
+    // IL2055/IL2060/IL2070: runtime generic specialization for map support;
+    // CliApplication.Create/Run warn consumers about trimming incompatibility.
+#pragma warning disable IL2055, IL2060, IL2070
+    private static Func<IDictionary, object>? BuildDictionaryConverter(
+        Type declaredType,
+        Type valueType,
+        IEqualityComparer<string> comparer)
+    {
+        // Dictionary<string,V> itself, and every interface it satisfies (IDictionary,
+        // IReadOnlyDictionary, IEnumerable<KeyValuePair<,>>): the accumulator is already the answer.
+        var accumulatorType = typeof(Dictionary<,>).MakeGenericType(typeof(string), valueType);
+        if (declaredType.IsAssignableFrom(accumulatorType)) return static accumulated => accumulated;
+
+        if (!declaredType.IsGenericType) return null;
+        var definition = declaredType.GetGenericTypeDefinition();
+
+        // SortedDictionary<string,V>(IDictionary<string,V>, IComparer<string>). The attribute's key
+        // comparer is an equality comparer; StringComparer — the default and the only comparer the
+        // documented override hands back — is also an IComparer<string>, so ordering honours the
+        // configured case-sensitivity. Anything else orders by the BCL default, while duplicate-key
+        // detection still uses the configured comparer, because that happens in the accumulator.
+        if (ReferenceEquals(definition, typeof(SortedDictionary<,>)))
+        {
+            var sortedType = typeof(SortedDictionary<,>).MakeGenericType(typeof(string), valueType);
+            var ctor = sortedType.GetConstructor([
+                typeof(IDictionary<,>).MakeGenericType(typeof(string), valueType),
+                typeof(IComparer<string>)])!;
+            var ordering = comparer as IComparer<string>;
+            return accumulated => ctor.Invoke([accumulated, ordering]);
+        }
+
+        // ImmutableDictionary / IImmutableDictionary. The comparer-taking overload, not the bare
+        // one: an immutable dictionary carries its own comparer, so building it without the
+        // attribute's would make `--cfg[Region]` a duplicate at parse time under an
+        // OrdinalIgnoreCase override and then a miss on lookup in the handler. Same value, two
+        // answers — the disagreement this ticket exists to remove.
+        if (ReferenceEquals(definition, typeof(ImmutableDictionary<,>)) ||
+            ReferenceEquals(definition, typeof(IImmutableDictionary<,>)))
+        {
+            var method = DictionaryCreateRange(typeof(ImmutableDictionary), valueType, typeof(IEqualityComparer<>));
+            return accumulated => method.Invoke(null, [comparer, accumulated])!;
+        }
+
+        // ImmutableSortedDictionary: ordering, not equality. StringComparer is both, so the
+        // configured case-sensitivity carries over; any other equality comparer leaves the keys in
+        // the BCL's default order, while duplicate detection still uses it in the accumulator.
+        if (ReferenceEquals(definition, typeof(ImmutableSortedDictionary<,>)))
+        {
+            var ordering = comparer as IComparer<string>;
+            var method = DictionaryCreateRange(typeof(ImmutableSortedDictionary), valueType, typeof(IComparer<>));
+            return accumulated => method.Invoke(null, [ordering, accumulated])!;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The <c>CreateRange&lt;K,V&gt;(comparer, IEnumerable&lt;KeyValuePair&lt;K,V&gt;&gt;)</c>
+    /// overload on a BCL immutable-dictionary factory, specialized to <c>&lt;string, V&gt;</c>.
+    /// Each factory carries several <c>CreateRange</c> overloads; <paramref name="comparerDefinition"/>
+    /// picks the one whose first parameter is the comparer this shape orders or hashes by.
+    /// </summary>
+    private static MethodInfo DictionaryCreateRange(Type factoryType, Type valueType, Type comparerDefinition)
+    {
+        foreach (var method in factoryType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (method.Name != "CreateRange" || !method.IsGenericMethodDefinition) continue;
+            if (method.GetGenericArguments().Length != 2) continue;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length != 2) continue;
+
+            var first = parameters[0].ParameterType;
+            if (!first.IsGenericType) continue;
+            if (!ReferenceEquals(first.GetGenericTypeDefinition(), comparerDefinition)) continue;
+
+            return method.MakeGenericMethod(typeof(string), valueType);
+        }
+
+        throw new InvalidOperationException(
+            $"No CreateRange<TKey,TValue>({comparerDefinition.Name}, IEnumerable<KeyValuePair<TKey,TValue>>) " +
+            $"overload found on {factoryType.FullName}. Framework assumption broke; likely a BCL change.");
+    }
+#pragma warning restore IL2055, IL2060, IL2070
 
     /// <inheritdoc/>
     public override object? Materialize(CliInvocation invocation)
@@ -304,7 +516,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
             }
         }
 
-        return result;
+        return _convert.Invoke(result);
     }
 
     /// <summary>A copy-pasteable usage hint, e.g. <c>--config[key] value</c>.</summary>
@@ -740,7 +952,7 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
         typeof(ImmutableSortedSet<>),
     };
 
-    private static Type? GetCollectionItemType(Type declaredType)
+    internal static Type? GetCollectionItemType(Type declaredType)
     {
         // String is IEnumerable<char> structurally but a scalar semantically.
         if (declaredType == typeof(string)) return null;
