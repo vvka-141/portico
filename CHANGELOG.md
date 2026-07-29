@@ -33,6 +33,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Breaking:** an absent optional collection option binds an **empty collection**, not `null`, so a
+  handler can iterate it without a null check. A map option in the same position already bound an
+  empty dictionary, so this removes an inconsistency rather than inventing a convention; and argv has
+  no syntax for an explicitly empty list, so "absent" and "supplied with zero values" were never
+  distinguishable at the terminal anyway. A collection with no `?` and no default is still
+  **required** and still errors when absent. `CliFlag?` is unchanged — absent means "off", and `null`
+  is how that is spelled.
 - **Breaking:** `--timeout 30` no longer binds thirty **days**. A bare number is a day count to
   .NET's `TimeSpan` parser, so the one value in the duration converter that failed did so silently —
   on a `drain` or a `migrate`, an outage. It is refused now, with a message naming the repairs

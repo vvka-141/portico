@@ -134,12 +134,15 @@ public sealed class CliEnvironmentFallback_Should
         Assert.Equal(["x", "y"], tool.Items);
     }
 
+    // The set-but-empty variable contributes nothing, so the option falls through to the
+    // absent-and-optional branch — which since POR-150 binds an empty collection, not null.
     [Fact]
     public void Leave_A_Collection_At_Its_Default_For_An_Empty_Environment_Value()
     {
         var tool = Run("app run", ("POR_T_ITEMS", ""));
 
-        Assert.Null(tool.Items);
+        Assert.NotNull(tool.Items);
+        Assert.Empty(tool.Items);
     }
 
     // POR-73. The comma is the collection separator on the ENV path only. A value that legitimately

@@ -40,6 +40,30 @@ A `Sensitive` option shows its variable name and still renders its default as `*
 Only options that declare a variable get the suffix, and **map options never do** — they reject
 `EnvironmentVariable` at startup (see the table below), so there is nothing for help to show.
 
+### An absent optional collection binds empty, not null
+
+```csharp
+int Run([CliOption("--tags")] string[]? tags = null)
+```
+
+```
+run --tags a b     ->  ["a", "b"]
+run                ->  []            not null
+```
+
+So a handler can iterate without a null check. The `= null` in the signature is what C# forces —
+a parameter default must be a compile-time constant, and `null` is the only one a collection type
+can express — not what the framework binds.
+
+Two reasons, and the first is a fact rather than a preference. **A map option in the same position
+has always bound an empty dictionary**, so `null` here made two collection-shaped options in one
+signature behave differently for no reason a user could see. And **argv has no syntax for an
+explicitly empty list**, so "absent" and "supplied with zero values" are indistinguishable at the
+terminal; a distinction the CLI surface cannot express should not survive into the handler.
+
+A collection with no `?` and no default is **required**, not optional, and still errors when absent.
+A `CliFlag?` is unaffected — absent genuinely means "off", and `null` is how that is spelled.
+
 What the variable means depends on the option's shape, because a string has to answer questions argv
 never asks:
 

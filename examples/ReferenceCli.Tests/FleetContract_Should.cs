@@ -59,7 +59,10 @@ public sealed class FleetContract_Should
         var e = Fleet.Single(x => x.Example == "worker list");
 
         Assert.Equal("all", e.Arguments["pool"]);
-        Assert.Null(e.Arguments["status"]);
+        // POR-150: an absent optional collection binds empty, not null — so a handler can iterate
+        // it without a null check. A CliFlag? is different: absent genuinely means "off", and null
+        // is how that is spelled.
+        Assert.Empty(Assert.IsAssignableFrom<IEnumerable<string>>(e.Arguments["status"]));
         Assert.Null(e.Arguments["verbose"]); // absent -> off
     }
 
