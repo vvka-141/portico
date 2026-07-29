@@ -110,6 +110,17 @@ jobs:
             dotnet build -c Release
             dotnet test  -c Release --no-build
             dotnet run --project SmokeCli -c Release --no-build -- greet --name Ada
+
+            # The item template, exercised where it is actually used: inside a project that already
+            # exists. An untested template variant is a broken one (POR-121). Both handler shapes,
+            # because --async selects a different conditional block in both emitted files.
+            (
+              cd SmokeCli
+              dotnet new portico-command -n Migrate --route "db migrate"
+              dotnet new portico-command -n Backfill --async
+            )
+            dotnet build -c Release
+            dotnet test  -c Release --no-build
           done
 
       - name: Upload packages

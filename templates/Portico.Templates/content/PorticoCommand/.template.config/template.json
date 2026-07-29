@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Alexey Evlampiev",
+  "classifications": [ "CLI", "Command Line", "Portico" ],
+  "identity": "Portico.Command.CSharp",
+  "name": "Portico command",
+  "description": "A Portico command — one contract interface, one implementation, and an executable example — added to a project you already have.",
+  "shortName": "portico-command",
+  "tags": {
+    "language": "C#",
+    "type": "item"
+  },
+  "sourceName": "PorticoCommand",
+  "preferDefaultName": true,
+  "defaultName": "Admin",
+  "symbols": {
+    "DefaultNamespace": {
+      "type": "bind",
+      "binding": "msbuild:RootNamespace",
+      "replaces": "Portico.Generated"
+    },
+    "route": {
+      "type": "parameter",
+      "datatype": "string",
+      "defaultValue": "",
+      "description": "The route as a user types it, e.g. \"db migrate\". Defaults to the lower-cased name."
+    },
+    "nameLower": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "lowerCase"
+    },
+    "effectiveRoute": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": {
+        "sourceVariableName": "route",
+        "fallbackVariableName": "nameLower"
+      },
+      "replaces": "COMMAND_ROUTE"
+    },
+    "async": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Emit a Task<int> handler with a CancellationToken instead of a synchronous int."
+    }
+  },
+  "constraints": {
+    "csharp-only": {
+      "type": "project-capability",
+      "args": "CSharp"
+    }
+  },
+  "primaryOutputs": [
+    { "path": "IPorticoCommandTool.cs" },
+    { "path": "PorticoCommandTool.cs" }
+  ],
+  "postActions": [
+    {
+      "description": "Next steps",
+      "manualInstructions": [
+        {
+          "text": "Register the command where you build the application:\n\n  CliApplication.Create(cfg => cfg.AddCommands(new PorticoCommandTool())).Run(args);\n\nThen make the example a test, which is the whole point of declaring it:\n\n  [Fact]\n  public void Dispatch_Every_Example()\n  {\n      var notDispatched = 0;\n      new CliContractValidator<IPorticoCommandTool>()\n          .Validate(onNotInvoked: (example, reason) => notDispatched++);\n      Assert.Equal(0, notDispatched);\n  }\n\nEvery [CliCommandExample] then runs through the real pipeline, and the build goes red\nif one stops dispatching."
+        }
+      ],
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "continueOnError": true
+    }
+  ]
+}

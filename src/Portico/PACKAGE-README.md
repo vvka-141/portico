@@ -23,11 +23,13 @@ public interface IAdminTool
 One `CliContractValidator<T>` test runs every `[CliCommandExample]` through the real pipeline,
 and a stale one fails the build.
 
-Or start from the template:
+Or start from a template — one for a new project, one for a service you already have:
 
 ```
 dotnet new install Portico.Templates
-dotnet new portico-cli -n MyCli && cd MyCli && dotnet test
+
+dotnet new portico-cli -n MyCli && cd MyCli && dotnet test   # a whole new CLI
+dotnet new portico-command -n Migrate                        # one command, into this project
 ```
 
 ## Related packages

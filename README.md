@@ -48,12 +48,29 @@ That is the whole framework: a plain C# method, one route attribute, one example
 dotnet add package Portico
 ```
 
-Or start from the template — a runnable CLI whose contract test is already green:
+Two paths from there, and the templates serve both:
 
 ```
 dotnet new install Portico.Templates
+```
+
+**A new project** — a runnable CLI whose contract test is already green:
+
+```
 dotnet new portico-cli -n MyCli && cd MyCli && dotnet test
 ```
+
+**A service you already have** — add one command to it, contract and implementation, with an
+example that already dispatches:
+
+```
+cd src/MyService
+dotnet new portico-command -n Migrate --route "db migrate"
+```
+
+Add `--async` for a `Task<int>` handler with a `CancellationToken`. Both emitted files build clean
+under `TreatWarningsAsErrors`, which matters because `POR004` is an error: a route with no example
+fails the build, so hand-typing your first command does not work and this does.
 
 ---
 
@@ -232,7 +249,7 @@ If a feature is hard to explain through that analogy, it does not belong in Port
 | `Portico` | framework + analyzers + `Portico.Testing` | **none** |
 | `Portico.DependencyInjection` | `IServiceProvider` adapter | `Microsoft.Extensions.DependencyInjection.Abstractions` |
 | `Portico.Hosting` | Generic Host integration | `Microsoft.Extensions.Hosting` |
-| `Portico.Templates` | the `dotnet new portico-cli` scaffold | **none** |
+| `Portico.Templates` | `dotnet new portico-cli` (a new CLI) and `portico-command` (one command, into a project you have) | **none** |
 
 The core has **zero** dependencies, and a post-pack test asserts it against the `.nupkg`'s actual nuspec. The
 `Microsoft.Extensions.*` adapters are separate packages precisely so it stays that way.
