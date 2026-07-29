@@ -32,6 +32,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: bash eng/check-docs-links.sh
 
+      # The template's substitution tokens must stay explicit placeholders. A symbol declared as
+      # `"replaces": "net10.0"` rewrites every occurrence of that string anywhere in the template
+      # content — prose included — and the failure is silent (POR-123).
+      - name: Check template substitution tokens
+        if: matrix.os == 'ubuntu-latest'
+        run: bash eng/check-template-tokens.sh
+
       # The release workflow extracts its notes with this script. If it is broken, the failure
       # surfaces mid-release — after the packages are irreversibly on nuget.org. Run its tests
       # on every push instead, where a break is free.
@@ -76,7 +83,7 @@ jobs:
             echo "=== Smoke-testing template with --Framework $tfm ==="
             scaffold="$RUNNER_TEMP/scaffold-$tfm"
             mkdir -p "$scaffold" && cd "$scaffold"
-            dotnet new portico-cli -n SmokeCli --porticoVersion "$version" --Framework "$tfm"
+            dotnet new portico-cli -n SmokeCli --porticoVersion "$version" --framework "$tfm"
             cd SmokeCli
 
             # printf, not a heredoc: a heredoc body inside a YAML block scalar keeps the
