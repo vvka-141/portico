@@ -172,6 +172,11 @@ internal static class ReflectionExtensions
     {
         ThrowIf.ArgumentNull(type);
 
+        // A nullable struct map is the same map. Nullable<T> does not implement the dictionary
+        // interfaces, so a `MyStructMap<string,V>?` parameter answered "not a map", lost its map
+        // arity, and was refused as an unconvertible scalar named Nullable`1 (POR-157).
+        type = Nullable.GetUnderlyingType(type) ?? type;
+
         // Dedup: a concrete dictionary implements both interfaces over the same arguments, and a
         // caller asking "what map is this?" must get one answer, not two identical ones.
         var seen = new HashSet<(Type Key, Type Value)>();

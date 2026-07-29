@@ -417,6 +417,10 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         Type valueType,
         IEqualityComparer<string> comparer)
     {
+        // A nullable struct map builds exactly as its underlying type does, matching the unwrap the
+        // detector performs (POR-157).
+        declaredType = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
+
         // Dictionary<string,V> itself, and every interface it satisfies (IDictionary,
         // IReadOnlyDictionary, IEnumerable<KeyValuePair<,>>): the accumulator is already the answer.
         var accumulatorType = typeof(Dictionary<,>).MakeGenericType(typeof(string), valueType);
@@ -696,10 +700,14 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
             // The old message said "refer to the attribute's aliases to identify the problematic
             // configuration", which asked the user to do the framework's job. It knows the option and
             // it knows the type — so it says both, and what to do about it (POR-25).
+            // FriendlyName, not declaredType.Name: the raw CLR name of a generic is `Nullable`1` or
+            // `Queue`1`, which names nothing the user wrote and gives them no type to act on. Every
+            // other refusal in this file has spelled the type properly since POR-144; this one was
+            // missed, and POR-157 is where it surfaced.
             throw new CliConfigurationException(
-                $"Option '{attribute.DisplayAliases}' has type '{declaredType.Name}', which cannot be built from a " +
+                $"Option '{attribute.DisplayAliases}' has type '{FriendlyName(declaredType)}', which cannot be built from a " +
                 $"command-line string. Everything a user types is text, so an option's type needs a TypeConverter " +
-                $"that converts from string. Give '{declaredType.Name}' a [TypeConverter], or use a type that " +
+                $"that converts from string. Give '{FriendlyName(declaredType)}' a [TypeConverter], or use a type that " +
                 $"already has one (a primitive, enum, string, TimeSpan, Guid, Uri, DateTime, or a collection of " +
                 $"those). Analyzer POR010 reports this at compile time.");
         }
@@ -1052,6 +1060,15 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
 
     internal static Type? GetCollectionItemType(Type declaredType)
     {
+        // ImmutableArray<T> is a struct, so ImmutableArray<T>? is the only way to write an OPTIONAL
+        // immutable-array option that reads as optional at the declaration site. Unwrap before asking
+        // any shape question — CliOptionAttribute.CanAccept has done this since POR-37 (TimeSpan?) and
+        // the POR010 analyzer does it too, so leaving it out here made the materializer the one part
+        // of the pipeline that disagreed about what a nullable means. Nullable<T> does not implement
+        // IEnumerable<T>, so the shape fell through to the scalar terminal and was refused with a
+        // message naming Nullable`1 (POR-157).
+        declaredType = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
+
         // String is IEnumerable<char> structurally but a scalar semantically.
         if (declaredType == typeof(string)) return null;
 
@@ -1085,6 +1102,12 @@ internal sealed class CliCollectionOptionMaterializer : CliOptionMaterializer
     /// </summary>
     internal static Func<object[], object>? BuildCollectionFactory(Type declaredType, Type itemType)
     {
+        // Same unwrap as GetCollectionItemType, for the same reason: detection and construction have
+        // to agree about a nullable, or the shape is recognised and then cannot be built (POR-157).
+        // The factory returns the underlying value boxed, which MethodInfo.Invoke binds to a
+        // Nullable<T> parameter directly.
+        declaredType = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
+
         if (declaredType.IsArray)
         {
             return items => CreateTypedArray(itemType, items);
