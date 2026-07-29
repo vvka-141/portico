@@ -2,7 +2,8 @@
 
 **Audited 2026-07-27 against `src/Portico.Analyzers/PorticoDiagnostics.cs` and each analyzer's
 `Diagnostic.Create` call site; POR011 added 2026-07-28.** Every live diagnostic (POR001–POR011,
-excluding the retired POR007) was assessed against four criteria, drawn from
+excluding the retired POR007) was assessed against four criteria — **POR013 postdates this audit
+(added 2026-07-29) and has not been assessed** — drawn from
 [SHERLOC (arXiv 2606.24820)](https://arxiv.org/abs/2606.24820), which measured a 3.8× swing in
 agent resolution rate between "Very High" and "Low" diagnostic quality:
 

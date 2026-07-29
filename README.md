@@ -140,6 +140,7 @@ checking your CLI:
 | `POR009` | two options on one command declaring the same alias |
 | `POR010` | a `[CliOption]` whose type cannot be built from a command-line string |
 | `POR011` | a route that declares the same `{placeholder}` twice |
+| `POR013` | a `catch` in a handler that swallows `CliExitException` — a failed command exiting 0 (Warning) |
 
 Portico is not the only .NET CLI library with compile-time diagnostics —
 [ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework) (CAF001–CAF018),
