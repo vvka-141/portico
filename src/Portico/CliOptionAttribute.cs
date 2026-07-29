@@ -72,7 +72,7 @@ public class CliOptionAttribute : Attribute
         if (aliases is null) return string.Empty;
         return aliases
             .Where(a => !string.IsNullOrWhiteSpace(a))
-            .OrderBy(a => a.StartsWith("--") ? 0 : 1)
+            .OrderBy(a => a.StartsWith("--", StringComparison.Ordinal) ? 0 : 1)
             .ThenByDescending(a => a.Length)
             .Join(", ");
     }

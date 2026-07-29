@@ -12,14 +12,28 @@ namespace Portico;
 /// constructing an attribute. The attribute keeps only its declarative surface and the documented
 /// virtual binder seams (<c>CanAccept</c> / <c>GetValueComparer</c> / <c>AllowsCsv</c>).
 /// </summary>
-internal sealed class CliOptionSpec
+internal sealed partial class CliOptionSpec
 {
-    // One or more dash-prefixed aliases separated by '|', e.g. --name|-n.
-    private static readonly Regex SpecificationRegex = new(
-        @"^$option(\|$option)*$".Replace("$option", "(?<option>--?[^|]+)"));
+    /// <summary>
+    /// One or more dash-prefixed aliases separated by <c>|</c>, e.g. <c>--name|-n</c>. The
+    /// <c>option</c> group is named twice on purpose: .NET accumulates same-named captures into one
+    /// group, which is what lets <see cref="Parse"/> walk <c>Groups["option"].Captures</c> and see
+    /// every alias in declaration order.
+    /// </summary>
+    /// <remarks>
+    /// The pattern used to be assembled at runtime by <c>.Replace("$option", …)</c> over a template,
+    /// which is why it was a <c>new Regex(…)</c> rather than a source-generated one — the attribute
+    /// needs a compile-time constant. Writing the group out twice costs one repeated sub-pattern and
+    /// buys the generator, and this runs once per declared option at <c>CliApplication.Create</c>.
+    /// </remarks>
+    [GeneratedRegex(@"^(?<option>--?[^|]+)(\|(?<option>--?[^|]+))*$")]
+    private static partial Regex SpecificationRegex();
 
-    // The alias name with its leading dashes stripped (lookbehind), allowing internal single dashes.
-    private static readonly Regex OptionRegex = new(@"(?<=^[-]{1,2})[\w\?]+(?:[-]+[\w\?]+)*$");
+    /// <summary>
+    /// The alias name with its leading dashes stripped (lookbehind), allowing internal single dashes.
+    /// </summary>
+    [GeneratedRegex(@"(?<=^[-]{1,2})[\w\?]+(?:[-]+[\w\?]+)*$")]
+    private static partial Regex OptionRegex();
 
     // Option aliases are exact dashed tokens (e.g. --name, -n), not patterns, so a matched name is
     // just set membership — free of the metacharacter hazard a `^(?:{aliases})$` regex carried (an
@@ -62,7 +76,7 @@ internal sealed class CliOptionSpec
     public static CliOptionSpec Parse(string specification)
     {
         var spec = ThrowIf.ArgumentNullOrWhiteSpace(specification);
-        var match = SpecificationRegex.Match(spec);
+        var match = SpecificationRegex().Match(spec);
         if (!match.Success)
         {
             throw new ArgumentException("Invalid pattern format. Expected: --option1|--option2|-o|...",
@@ -79,7 +93,7 @@ internal sealed class CliOptionSpec
 
         foreach (Capture capture in match.Groups["option"].Captures)
         {
-            var nameMatch = OptionRegex.Match(capture.Value);
+            var nameMatch = OptionRegex().Match(capture.Value);
             var value = nameMatch.Value;
             if (!nameMatch.Success)
             {
@@ -100,7 +114,7 @@ internal sealed class CliOptionSpec
             }
 
             aliases.Add(capture.Value);
-            if (capture.Value.StartsWith("--")) longNames.Add(value);
+            if (capture.Value.StartsWith("--", StringComparison.Ordinal)) longNames.Add(value);
             else shortNames.Add(value);
         }
 
