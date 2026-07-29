@@ -10,6 +10,10 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Added
 
+- Compact durations bind: `--timeout 90s`, `1h30m`, `500ms`, in any case and with optional
+  whitespace. These are the forms operators arrive with from Go durations, `kubectl --timeout`,
+  systemd and Prometheus. Milliseconds are new; units are now `ms`, `s`, `m`, `h`, `d` and their
+  spelled-out forms.
 - Map options bind to `IDictionary<string,V>`, `IReadOnlyDictionary<string,V>`,
   `SortedDictionary<string,V>`, `ImmutableDictionary<string,V>`, `IImmutableDictionary<string,V>`
   and `ImmutableSortedDictionary<string,V>`, not only `Dictionary<string,V>`. The two interfaces are
@@ -17,6 +21,14 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **Breaking:** `--timeout 30` no longer binds thirty **days**. A bare number is a day count to
+  .NET's `TimeSpan` parser, so the one value in the duration converter that failed did so silently —
+  on a `drain` or a `migrate`, an outage. It is refused now, with a message naming the repairs
+  (`30s`, `30 seconds`, `00:00:30`). It is deliberately *not* reinterpreted as seconds: the same
+  string would then mean one thing in Portico and another in every other .NET tool.
+- A rejected duration says what would have worked. The message was `Invalid timeout format: X`,
+  which restated the input and named none of the four accepted forms — and it is the message every
+  non-ISO-8601 failure lands on.
 - An option whose declared type Portico cannot construct is now refused at `CliApplication.Create`
   with a message naming the option and the shapes that work. Acceptance and construction were
   decided in two places that could disagree: `CanAccept` answers on the *element* type, so
