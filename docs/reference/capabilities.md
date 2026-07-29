@@ -40,58 +40,6 @@ A `Sensitive` option shows its variable name and still renders its default as `*
 Only options that declare a variable get the suffix, and **map options never do** — they reject
 `EnvironmentVariable` at startup (see the table below), so there is nothing for help to show.
 
-### An absent optional collection binds empty, not null
-
-```csharp
-int Run([CliOption("--tags")] string[]? tags = null)
-```
-
-```
-run --tags a b     ->  ["a", "b"]
-run                ->  []            not null
-```
-
-So a handler can iterate without a null check. The `= null` in the signature is what C# forces —
-a parameter default must be a compile-time constant, and `null` is the only one a collection type
-can express — not what the framework binds.
-
-Two reasons, and the first is a fact rather than a preference. **A map option in the same position
-has always bound an empty dictionary**, so `null` here made two collection-shaped options in one
-signature behave differently for no reason a user could see. And **argv has no syntax for an
-explicitly empty list**, so "absent" and "supplied with zero values" are indistinguishable at the
-terminal; a distinction the CLI surface cannot express should not survive into the handler.
-
-A collection with no `?` and no default is **required**, not optional, and still errors when absent.
-A `CliFlag?` is unaffected — absent genuinely means "off", and `null` is how that is spelled.
-
-What the variable means depends on the option's shape, because a string has to answer questions argv
-never asks:
-
-| Shape | Environment form | Notes |
-|---|---|---|
-| scalar | `PORTICO_API_TOKEN=abc` | converted exactly as a typed value would be |
-| `CliFlag?` | `PORTICO_VERBOSE=1` | on unless the value is empty, `0`, `false` or `no` (any case) |
-| collection | `PORTICO_TAGS=a,b,c` | comma-separated (see below); a value containing a comma must come from argv |
-| **map** | — | **not supported, and it throws at startup** |
-
-**Set-but-empty is off.** `docker run -e FOO` and an undefined variable in a compose file both pass
-`FOO=`, so treating "the variable exists" as "the flag is on" would silently enable a flag nobody
-asked for — on the most common container idiom there is.
-
-**A collection's comma is an environment-only separator.** One variable has no other way to carry a
-list, so `PORTICO_TAGS=a,b,c` binds three elements. argv does not split — you repeat the flag
-(`--tag a --tag b`), and `--tag "Smith, John"` is one element. The consequence is that the two
-channels disagree for a value containing a comma: `--tag "Smith, John"` is one element, but
-`PORTICO_TAGS=Smith, John` is two, and there is no way to escape it. If an element can contain a
-comma, take it from the command line, or take the whole thing as a scalar and split it yourself.
-
-**The map case is declined, loudly.** One variable cannot carry key/value pairs without nesting one
-separator inside another (`PORTICO_SHARD=eu=3,us=5`), and every such encoding breaks on the first
-value that contains either separator. So `EnvironmentVariable` on a map option throws
-`CliConfigurationException` from `CliApplication.Create` — before a single command runs — rather than
-binding nothing at dispatch. Take the value as a scalar and parse it in your handler, where you choose
-the format.
-
 ### `DefaultValue` — the string form
 
 ```csharp
@@ -144,6 +92,122 @@ The key must be `string` — it is the text between the brackets. The declaratio
 naming the shapes that work. **A shape Portico cannot construct is a startup error, never a
 dispatch-time one** (POR-144); the same rule holds for collection options, where `Queue<T>`,
 `Stack<T>`, `Collection<T>` and `LinkedList<T>` are refused rather than half-bound.
+
+### Collection options — many values, or a repeated option
+
+The widest type surface in the framework. **Both invocation forms bind**, and they are
+interchangeable — most frameworks support one or the other:
+
+```
+admin index --files a b c          one option, many values
+admin index --file a --file b      the option repeated
+```
+
+(Not to be confused with [Both option forms bind](#both-option-forms-bind) below, which is about
+`--opt value` versus `--opt=value` — a different axis.)
+
+#### The shapes that bind
+
+Every type here is covered by a test in `test/Portico.Tests/CliCollectionTypes_Should.cs`, and the
+table itself is checked against the framework's allow-list by `CliCollectionBindingDocs_Should` — if
+a shape is added or removed and this table is not updated, the build fails.
+
+| Declared type | Order | Duplicates |
+|---|---|---|
+| `T[]` | as typed | kept |
+| `List<T>` | as typed | kept |
+| `IEnumerable<T>` | as typed | kept |
+| `IList<T>` | as typed | kept |
+| `ICollection<T>` | as typed | kept |
+| `IReadOnlyList<T>` | as typed | kept |
+| `IReadOnlyCollection<T>` | as typed | kept |
+| `ImmutableArray<T>` | as typed | kept |
+| `ImmutableList<T>` | as typed | kept |
+| `IImmutableList<T>` | as typed | kept |
+| `HashSet<T>` | unspecified | **deduped** |
+| `ISet<T>` | unspecified | **deduped** |
+| `IReadOnlySet<T>` | unspecified | **deduped** |
+| `ImmutableHashSet<T>` | unspecified | **deduped** |
+| `IImmutableSet<T>` | unspecified | **deduped** |
+| `SortedSet<T>` | **sorted** | **deduped** |
+| `ImmutableSortedSet<T>` | **sorted** | **deduped** |
+
+That is the whole reason to pick one over another: a set shape silently drops
+`--tags a b a` to two values, and the sorted shapes reorder. If you want what the user typed, in the
+order they typed it, use a list shape.
+
+`T` is any type an option can bind — a primitive, an enum, `string`, `TimeSpan`, `Guid`, `Uri`,
+`DateTime`, or a type of your own carrying a `[TypeConverter]`.
+
+**A shape that is not on this list is refused at `CliApplication.Create`**, naming the option and the
+shapes that work — never at dispatch. `Queue<T>`, `Stack<T>`, `Collection<T>` and `LinkedList<T>` are
+the common near-misses.
+
+#### An absent optional collection binds empty, not null
+
+```csharp
+int Run([CliOption("--tags")] string[]? tags = null)
+```
+
+```
+run --tags a b     ->  ["a", "b"]
+run                ->  []            not null
+```
+
+So a handler can iterate without a null check. The `= null` in the signature is what C# forces —
+a parameter default must be a compile-time constant, and `null` is the only one a collection type
+can express — not what the framework binds.
+
+Two reasons, and the first is a fact rather than a preference. **A map option in the same position
+has always bound an empty dictionary**, so `null` here made two collection-shaped options in one
+signature behave differently for no reason a user could see. And **argv has no syntax for an
+explicitly empty list**, so "absent" and "supplied with zero values" are indistinguishable at the
+terminal; a distinction the CLI surface cannot express should not survive into the handler.
+
+A collection with no `?` and no default is **required**, not optional, and still errors when absent.
+A `CliFlag?` is unaffected — absent genuinely means "off", and `null` is how that is spelled.
+
+#### A `string` is a scalar, not a collection
+
+`string` is `IEnumerable<char>` structurally. Portico does not treat it as a collection, so
+`[CliOption("--name")] string name` binds one value rather than a list of characters.
+
+#### The comma separates only in the environment
+
+`PORTICO_TAGS=a,b,c` binds three values. `--tags a,b,c` binds **one** value that contains commas.
+
+The asymmetry is deliberate: a single environment variable has no other way to carry a list, while
+argv already does — you repeat the option or pass several values. The consequence is that a value
+containing a comma cannot come from the environment, and argv is the escape hatch. See
+[Environment-variable fallback](#environment-variable-fallback) above for the full table.
+
+What the variable means depends on the option's shape, because a string has to answer questions argv
+never asks:
+
+| Shape | Environment form | Notes |
+|---|---|---|
+| scalar | `PORTICO_API_TOKEN=abc` | converted exactly as a typed value would be |
+| `CliFlag?` | `PORTICO_VERBOSE=1` | on unless the value is empty, `0`, `false` or `no` (any case) |
+| collection | `PORTICO_TAGS=a,b,c` | comma-separated (see below); a value containing a comma must come from argv |
+| **map** | — | **not supported, and it throws at startup** |
+
+**Set-but-empty is off.** `docker run -e FOO` and an undefined variable in a compose file both pass
+`FOO=`, so treating "the variable exists" as "the flag is on" would silently enable a flag nobody
+asked for — on the most common container idiom there is.
+
+**A collection's comma is an environment-only separator.** One variable has no other way to carry a
+list, so `PORTICO_TAGS=a,b,c` binds three elements. argv does not split — you repeat the flag
+(`--tag a --tag b`), and `--tag "Smith, John"` is one element. The consequence is that the two
+channels disagree for a value containing a comma: `--tag "Smith, John"` is one element, but
+`PORTICO_TAGS=Smith, John` is two, and there is no way to escape it. If an element can contain a
+comma, take it from the command line, or take the whole thing as a scalar and split it yourself.
+
+**The map case is declined, loudly.** One variable cannot carry key/value pairs without nesting one
+separator inside another (`PORTICO_SHARD=eu=3,us=5`), and every such encoding breaks on the first
+value that contains either separator. So `EnvironmentVariable` on a map option throws
+`CliConfigurationException` from `CliApplication.Create` — before a single command runs — rather than
+binding nothing at dispatch. Take the value as a scalar and parse it in your handler, where you choose
+the format.
 
 ### `CliFlag?` versus `bool` — presence versus value
 
