@@ -144,8 +144,25 @@ gates, not nice-to-haves.
   `CliOptions` **bundle** constructor contract → POR006.
 
   Every one of these is *decidable from the declaration alone*, which is the test for whether a rule
-  belongs here at all. Each has a runtime backstop at `CliApplication.Create` for builds without the
-  analyzer — the analyzer moves the failure into the edit loop, it does not replace the check.
+  belongs here at all. Most also have a runtime backstop at `CliApplication.Create` for builds
+  without the analyzer — the analyzer moves the failure into the edit loop, it does not replace the
+  check. POR001, POR002, POR003, POR005, POR006, POR008, POR009, POR010 and POR011 all refuse the
+  violating contract at `Create`, and `PorticoRuntimeBackstops_Should` executes each one.
+
+  > **This said "Each has a runtime backstop", and that was false for POR004.**
+  > `CliApplication.Create` accepts a `[CliRoute]` with no `[CliCommandExample]` silently, and always
+  > has. The code is right and the sentence was wrong: a missing example is an *authoring-discipline*
+  > failure, not a dispatch failure. The command still routes and binds correctly — what is absent is
+  > the executable documentation. Refusing to start over it would turn a documentation gap into a
+  > production outage, and unlike POR001 or POR008 there is no misbehaviour for the runtime to
+  > prevent. POR012 and POR013 are exempt for a related reason: both diagnose *legal* code, so there
+  > is no violating shape for a runtime check to recognise.
+  >
+  > The generalizable lesson, and why the correction is kept rather than quietly edited: "each of
+  > these has X" is a claim about every member of a set, and it was written about a set the author
+  > had checked in the aggregate. The three exemptions are now executed as tests — an exempt rule
+  > must *not* throw — because "deliberately exempt" and "nobody got round to it" look identical
+  > from the outside, and that is precisely how this sentence survived.
 
   **POR010 is deliberately conservative, and that is not a gap.** Whether an arbitrary *referenced*
   type has a `TypeConverter` is a runtime fact — `TypeDescriptor`'s intrinsic table is invisible to

@@ -46,20 +46,7 @@ public sealed class PorticoAnalyzerDocs_Should
     /// than a list of analyzer types: a new analyzer class is exactly the thing that would be
     /// forgotten, and forgetting it here would make this whole file agree with the omission.
     /// </summary>
-    private static IReadOnlyCollection<string> LiveRuleIds() =>
-        // Any analyzer type serves as the handle on the assembly; the descriptors themselves live on
-        // an internal PorticoDiagnostics that only the code fixes can see.
-        typeof(UnconvertibleOptionTypeAnalyzer).Assembly
-            .GetTypes()
-            .Where(type => !type.IsAbstract && typeof(DiagnosticAnalyzer).IsAssignableFrom(type))
-            .Select(type => (DiagnosticAnalyzer)Activator.CreateInstance(type)!)
-            .SelectMany(analyzer => analyzer.SupportedDiagnostics)
-            .Select(descriptor => descriptor.Id)
-            // POR009 is declared by two descriptors — one for method parameters, one for bundle
-            // properties — and is one rule to a reader.
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(id => id, StringComparer.Ordinal)
-            .ToArray();
+    private static IReadOnlyCollection<string> LiveRuleIds() => PorticoAnalyzerRules.LiveIds();
 
     /// <summary>
     /// The release manifest is what the Roslyn release-tracking rules enforce and what ships in the
