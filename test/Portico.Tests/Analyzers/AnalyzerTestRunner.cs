@@ -27,12 +27,33 @@ internal static class AnalyzerTestRunner
 
     private static ImmutableArray<MetadataReference> BuildReferences()
     {
-        // Reference every loaded assembly that has a physical location — covers BCL, System.*,
-        // and the Portico.Core test-hosted assembly. A fatter reference set than necessary,
-        // but correct and deterministic across machines.
-        return AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
-            .Select(a => (MetadataReference)MetadataReference.CreateFromFile(a.Location))
+        // The trusted-platform-assemblies list: every assembly the host resolves against, whether or
+        // not it has been loaded yet. That "whether or not" is the whole point — this used to walk
+        // AppDomain.CurrentDomain.GetAssemblies() and call the result "correct and deterministic
+        // across machines", and it was neither. A snippet could only reference assemblies the test
+        // host happened to have loaded already, so System.Console did not bind: nothing in the test
+        // process had touched Console, so the assembly was absent and `Console.WriteLine(...)`
+        // failed to compile with CS1069.
+        //
+        // That is a quiet failure mode rather than a loud one. A test asserting a diagnostic IS
+        // produced still fails visibly if the type does not bind; a test asserting a snippet is
+        // CLEAN passes either way, and would keep passing if the analyzer stopped firing entirely.
+        var paths = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
+            ?.Split(Path.PathSeparator)
+            .Where(path => path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            ?? [];
+
+        // Loaded assemblies still go in: anything resolved outside the TPA set (a test-host plugin
+        // path) would otherwise be lost. Deduplicated by file name — the same assembly reachable by
+        // two paths is an ambiguous-reference compile error, not a fatter reference set.
+        var located = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
+            .Select(assembly => assembly.Location);
+
+        return paths
+            .Concat(located)
+            .GroupBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => (MetadataReference)MetadataReference.CreateFromFile(group.First()))
             .ToImmutableArray();
     }
 
