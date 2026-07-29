@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -60,13 +61,35 @@ public sealed class CliApplicationAutoCancel_Should
             "Framework-wired token should be cancellable so handlers can observe Ctrl+C.");
     }
 
+    /// <summary>
+    /// <c>Console.CancelKeyPress</c> is a process-global event, and <c>CliApplication</c> is
+    /// documented as reusable — a host may dispatch many commands over its lifetime. A subscription
+    /// that outlives its run leaks the CTS it captured, once per invocation.
+    /// </summary>
+    /// <remarks>
+    /// This used to end in <c>Assert.True(true)</c>, under a comment conceding that Ctrl+C cannot be
+    /// raised from a test and settling for "verify no exception". But the three <c>await</c>s already
+    /// fail the test on an exception, so the assertion added nothing — and a test named
+    /// "Remove_Its_Own_CancelKeyPress_Handler" that stays green while every handler leaks is worse
+    /// than no test, because its name is load-bearing in a way its body is not.
+    /// <para>
+    /// Raising the signal is indeed not possible here; counting the subscribers is. The event's
+    /// backing delegate is a private static field on <see cref="Console"/>, so the invocation list is
+    /// reachable by reflection — and a missing field fails loudly rather than skipping, so this
+    /// cannot decay into the tautology it replaced.
+    /// </para>
+    /// <para>
+    /// The before/after comparison is only sound because <c>AssemblyInfo.cs</c> disables test
+    /// parallelization assembly-wide: the count is process-global, so a concurrently running class
+    /// that called <c>RunAsync</c> would move it under this test's feet. That setting exists for a
+    /// different reason (the console is shared), and this test now depends on it too.
+    /// </para>
+    /// </remarks>
     [Fact]
     public async Task Remove_Its_Own_CancelKeyPress_Handler_After_The_Run()
     {
-        // Process-global event. If the framework doesn't clean up, repeated Run() calls
-        // would stack handlers. Smoke-test by running twice with a sentinel handler in
-        // between — if leaked, our sentinel would be called multiple times per Ctrl+C,
-        // but we can't actually trigger Ctrl+C from a test. Instead, verify no exception.
+        var before = CancelKeyPressSubscriberCount();
+
         var svc = new WaitingService();
         var app = CliApplication.Create(cfg => cfg.AddCommands(svc));
 
@@ -74,10 +97,26 @@ public sealed class CliApplicationAutoCancel_Should
         await app.RunAsync("app.exe wait");
         await app.RunAsync("app.exe wait");
 
-        // If handlers leaked, the AppDomain would hold refs to captured cts's indefinitely.
-        // The framework's `using` scope + `-=` in finally guarantees cleanup. Pass-through
-        // of three runs without exceptions is the observable assertion.
-        Assert.True(true);
+        Assert.Equal(before, CancelKeyPressSubscriberCount());
+    }
+
+    /// <summary>
+    /// How many handlers are subscribed to <see cref="Console.CancelKeyPress"/>. The event exposes
+    /// only <c>add</c>/<c>remove</c>, so the count comes from the private static delegate behind it.
+    /// </summary>
+    private static int CancelKeyPressSubscriberCount()
+    {
+        var field = typeof(Console).GetField(
+            "s_cancelCallbacks",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.True(
+            field is not null,
+            "Console.s_cancelCallbacks is gone, so this test can no longer count CancelKeyPress " +
+            "subscribers. Find the new backing field — do not weaken the assertion back to a " +
+            "pass-through, which is the state this test shipped in.");
+
+        return (field!.GetValue(null) as Delegate)?.GetInvocationList().Length ?? 0;
     }
 
     // -----------------------------------------------------------------------------------------
