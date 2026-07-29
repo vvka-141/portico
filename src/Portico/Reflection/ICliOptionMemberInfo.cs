@@ -39,6 +39,16 @@ internal interface ICliOptionMemberInfo
     /// </summary>
     bool IsSensitive => false;
 
+    /// <summary>
+    /// The environment variable this option falls back to, or <see langword="null"/> when it
+    /// declares none. This is the variable's <b>name</b> — a declaration in source, safe to print.
+    /// Its <b>value</b> is read only on the binding path and must never reach the help surface, for
+    /// a sensitive option or any other: a variable nobody marked sensitive can still hold something
+    /// its author did not anticipate (POR-149). Default <see langword="null"/>; implementations that
+    /// know their attribute override.
+    /// </summary>
+    string? EnvironmentVariable => null;
+
 
     public sealed bool IsIn(CliInvocation invocation)
     {

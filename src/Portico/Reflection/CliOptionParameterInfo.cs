@@ -68,6 +68,8 @@ internal sealed class CliOptionParameterInfo : CliParameterInfo, ICliOptionMembe
 
     public bool IsSensitive => _optionAttribute.Sensitive;
 
+    public string? EnvironmentVariable => _optionAttribute.EnvironmentVariable;
+
     public override bool IsOptional { get; }
 
     public override object? DefaultValue { get; }
