@@ -1,7 +1,12 @@
 # Portico.Templates
 
-Project template for [Portico](https://www.nuget.org/packages/Portico) — a runnable CLI with
-one route, one executable example, and a passing contract test.
+Templates for [Portico](https://www.nuget.org/packages/Portico), covering both onboarding paths.
+
+**`portico-cli`** — a whole new CLI: one route, one executable example, and a passing contract test.
+
+**`portico-command`** — one command added to a project you already have: the contract interface, its
+implementation, and an example that already dispatches. This is the path for a backend service that
+runs `dotnet add package Portico` and needs somewhere to go.
 
 ```
 dotnet new install Portico.Templates
@@ -9,6 +14,16 @@ dotnet new portico-cli -n MyCli
 cd MyCli
 dotnet test
 ```
+
+Into an existing project, from that project's directory:
+
+```
+dotnet new portico-command -n Migrate --route "db migrate"
+dotnet new portico-command -n Backfill --async     # Task<int> + CancellationToken
+```
+
+The namespace comes from the project's `RootNamespace`, and the emitted code builds clean under
+`TreatWarningsAsErrors` — no `POR004`, `POR008`, `POR010`, `POR012` or `POR013`.
 
 The template gives you a solution with two projects: a CLI (`MyCli/`) and a test project
 (`MyCli.Tests/`). The test runs every `[CliCommandExample]` through the real pipeline — rename
