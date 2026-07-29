@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Xml.Linq;
 using Xunit;
 
@@ -192,6 +193,43 @@ public sealed class NupkgContents_Should
             "nuget.org shows a placeholder rather than failing, so this is the only place it surfaces.");
         Assert.True(icon!.Length is > 0 and < NuGetIconSizeLimit,
             $"{IconFile} in {packageId} is {icon.Length} bytes; NuGet rejects an embedded icon at or above {NuGetIconSizeLimit}.");
+    }
+
+    /// <summary>
+    /// The template's <c>porticoVersion</c> default is the one input a real user never supplies,
+    /// and it used to be a hand-typed <c>"0.1.*"</c> in the tracked template.json — so the next
+    /// minor would have scaffolded a reference to the previous one, silently, forever (POR-125).
+    /// It is now substituted from MinVer at pack time. Nothing else observes that substitution:
+    /// the CI smoke test always passes <c>--porticoVersion</c> explicitly, which is precisely why
+    /// the defect survived. This is the test that watches the default.
+    /// </summary>
+    [Fact]
+    public void DeriveTheTemplateVersionDefaultFromTheBuild()
+    {
+        const string ConfigEntry = "content/PorticoCli/.template.config/template.json";
+
+        var nupkg = FindNupkg("Portico.Templates");
+        var packedVersion = Path.GetFileNameWithoutExtension(nupkg)["Portico.Templates.".Length..];
+
+        using var zip = ZipFile.OpenRead(nupkg);
+        var entry = zip.Entries.FirstOrDefault(e =>
+            string.Equals(e.FullName, ConfigEntry, StringComparison.OrdinalIgnoreCase));
+        Assert.True(entry is not null, $"{ConfigEntry} is missing from {Path.GetFileName(nupkg)}");
+
+        using var reader = new StreamReader(entry!.Open());
+        var json = JsonDocument.Parse(reader.ReadToEnd());
+
+        var symbols = json.RootElement.GetProperty("symbols");
+        var actual = symbols.GetProperty("porticoVersion").GetProperty("defaultValue").GetString();
+
+        Assert.Equal(packedVersion, actual);
+
+        // The csproj is the other half of the pair: the default is only reachable through the
+        // token it replaces, so a rename on either side turns the whole mechanism into a no-op.
+        var csproj = zip.Entries.Single(e =>
+            e.FullName.EndsWith("content/PorticoCli/PorticoCli/PorticoCli.csproj", StringComparison.OrdinalIgnoreCase));
+        using var csprojReader = new StreamReader(csproj.Open());
+        Assert.Contains("PORTICO_VERSION", csprojReader.ReadToEnd(), StringComparison.Ordinal);
     }
 
     [Theory]

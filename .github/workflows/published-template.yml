@@ -1,0 +1,71 @@
+name: Published template
+
+# What a new user actually gets.
+#
+# verify.yml already smoke-tests the template on every push — but it installs the nupkg this
+# build just produced and then passes `--porticoVersion "$version"` explicitly. That is the one
+# input a real user never supplies, so the default was the one input CI never exercised, which
+# is how a hardcoded `0.1.*` survived unnoticed (POR-125).
+#
+# This workflow is the opposite of that one in every respect: it installs Portico.Templates from
+# nuget.org, scaffolds with no arguments, restores with no local package source, and is not
+# allowed to see this repository at all. It therefore tests the packages that are live right now,
+# not the commit that triggered it — which is the point. It runs on a schedule rather than on
+# push because that is the only cadence at which the answer can change: nothing in a pull request
+# can move nuget.org, and a tag-only gate would fire before the release it needs to check exists.
+on:
+  schedule:
+    # 05:40 UTC daily — offset off the hour, where scheduled-run contention is worst.
+    - cron: '40 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scaffold-from-nuget-org:
+    name: Scaffold from nuget.org (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      # Deliberately no actions/checkout. A working copy would bring Directory.Build.props,
+      # Directory.Packages.props and the repo's artifacts within reach of the scaffolded project,
+      # and any one of them could make this pass for a reason a user does not have.
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Scaffold, build, test — no arguments, no local feed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dotnet new install Portico.Templates
+
+          cd "$RUNNER_TEMP"
+          # No --porticoVersion and no --Framework: every default as shipped.
+          dotnet new portico-cli -n MyCli
+          cd MyCli
+
+          version=$(grep -oE 'Include="Portico" Version="[^"]+"' MyCli/MyCli.csproj | sed -E 's/.*Version="([^"]+)".*/\1/')
+          echo "Scaffolded reference: Portico $version"
+
+          if [[ "$version" == *PORTICO_* ]]; then
+            echo "The porticoVersion default is an unsubstituted token: [$version]." >&2
+            echo "The pack-time substitution in Portico.Templates.csproj did not run." >&2
+            exit 1
+          fi
+
+          # `dotnet new` exits 0 even when its restore post-action fails — the post action is
+          # declared continueOnError. Verified by scaffolding from a template whose default named
+          # 9.9.9: restore reported NU1102 and the scaffold still returned 0. So the build below,
+          # not the command above, is what actually gates this job.
+          dotnet build -c Release
+          dotnet test  -c Release --no-build
+          dotnet run --project MyCli -c Release --no-build -- greet --name Ada
