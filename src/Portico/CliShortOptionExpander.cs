@@ -22,6 +22,21 @@ namespace Portico;
 ///   <item><description>Tokens whose short is a map option (<c>-e[region] eu</c>) — the
 ///     <c>[key]</c> suffix must reach the tokenizer intact, so the token is never split.</description></item>
 /// </list>
+/// <para>
+/// <b>Bundling depends on an application-wide agreement about each letter's arity</b>, because
+/// expansion runs on raw argv before any route has matched — <c>-fx</c> must be split before the
+/// parser can know which command it belongs to, so there is no per-route schema to consult.
+/// </para>
+/// <para>
+/// When two commands declare the same short letter with <em>different</em> arities — say <c>-f</c> as
+/// a <c>CliFlag?</c> on one route and as a <c>string</c> on another — the letter is removed from the
+/// schema, and <b>bundling stops working for it everywhere</b>, including on a command that declares
+/// it consistently. The options themselves are unaffected: <c>-f -x</c> still binds on every route,
+/// only the glued <c>-fx</c> form stops expanding, and the resulting error names the split
+/// (<c>"Did you mean: -f, -x?"</c>). The conflict is reported as a trace warning at
+/// <see cref="CliApplication.Create"/> naming both routes, and the letters involved are on
+/// <see cref="CliShortOptionSchema.ConflictingShortNames"/> (POR-119).
+/// </para>
 /// </summary>
 internal static class CliShortOptionExpander
 {

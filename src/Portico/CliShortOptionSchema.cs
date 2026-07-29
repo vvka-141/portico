@@ -29,9 +29,19 @@ internal sealed class CliShortOptionSchema
 
     private readonly IReadOnlyDictionary<char, CliShortOptionArity> _arity;
 
-    public CliShortOptionSchema(IReadOnlyDictionary<char, CliShortOptionArity> arity)
+    /// <summary>
+    /// Letters two commands declared with different arities. They are absent from the arity map — so
+    /// bundling is off for them application-wide — and are kept here so the fact is inspectable
+    /// rather than merely inferable from a missing key (POR-119).
+    /// </summary>
+    public IReadOnlyCollection<char> ConflictingShortNames { get; }
+
+    public CliShortOptionSchema(
+        IReadOnlyDictionary<char, CliShortOptionArity> arity,
+        IReadOnlyCollection<char>? conflicting = null)
     {
         _arity = arity;
+        ConflictingShortNames = conflicting ?? System.Array.Empty<char>();
     }
 
     public bool IsEmpty => _arity.Count == 0;
