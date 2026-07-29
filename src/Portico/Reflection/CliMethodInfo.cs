@@ -292,7 +292,7 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
 
             if (!seenPlaceholders.Add(placeholder.Name))
             {
-                var route = string.Join(" ", parts.Select(p => p is CliPlaceholderSegment ph ? $"{{{ph.Name}}}" : p.ToString()));
+                var route = string.Join(" ", parts);
                 throw new CliConfigurationException(
                     $"Method '{DeclaringType?.FullName}.{Name}': route \"{route}\" repeats " +
                     $"placeholder '{{{placeholder.Name}}}'. Each placeholder name must appear once — " +

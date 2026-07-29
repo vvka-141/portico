@@ -30,8 +30,15 @@ public sealed class CliDuplicatePlaceholder_Should
             () => CliApplication.Create(cfg => cfg.AddCommands(new CopyTool())));
 
         Assert.Contains("{p}", ex.Message, StringComparison.Ordinal);
-        Assert.Contains("copy", ex.Message, StringComparison.Ordinal);
         Assert.Contains("Copy", ex.Message, StringComparison.Ordinal);
+
+        // The route is echoed as the author wrote it. This used to assert only Contains("copy"),
+        // which passed while the message actually read `route "CliLiteralSegment { Text = copy }
+        // CliArgumentSegment { Argument = p } {p}"` — the records' compiler-generated ToString,
+        // leaking internal type names into a user's terminal. "copy" is a substring of that, so the
+        // assertion could not tell the two apart.
+        Assert.Contains("\"copy {p} {p}\"", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Segment {", ex.Message, StringComparison.Ordinal);
     }
 
     // --- Repeated placeholder across type-level prefix and method route (AC5) ---
@@ -55,7 +62,10 @@ public sealed class CliDuplicatePlaceholder_Should
         var ex = Assert.Throws<CliConfigurationException>(
             () => CliApplication.Create(cfg => cfg.AddCommands(new DbTool())));
 
-        Assert.Contains("{id}", ex.Message, StringComparison.Ordinal);
+        // The type prefix and the method route are one path by the time this is reported, so the
+        // echoed route is the composed one — and it is still route syntax, not record shapes.
+        Assert.Contains("\"db {id} get {id}\"", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Segment {", ex.Message, StringComparison.Ordinal);
     }
 
     // --- Contract validator no longer reports a false green (AC4) ---
