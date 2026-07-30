@@ -8,6 +8,18 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
+### Changed
+
+- **A positional swallowed by a declared option now says so.** `tool compile --output out.dll main.cs`
+  reported only `Command 'compile {source}' expects 1 argument, got 0.` — true, and useless to someone
+  who plainly typed the argument. It now names the option, how many values it took, the rule (*a bare
+  token following an option belongs to that option*) and the `--` terminator, proposing exactly as many
+  trailing tokens as the route is short of. A `Sensitive` option's values are redacted rather than
+  echoed. The terminator hint existed but was gated on an *unrecognized* option, so a correctly-spelled
+  one never reached it. The decision to keep the explicit terminator — and the undecidable variadic case
+  that drives it — is now recorded in `docs/ROADMAP.md` and documented in
+  `docs/reference/capabilities.md`, which it never was.
+
 ### Added
 
 - **A map option now has a shell-safe spelling: `--cfg key=value`** (and the glued

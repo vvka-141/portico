@@ -109,6 +109,59 @@ interception trick is exactly the magic the CHARTER's HTTP-metaphor test rejects
 **To reopen:** a CLR mechanism that did not exist in .NET 10. Not a cleverer side channel — the
 objection is to the guess, not to the plumbing.
 
+### Implicit positional-after-option: **NO**, the terminator stays explicit. Resolved 2026-07-30 (POR-82).
+
+`tool compile --output out.dll main.cs` does not bind. A bare token following an option belongs to
+that option, so `--output` takes both values and nothing is left for `{source}`. The POSIX terminator
+resolves it — `tool compile --output out.dll -- main.cs` — and so does the natural order,
+`tool compile main.cs --output out.dll`, which needs no ceremony at all.
+
+Every mainstream CLI resolves this implicitly, and an agent generating a command line from `--help`
+will produce the rejected shape. That argument is real and it does not win, for one reason that is
+structural rather than a matter of taste:
+
+**A variadic option followed by a positional is undecidable under any greedy rule.** `--tags a b
+main.cs` is indistinguishable from three tags. Deciding it requires knowing the route's positional
+arity *while tokenizing* — and route matching currently consumes the tokenizer's output. Implicit
+resolution is therefore not "more parsing code": it is a **dependency inversion in the most
+load-bearing file in `src/Portico/`**, trading a parser you can reason about in one pass for one whose
+behaviour depends on which route it later turns out to match. CHARTER §7 and *simplicity first /
+overengineering is worse than bugs* both point the same way, and there is no user yet to break the tie
+between two intuitions.
+
+What makes the refusal acceptable is that it is **loud and it teaches the fix**. That was not true
+when this ticket was filed:
+
+- POR-82's own description claimed the failure "names the offending token and points at `--`".
+  It did on a route with **no** positional (the option's own arity check fires). On a route that
+  **has** one — the shape users actually type — it reported `Command 'emit {source}' expects 1
+  argument, got 0.` and stopped: it named neither the token it had consumed nor the terminator. The
+  hint POR-115 added was gated on an *unrecognized* option, and a correctly-spelled `--output` never
+  reached it.
+- That gate now has a second branch. A declared option that consumed the route's tokens says so, and
+  proposes moving exactly as many trailing tokens as the route is short of:
+
+  ```
+  Command 'emit {source}' expects 1 argument, got 0.
+  Option '--output' consumed 2 values — a bare token following an option belongs to that option.
+  If 'main.cs' is a positional argument, pass it after the '--' terminator (e.g. '… -- main.cs').
+  ```
+
+  A `Sensitive` option's values are redacted here, not echoed: a near miss names a concrete route, so
+  its option metadata is readable — unlike the unknown-command path, which prints no values at all
+  because it has none to consult.
+
+The decision is only as good as that diagnostic, so the diagnostic is pinned:
+`CliPositionalAfterOption_Should` asserts every claim made above, including that the suggestion it
+prints is a command that then binds, and that the variadic case is refused rather than guessed.
+
+**To reopen:** evidence, not intuition — a count of real invocations hitting this diagnostic, or a
+measurement that coding agents fail to recover from it on the first retry. POR-42's agent-grounding
+harness (`docs/explanation/agent-grounding-benchmark.md`) is the rig; this is one more prompt against
+it, not a new one. If they do recover in one turn, the gap is cosmetic and this entry is the answer.
+If the evidence arrives, **sketch the two-phase design before writing it** — that is a precondition,
+not advice.
+
 ---
 
 ## Parked — explicitly deferred. Do not pick these up without revisiting the Charter.

@@ -57,7 +57,24 @@ internal abstract class CliOptionMaterializer
     /// (SOL-77).
     /// </summary>
     protected static string PositionalAfterOptionHint(string token) =>
-        $"If '{token}' is a positional argument, pass it after the '--' terminator (e.g. '… -- {token}').";
+        PositionalAfterOptionHint([token]);
+
+    /// <summary>
+    /// The plural form, for a caller holding several candidate tokens.
+    /// </summary>
+    /// <remarks>
+    /// <c>internal</c> rather than <c>protected</c> because <see cref="CliApplication"/> needs the
+    /// identical sentence: a positional swallowed by an option surfaces either as an option-arity
+    /// error (here) or as a route-shape mismatch (there), and the two used to advise the terminator in
+    /// different words for the same mistake. Same treatment <c>Explain</c> got, for the same reason
+    /// (POR-116, POR-82).
+    /// </remarks>
+    internal static string PositionalAfterOptionHint(IReadOnlyList<string> tokens) =>
+        tokens.Count == 1
+            ? $"If '{tokens[0]}' is a positional argument, pass it after the '--' terminator " +
+              $"(e.g. '… -- {tokens[0]}')."
+            : $"If {tokens.Select(t => $"'{t}'").Join(", ")} are positional arguments, pass them after " +
+              $"the '--' terminator (e.g. '… -- {tokens.Join(" ")}').";
 
     /// <summary>
     /// The value of the option's <c>EnvironmentVariable</c>, or <see langword="null"/> when the
