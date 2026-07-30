@@ -21,11 +21,11 @@ adding one is cheap, that is flagged.
 
 | Rule | What | Why | Fix | Names | Code fix | Verdict |
 |------|:----:|:---:|:---:|:-----:|:--------:|---------|
-| [POR001](#por001) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
+| [POR001](#por001) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 | [POR002](#por002) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
-| [POR003](#por003) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
+| [POR003](#por003) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 | [POR004](#por004) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
-| [POR005](#por005) | ✅ | ○ | ✅ | ✅ | ○ | **PASS** |
+| [POR005](#por005) | ✅ | ○ | ✅ | ✅ | ✅ | **PASS** |
 | [POR006](#por006) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 | [POR008](#por008) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
 | [POR009](#por009) | ✅ | ✅ | ✅ | ✅ | — | **PASS** |
@@ -35,6 +35,13 @@ adding one is cheap, that is flagged.
 | [POR013](#por013) | ✅ | ✅ | ✅ | ✅ | ✅ | **PASS** |
 
 ✅ = fully met. ○ = present but implicit / could be added cheaply.
+
+**Six of the twelve rules now ship a code fix** — POR001, POR003, POR004, POR005, POR006, POR012 and
+POR013. POR001, POR003 and POR005 gained theirs in POR-122, which took this document's own finding as
+its brief: it singled POR005 out as the cheapest fix available, because the analyzer already computes
+the corrected route. The six that ship none are listed with their reasons in
+[analyzer-rules.md](../reference/analyzer-rules.md) — in every case the correction requires a decision
+the analyzer cannot see, and a fix that guesses is worse than none.
 
 No message rewrites were required. Two rules (POR001, POR004) were rewritten in `14d9beb`; the rest
 were written to this standard from the start. The prior commit improved two messages without
@@ -66,8 +73,11 @@ or add a parameter 'target'.
 | Fix | ✅ "Rename the placeholder to one of those, or add a parameter 'target'" — two concrete actions. Lists available parameter names so the user knows what to rename to. |
 | Names | ✅ Placeholder name, method name, all available parameter names. |
 
-**Code fix:** None. The analyzer cannot know which of the available parameters the placeholder was
-meant to match, so an automated fix would need to guess. Not cheap.
+**Code fix:** ✅ `RoutePlaceholderCodeFix` (POR-122). This entry used to read *"None. The analyzer
+cannot know which of the available parameters the placeholder was meant to match, so an automated fix
+would need to guess."* The premise was right and the conclusion did not follow: a fix does not have to
+choose. It offers **one rename action per available parameter, plus an add-parameter action**, which is
+the ordinary Roslyn shape for a rename suggestion and leaves the decision where it belongs.
 
 **Verdict: PASS.** Rewritten in `14d9beb`. The key improvement was listing the available parameters —
 without that, an agent reading the message has the problem but not the vocabulary of the solution.
@@ -111,7 +121,15 @@ the renamed route should be. Not automatable.
 | Fix | ✅ Shows the valid form with an example (`"--verbose\|-v"`). Individual sub-reasons include parenthetical guidance (`"use '-x' for short, '--name' for long"`). |
 | Names | ✅ The invalid spec string, the specific alias within it that is malformed. |
 
-**Code fix:** None. The sub-reason mechanism has seven distinct branches; a code fix would need to
+**Code fix:** ✅ **partial** — `CliOptionSpecCodeFix` (POR-122), registered only for the two branches
+that carry unambiguous intent: an undashed alias (`"verbose"` → `"--verbose"`, or `"-v"` for a single
+character) and an empty segment from a leading, doubled or trailing pipe (`"--verbose|"` →
+`"--verbose"`). For an empty spec, a whitespace-only one, and a bare `"-"` or `"--"` **no action is
+registered at all** — there is no name to recover, and a fix that guesses is worse than no fix, because
+the user accepts it without reading. The repair is decided in the analyzer beside the validator and
+re-validated before it is offered, so it can never hand back a spec the rule still reports.
+
+The original entry read: None. The sub-reason mechanism has seven distinct branches; a code fix would need to
 know the intended alias form. Could be done for the "missing leading '-'" case (prepend `--`), but the
 other branches have ambiguous intent.
 
@@ -161,7 +179,13 @@ Put the argument in the route: [CliRoute("cp {dest} {src}")].
 | Fix | ✅ **Generates the corrected route string** — `[CliRoute("cp {dest} {src}")]` is a copy-pasteable code fragment. The strongest fix in the analyzer suite. |
 | Names | ✅ Method name, parameter name, current route, corrected route. |
 
-**Code fix:** None, but **cheap to add**. The corrected route string is already computed in the
+**Code fix:** ✅ `CliArgumentRouteCodeFix` (POR-122) — **this document's own recommendation, now
+shipped.** The note below is preserved because it is the brief POR-122 was written from; it was right,
+and it was the cheapest fix in the suite. One detail was tightened in the doing: the corrected route is
+**recomputed** in the fix rather than read back out of the formatted message, because a fix coupled to
+message wording would break the first time this document's advice to reword one was taken.
+
+The original entry read: None, but **cheap to add**. The corrected route string is already computed in the
 analyzer (`$"{route} {{{parameterName}}}".Trim()`). A code fix that replaces the `[CliRoute]`
 argument with the suggested string would be straightforward — comparable in complexity to the
 existing `MissingCommandExampleCodeFix`.

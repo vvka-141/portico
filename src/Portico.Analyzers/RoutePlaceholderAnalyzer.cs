@@ -23,6 +23,9 @@ public sealed class RoutePlaceholderAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
         ImmutableArray.Create(PorticoDiagnostics.RoutePlaceholderMismatch);
 
+    /// <summary>The diagnostic-property key carrying the unmatched placeholder's name.</summary>
+    internal const string PlaceholderProperty = "Placeholder";
+
     public override void Initialize(AnalysisContext context)
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
@@ -50,9 +53,14 @@ public sealed class RoutePlaceholderAnalyzer : DiagnosticAnalyzer
                 ? "(method takes no parameters)"
                 : string.Join(", ", parameterNames.OrderBy(n => n));
 
+            // The location is the whole route literal, so a route with two bad placeholders reports
+            // twice at the same span — the offending name has to travel as structured data or the code
+            // fix cannot tell the two diagnostics apart. Not scraped from the message, which is free to
+            // be reworded (POR-122).
             context.ReportDiagnostic(Diagnostic.Create(
                 PorticoDiagnostics.RoutePlaceholderMismatch,
                 literal.GetLocation(),
+                ImmutableDictionary<string, string?>.Empty.Add(PlaceholderProperty, placeholderName),
                 placeholderName,
                 method.Identifier.ValueText,
                 available));
