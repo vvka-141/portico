@@ -384,8 +384,24 @@ public sealed class Portico_PublicSurface_Should
     [Fact]
     public void Keep_Reflection_Typed_Members_Off_The_Public_Surface()
     {
+        // Recursive, because the namespace of `IReadOnlyList<ParameterInfo>` is
+        // System.Collections.Generic. A top-level-only check passed a member returning exactly that,
+        // which is the shape the rule most needs to catch: the members this rule removed were
+        // *collections* of reflection objects as often as bare ones, and the natural way to re-add one
+        // is inside a list. Element types are unwrapped for the same reason (`ParameterInfo[]`, `ref`).
+        static IEnumerable<Type> Expand(Type type)
+        {
+            var core = type.HasElementType ? type.GetElementType() ?? type : type;
+            yield return core;
+
+            foreach (var argument in core.GetGenericArguments())
+            {
+                foreach (var nested in Expand(argument)) yield return nested;
+            }
+        }
+
         static bool IsReflectionType(Type type) =>
-            (type.IsByRef ? type.GetElementType() ?? type : type).Namespace == "System.Reflection";
+            Expand(type).Any(part => part.Namespace == "System.Reflection");
 
         var offenders = AllShippedAssemblies
             .SelectMany(assembly => assembly.GetExportedTypes())
@@ -417,8 +433,16 @@ public sealed class Portico_PublicSurface_Should
     /// <c>init</c> accessors are excluded: they are how a positional record and an attribute named
     /// argument are both spelled, and they cannot be written after construction, so they are not a
     /// mutation seam. Distinguishing them is the whole reason this test reads the
-    /// <c>IsExternalInit</c> modreq rather than <c>SetMethod.IsPublic</c> — a naive check reports
-    /// twenty properties, seventeen of them records, and buries the four that matter.
+    /// <c>IsExternalInit</c> modreq rather than <c>SetMethod.IsPublic</c> — the naive check reports
+    /// twenty-three properties, twenty of them <c>init</c> and most of those record positional
+    /// parameters, burying the three listed below.
+    /// <para>
+    /// Those counts were measured on 2026-07-30. The sentence previously read "twenty properties,
+    /// seventeen of them records, and buries the four that matter", which was wrong on every figure
+    /// and did not even add up — twenty minus seventeen is three, and three is what the allow-list
+    /// has always held. Only the last number is enforced, by the allow-list itself; the other two
+    /// illustrate why the modreq check is worth its awkwardness and will drift.
+    /// </para>
     /// </remarks>
     [Fact]
     public void Allow_Only_The_Documented_Mutable_Properties()
