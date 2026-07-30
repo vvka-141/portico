@@ -467,7 +467,17 @@ public sealed partial class CliApplication
         catch (Exception e)
         {
             Trace.TraceError(e.ToString());
-            _console.Error.WriteLine($"Unhandled error: {e.Message}");
+
+            // Sanitized, unlike the CliExitException message above. That asymmetry is the point.
+            // A CliExitException message is written by the author for a user to read, and stripping
+            // it would filter output the handler contract says the handler owns. THIS message is
+            // composed by the framework around an exception nobody planned for, and its text
+            // routinely carries argv: a bound --path lands verbatim in a FileNotFoundException, so
+            // `myapp read --path $'\e[2J'` would otherwise clear the user's terminal from an error
+            // the framework printed. CliSanitizer's own doctrine covers exactly this — everything
+            // the framework echoes is attacker-influenced input, and where it cannot tell, it
+            // sanitizes.
+            _console.Error.WriteLine($"Unhandled error: {CliSanitizer.Sanitize(e.Message)}");
             return CliExitException.RuntimeErrorExitCode;
         }
     }

@@ -97,6 +97,44 @@ public sealed class CliArgumentSanitization_Should
             "with the bytes behind it (CVE-2021-42574); the whole family must be stripped, not half.");
     }
 
+    /// <summary>
+    /// The unhandled-exception path composes "Unhandled error: {message}" and used to write the
+    /// message raw. An exception message routinely carries argv — a bound <c>--path</c> lands
+    /// verbatim inside a <c>FileNotFoundException</c> — so this was the same terminal-rewrite and
+    /// prompt-injection channel the option and argument paths already closed, reachable from any
+    /// handler that lets a BCL exception escape.
+    /// </summary>
+    [Fact]
+    public void Strip_Control_Characters_From_An_Unhandled_Exception_Message()
+    {
+        var result = CliTestHarness
+            .ForApplication(cfg => cfg.AddCommands(new Exploder()))
+            .Run("app explode");
+
+        result.ExpectExit(1);
+        Assert.DoesNotContain(Esc, result.StandardError);
+        Assert.DoesNotContain(ZeroWidth, result.StandardError);
+
+        // Sanitizes, does not swallow: the diagnosis still reaches the user.
+        Assert.Contains("Unhandled error:", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("[31mdisk on fire[0m", result.StandardError, StringComparison.Ordinal);
+    }
+
+    public interface IExploder
+    {
+        [CliRoute("explode")]
+        [CliCommandExample("explode")]
+        int Explode();
+    }
+
+    private sealed class Exploder : IExploder
+    {
+        // Stands in for the realistic case: a BCL exception whose message embeds an argv-derived
+        // value the framework then echoes.
+        public int Explode() =>
+            throw new InvalidOperationException($"{Esc}[31mdisk on fire{Esc}[0m{ZeroWidth}");
+    }
+
     [Fact]
     public void Strip_Ansi_Escapes_From_A_Missing_Argument_Message()
     {
