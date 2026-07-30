@@ -10,6 +10,16 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Added
 
+- **A map option now has a shell-safe spelling: `--cfg key=value`** (and the glued
+  `--cfg=key=value`), binding identically to the bracket form. `[…]` is a filename-expansion pattern,
+  and zsh — macOS's default login shell, where `NOMATCH` is on by default — aborts the command
+  outright: `zsh: no matches found: --cfg[env]`. That failure comes from the shell, before Portico is
+  invoked, so no diagnostic the framework could emit would ever be seen. `'--cfg[env]' prod` remains
+  legal, is still tested, and is the only spelling that can carry a key containing `=`; the docs now
+  lead with `key=value` and quote every bracket example. The first `=` splits, so a *value* may
+  contain more (`--cfg dsn=host=db;port=5432`). The scalar rule — *everything after the first
+  separator is the value, verbatim* — is unchanged: the pair is read by the map binder, the one place
+  that knows the declared type, not by the parser.
 - **POR012** (Warning) reports a `[CliOption]` on a `bool` — the framework's own most common misuse.
   `CliFlag?` is presence-only (`--dry-run`); a `bool` reads a value (`--force true`), so a bare
   `--force` does not set it. The code fix rewrites the declaration to `CliFlag? … = null`. `bool`

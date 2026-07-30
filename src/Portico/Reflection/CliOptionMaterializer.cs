@@ -227,7 +227,17 @@ internal abstract class CliOptionMaterializer
 }
 
 /// <summary>
-/// Materializes key-value CLI options into a dictionary.
+/// Materializes key-value CLI options into a dictionary. Two spellings bind identically:
+/// <list type="bullet">
+///   <item><description><c>--cfg env=prod</c> / <c>--cfg=env=prod</c> — the shell-safe form, canonical
+///     in the docs. Split here, not in <see cref="CliInvocation"/>: the parser does not know the
+///     option's declared type, so it hands this materializer an ordinary scalar or collection
+///     capture and the pair is read from it (POR-81).</description></item>
+///   <item><description><c>'--cfg[env]' value</c> — the query-string-shaped form the CHARTER's HTTP
+///     metaphor derives. Parsed structurally by <see cref="CliInvocation"/> into a keyed capture, and
+///     the only spelling that can carry a key containing <c>=</c>. Needs shell quoting: <c>[…]</c> is
+///     a filename-expansion pattern and zsh refuses it unquoted.</description></item>
+/// </list>
 /// </summary>
 internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 {
@@ -258,7 +268,7 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                 $"Option '{attribute.DisplayAliases}' is a map, and EnvironmentVariable is not supported " +
                 $"on map options — one variable cannot carry key/value pairs without an encoding that " +
                 $"breaks on the first value containing a separator. Bind the map from the command line " +
-                $"(--opt[key] value), or take the environment value as a scalar option and parse it in " +
+                $"(--opt key=value), or take the environment value as a scalar option and parse it in " +
                 $"your handler, where you can choose the format.");
         }
 
@@ -394,8 +404,9 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
                 throw new CliConfigurationException(
                     pair.Key != typeof(string)
                         ? $"Option '{attribute.DisplayAliases}' has map type '{FriendlyName(declaredType)}', whose key " +
-                          $"is '{FriendlyName(pair.Key)}'. Map option keys are the text between the brackets in " +
-                          $"'--opt[key] value', so they must be string."
+                          $"is '{FriendlyName(pair.Key)}'. A map option key is whatever the user typed before the " +
+                          $"separator ('--opt key=value') or between the brackets ('--opt[key]' value), so it must " +
+                          $"be string."
                         : $"Option '{attribute.DisplayAliases}' has map type '{FriendlyName(declaredType)}', whose " +
                           $"value type '{FriendlyName(pair.Value)}' cannot be built from a command-line string. " +
                           $"Give '{FriendlyName(pair.Value)}' a [TypeConverter], or use a value type that already " +
@@ -523,45 +534,37 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 
         foreach (var option in options)
         {
-            // Empty-key form (`--config[]`): surface a targeted usage error rather than a raw
-            // "unrecognized option" or a silent miss (SOL-76).
-            if (option is ICliMapOptionCapture { Key: var mapKey } && string.IsNullOrEmpty(mapKey))
-            {
-                throw new CliOptionMaterializationException(
-                    $"The option '{_attribute.DisplayAliases}' was given an empty map key. Use {SampleUsage()}.");
-            }
-
             switch (option)
             {
-                case CliKeyValueOptionCapture capture when pending is not null:
-                    Accumulate(pending, keyOrder!, capture.Key, [capture.Value]);
-                    break;
+                // Empty-key bracket form (`--config[]`): surface a targeted usage error rather than a
+                // raw "unrecognized option" or a silent miss (SOL-76).
+                case ICliMapOptionCapture { Key: "" }:
+                    throw EmptyKey();
 
                 case CliKeyValueOptionCapture capture:
-                    // Duplicate key is a defined usage error (not last-wins): the dictionary uses
-                    // the attribute's comparer, so this honors the configured key case-sensitivity.
-                    // Only for a single-valued map — where the value type accumulates, a repeated
-                    // key is the feature rather than the mistake.
-                    if (result.Contains(capture.Key))
-                    {
-                        throw new CliOptionMaterializationException(
-                            $"Duplicate key '{capture.Key}' for option '{_attribute.DisplayAliases}'. " +
-                            $"Each map key may be specified only once.");
-                    }
-                    result.Add(capture.Key, _valueParser.Invoke(capture.Key, capture.Value));
-                    break;
-
-                case CliKeyCollectionOptionCapture collection when pending is not null:
-                    Accumulate(pending, keyOrder!, collection.Key, collection.Values);
+                    Bind(capture.Key, [capture.Value]);
                     break;
 
                 case CliKeyCollectionOptionCapture collection:
-                    throw new CliOptionMaterializationException(
-                        $"The option '{_attribute.DisplayAliases}[{collection.Key}]' expected a single value but received several. Provide one value per key.");
+                    Bind(collection.Key, collection.Values);
+                    break;
 
                 case CliKeyFlagOptionCapture flag:
                     throw new CliOptionMaterializationException(
                         $"The option '{_attribute.DisplayAliases}[{flag.Key}]' is missing its value. Use {SampleUsage()}.");
+
+                // The shell-safe spelling: `--cfg env=prod`. The parser is type-blind — it has no
+                // idea `--cfg` is a map, so this arrives as an ordinary scalar (one pair) or
+                // collection (several) capture, exactly as it would for a non-map option. The
+                // map-ness is known HERE and only here, from the declared type, which is why the
+                // second split lives in this materializer rather than in CliInvocation (POR-81).
+                case CliScalarOptionCapture scalar:
+                    BindPair(scalar.Value);
+                    break;
+
+                case CliCollectionOptionCapture collection:
+                    foreach (var pair in collection.Values) BindPair(pair);
+                    break;
 
                 default:
                     throw new CliOptionMaterializationException(
@@ -579,6 +582,55 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
 
         return _convert.Invoke(result);
 
+        // `key=value`, split at the FIRST separator. The key therefore cannot contain '=' in this
+        // spelling and the value can — `--cfg env=a=b` is `env` → `a=b`. A key that genuinely needs
+        // an '=' is what the bracket form is for.
+        void BindPair(string token)
+        {
+            var separator = token.IndexOf('=');
+            if (separator < 0)
+            {
+                throw new CliOptionMaterializationException(
+                    _attribute.Sensitive
+                        ? $"The option '{_attribute.DisplayAliases}' expected a key/value pair. Use {SampleUsage()}."
+                        : $"The option '{_attribute.DisplayAliases}' expected a key/value pair but received " +
+                          $"'{token}'. Use {SampleUsage()}, or the bracket form {BracketUsage()}. " +
+                          PositionalAfterOptionHint(token));
+            }
+
+            if (separator == 0) throw EmptyKey();
+
+            Bind(token[..separator], [token[(separator + 1)..]]);
+        }
+
+        void Bind(string key, IReadOnlyList<string> values)
+        {
+            if (pending is not null)
+            {
+                Accumulate(pending, keyOrder!, key, values);
+                return;
+            }
+
+            if (values.Count > 1)
+            {
+                throw new CliOptionMaterializationException(
+                    $"The option '{_attribute.DisplayAliases}[{key}]' expected a single value but received several. Provide one value per key.");
+            }
+
+            // Duplicate key is a defined usage error (not last-wins): the dictionary uses the
+            // attribute's comparer, so this honors the configured key case-sensitivity. Only for a
+            // single-valued map — where the value type accumulates, a repeated key is the feature
+            // rather than the mistake, and control never reaches here.
+            if (result.Contains(key))
+            {
+                throw new CliOptionMaterializationException(
+                    $"Duplicate key '{key}' for option '{_attribute.DisplayAliases}'. " +
+                    $"Each map key may be specified only once.");
+            }
+
+            result.Add(key, _valueParser.Invoke(key, values[0]));
+        }
+
         void Accumulate(Dictionary<string, List<object>> sink, List<string> order, string key, IEnumerable<string> values)
         {
             if (!sink.TryGetValue(key, out var parsed))
@@ -595,12 +647,24 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
         }
     }
 
-    /// <summary>A copy-pasteable usage hint, e.g. <c>--config[key] value</c>.</summary>
-    private string SampleUsage()
+    private CliOptionMaterializationException EmptyKey() =>
+        new($"The option '{_attribute.DisplayAliases}' was given an empty map key. Use {SampleUsage()}.");
+
+    /// <summary>
+    /// A copy-pasteable usage hint, e.g. <c>--config key=value</c>. The shell-safe spelling leads
+    /// because the bracket form is a filename-expansion pattern that zsh — macOS's default login
+    /// shell — refuses to pass through unquoted (POR-81).
+    /// </summary>
+    private string SampleUsage() => $"{LongName()} key=value";
+
+    /// <summary>The query-string-shaped alternative, e.g. <c>'--config[key]' value</c>, quoted as a
+    /// shell needs it.</summary>
+    private string BracketUsage() => $"'{LongName()}[key]' value";
+
+    private string LongName()
     {
         var longName = _attribute.LongOptionNames.FirstOrDefault();
-        var sample = longName is null ? "--opt" : $"--{longName}";
-        return $"{sample}[key] value";
+        return longName is null ? "--opt" : $"--{longName}";
     }
 }
 

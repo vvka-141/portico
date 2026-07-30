@@ -45,10 +45,12 @@ owns routing and binding, not what you print. Throw `CliExitException` to fail w
 [CliOption("--force")]      bool force          // needs a value: `--force true`. Bare `--force` errors.
 ```
 
-**Map option** — the `?keep[topic]=7` of a CLI, binds to `Dictionary<K,V>`:
+**Map option** — the `?keep[topic]=7` of a CLI, binds to `Dictionary<K,V>`. Two spellings bind
+identically; prefer `key=value`, since `[…]` is a glob pattern that zsh refuses unquoted:
 
 ```csharp
-[CliOption("--keep")] Dictionary<string,int>? keep   //  '--keep[orders]' 7 '--keep[audit]' 90
+[CliOption("--keep")] Dictionary<string,int>? keep   //  --keep orders=7 audit=90
+                                                     //  '--keep[orders]' 7 '--keep[audit]' 90
 ```
 
 **Collection** — repeat the flag; binds `List<T>`, `T[]`, `IReadOnlyList<T>`, `HashSet<T>`, …:

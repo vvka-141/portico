@@ -26,7 +26,7 @@ A CLI is an HTTP API without the H.
 | `[Route("api/projects/{id}")]`| `[CliRoute("projects get {id}")]`                 |
 | `[FromRoute] string id`       | `[CliArgument("which project")] string id`        |
 | `[FromQuery] string format`   | `[CliOption("--format")]`                         |
-| `?cfg[env]=prod`              | `'--cfg[env]' prod` (map option; quote the brackets in zsh) |
+| `?cfg[env]=prod`              | `--cfg env=prod` (map option; `'--cfg[env]' prod` also binds) |
 | `[FromBody] RequestDto`       | `CliOptions`                                 |
 | `IActionFilter`               | `CliMiddleware.OnExecuting/Executed`      |
 | Action selector ranking       | `CliMethodInfo.RankByOptions`                     |
@@ -40,8 +40,12 @@ A CLI is an HTTP API without the H.
    No fluent `.AddCommand(c => c.WithSubcommand(...))` trees.
 2. **Examples are tests.** `[CliCommandExample("init . --template basic")]` is executable documentation validated
    by `CliContractValidator<T>` via `DispatchProxy`. This is the signature feature.
-3. **Map options (`'--cfg[key]' value`) are first-class.** They parse cleanly into `IDictionary<string, T>`.
-   The brackets must be quoted in zsh and any shell with `NOMATCH` or `failglob` enabled (macOS defaults to zsh).
+3. **Map options are first-class.** They parse cleanly into `IDictionary<string, T>`, in two spellings that bind
+   identically: `--cfg key=value` and `'--cfg[key]' value`. The bracket form is the query-string shape this
+   metaphor derives, and the only one that can carry a key containing `=`; `key=value` is canonical in the docs
+   because the brackets must be quoted in zsh and any shell with `NOMATCH` or `failglob` enabled (macOS defaults
+   to zsh). **Where the metaphor and real shell behaviour disagree, the shell wins** — a default form that a
+   default shell refuses to pass through is not "POSIX-friendly first" (POR-81).
 4. **Interface-first contracts are supported.** You can decorate an interface, validate examples, then implement —
    OpenAPI-for-CLI.
 5. **Stable from 1.0.** Semver applies from the 1.0 cut forward; surface drift before then is contained to active initiatives and announced in the changelog.

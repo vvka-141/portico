@@ -44,7 +44,7 @@ these anywhere:
   A bare `--timeout 30` is refused rather than silently meaning thirty **days**, which is what
   .NET's own `TimeSpan` parser does with it.
 - **17 collection shapes**, immutable ones included — `ImmutableArray<T>`, `ImmutableHashSet<T>` and
-  the rest bind directly. So do `string`-keyed maps: `--shard[eu] 3`.
+  the rest bind directly. So do `string`-keyed maps: `--shard eu=3` (or `'--shard[eu]' 3`).
 - **Named POSIX exit codes.** `CliExitException.UsageErrorExitCode`, `CancelledExitCode`,
   `TerminatedExitCode` — so a pipeline reading `$?` can tell *misconfigured* from *failed*.
 

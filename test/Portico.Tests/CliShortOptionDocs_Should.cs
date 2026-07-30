@@ -62,6 +62,7 @@ public sealed class CliShortOptionDocs_Should
         "-n5",
         "-n=5",
         "-e[region] eu",
+        "-e region=eu",
         "-ax",
         "--all",
     ];
@@ -105,6 +106,13 @@ public sealed class CliShortOptionDocs_Should
 
             case "-e[region] eu":
                 // The [key] must reach the tokenizer intact; a split would tear it off (POR-58).
+                result.ExpectExit(0);
+                Assert.Equal("eu", Assert.IsType<Dictionary<string, string>>(tool.Env)["region"]);
+                break;
+
+            case "-e region=eu":
+                // The shell-safe spelling (POR-81) reaches the expander as `-e` alone, which is
+                // already canonical — the pair is read later, by the map binder that knows the type.
                 result.ExpectExit(0);
                 Assert.Equal("eu", Assert.IsType<Dictionary<string, string>>(tool.Env)["region"]);
                 break;
