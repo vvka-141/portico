@@ -9,9 +9,9 @@ decidable from your declarations alone; that is the test for whether a rule belo
 replace that check — it moves the failure into your edit loop, where you can fix it without running
 anything.
 
-**Six of the twelve ship a code fix**, so Ctrl-. clears the diagnostic. All six support *Fix all in
+**Seven of the twelve ship a code fix**, so Ctrl-. clears the diagnostic. All seven support *Fix all in
 document / project*, which matters most after a rename: one parameter rename can produce a dozen
-POR001s at once. The other six deliberately offer nothing — in each case the correction needs a decision
+POR001s at once. The other five deliberately offer nothing — in each case the correction needs a decision
 the analyzer cannot see, and **a code fix that guesses is worse than no code fix, because you accept it
 without reading.** Each rule below says which it is and why.
 
@@ -132,6 +132,10 @@ constructor arguments.
 **This does not apply to `CliMiddleware`**, even though it inherits from `CliOptions`. Middleware is
 constructed by *you* and cloned per dispatch, never `Activator`-constructed — so a constructor
 dependency is legitimate, and is exactly how a DI container injects into it.
+
+**Code fix:** inserts the public parameterless constructor. Added alongside the existing one rather
+than replacing it: a bundle may legitimately keep a convenience constructor for your own code to
+call, and the framework only needs the parameterless one to exist.
 
 ## POR007 — retired
 

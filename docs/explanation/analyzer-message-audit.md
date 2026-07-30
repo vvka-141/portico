@@ -36,10 +36,10 @@ adding one is cheap, that is flagged.
 
 ✅ = fully met. ○ = present but implicit / could be added cheaply.
 
-**Six of the twelve rules now ship a code fix** — POR001, POR003, POR004, POR005, POR006, POR012 and
+**Seven of the twelve rules now ship a code fix** — POR001, POR003, POR004, POR005, POR006, POR012 and
 POR013. POR001, POR003 and POR005 gained theirs in POR-122, which took this document's own finding as
 its brief: it singled POR005 out as the cheapest fix available, because the analyzer already computes
-the corrected route. The six that ship none are listed with their reasons in
+the corrected route. The five that ship none are listed with their reasons in
 [analyzer-rules.md](../reference/analyzer-rules.md) — in every case the correction requires a decision
 the analyzer cannot see, and a fix that guesses is worse than none.
 

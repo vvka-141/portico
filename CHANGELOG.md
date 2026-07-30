@@ -10,8 +10,8 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Added
 
-- **Code fixes for POR001, POR003 and POR005** — Ctrl-. now clears six of the twelve rules instead of
-  three, and all six support *Fix all in document / project*, which is what matters after a rename that
+- **Code fixes for POR001, POR003 and POR005** — Ctrl-. now clears seven of the twelve rules instead of
+  four, and all seven support *Fix all in document / project*, which is what matters after a rename that
   produces a dozen diagnostics at once.
   - **POR005** appends the missing `{placeholder}` to the `[CliRoute]` string. One action, build green.
   - **POR001** offers a rename per parameter the method declares, plus *add parameter*. Both remedies
@@ -23,7 +23,7 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
     without reading is worse than the error. The repair is re-validated before being offered, so it can
     never hand back a spec the rule still reports.
 
-  `docs/reference/analyzer-rules.md` now states per rule whether a fix exists and, for the six that
+  `docs/reference/analyzer-rules.md` now states per rule whether a fix exists and, for the five that
   have none, why — in every case the correction needs a decision the analyzer cannot see.
 
 ### Changed

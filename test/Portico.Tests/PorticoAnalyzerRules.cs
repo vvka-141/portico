@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Portico.Analyzers;
 
@@ -30,6 +31,25 @@ internal static class PorticoAnalyzerRules
             .Select(descriptor => descriptor.Id)
             // POR009 is declared by two descriptors — one for method parameters, one for bundle
             // properties — and is one rule to a reader.
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+
+    /// <summary>
+    /// The rule IDs a code-fix provider actually offers to fix, discovered the same way.
+    /// </summary>
+    /// <remarks>
+    /// The providers live in a second assembly (Workspaces is a code-fix-only dependency, kept out of
+    /// the analyzer DLL for RS1038), so this needs its own handle on it. Reflection for the same
+    /// reason as <see cref="LiveIds"/>: a new provider is what gets forgotten, and POR-122 added three
+    /// of them at once while the reference page kept saying six rules had a fix.
+    /// </remarks>
+    internal static IReadOnlyCollection<string> FixableIds() =>
+        typeof(RoutePlaceholderCodeFix).Assembly
+            .GetTypes()
+            .Where(type => !type.IsAbstract && typeof(CodeFixProvider).IsAssignableFrom(type))
+            .Select(type => (CodeFixProvider)Activator.CreateInstance(type)!)
+            .SelectMany(provider => provider.FixableDiagnosticIds)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
