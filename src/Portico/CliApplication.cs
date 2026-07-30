@@ -715,22 +715,88 @@ public sealed partial class CliApplication
             $"{noun}{(max == 1 ? "" : "s")}, got {supplied}."
         };
 
-        var unrecognized = invocation.Options
-            .Where(opt => !best.DeclaresOptionAlias(opt.Name))
-            .Select(opt => opt.Name)
-            .ToList();
-
-        if (unrecognized.Count > 0 && invocation.Segments.Length < model.MinSegmentCount)
+        // Too few segments has two habitual causes, and the '--' terminator fixes both. The count
+        // line alone does not: "got 0" is true and unhelpful when the user plainly typed the argument.
+        if (invocation.Segments.Length < model.MinSegmentCount)
         {
-            var names = unrecognized.Select(n => $"'{n}'").Join(", ");
-            lines.Add(
-                $"If {names} {(unrecognized.Count == 1 ? "is" : "are")} " +
-                $"meant as positional, pass {(unrecognized.Count == 1 ? "it" : "them")} " +
-                $"after the '--' terminator (e.g. '… -- {unrecognized[0].TrimStart('-')}').");
+            var unrecognized = invocation.Options
+                .Where(opt => !best.DeclaresOptionAlias(opt.Name))
+                .Select(opt => opt.Name)
+                .ToList();
+
+            if (unrecognized.Count > 0)
+            {
+                // Cause 1 — a positional that happens to start with a dash was read as an option
+                // (POR-115). The token itself is the argument, minus its dashes.
+                var names = unrecognized.Select(n => $"'{n}'").Join(", ");
+                lines.Add(
+                    $"If {names} {(unrecognized.Count == 1 ? "is" : "are")} " +
+                    $"meant as positional, pass {(unrecognized.Count == 1 ? "it" : "them")} " +
+                    $"after the '--' terminator (e.g. '… -- {unrecognized[0].TrimStart('-')}').");
+            }
+            else if (SwallowedPositionals(invocation, best, model) is { } swallowed)
+            {
+                // Cause 2 — a *declared* option greedily took the tokens the route needed. This is
+                // the shape POR-82 is named after (`tool compile --output out.dll main.cs`), and it
+                // used to report only the count: the message named neither the tokens it had consumed
+                // nor the terminator, because cause 1's branch requires an *un*recognized option and
+                // a correctly-spelled one never reaches it.
+                // Two lines, not one: the rule and the fix are separate thoughts, and a single
+                // wrapped paragraph in a terminal buries the second.
+                lines.Add(
+                    $"Option '{swallowed.Option}' consumed {swallowed.ConsumedCount} " +
+                    $"value{(swallowed.ConsumedCount == 1 ? "" : "s")} — a bare token following an " +
+                    $"option belongs to that option.");
+                lines.Add(Reflection.CliOptionMaterializer.PositionalAfterOptionHint(swallowed.Candidates));
+            }
         }
 
         _console.Error.WriteLine(string.Join(Environment.NewLine, lines));
     }
+
+    /// <summary>
+    /// The trailing values a <em>declared</em> option consumed that were most likely meant as the
+    /// route's positional arguments, or <see langword="null"/> when no declared option carried values.
+    /// </summary>
+    /// <remarks>
+    /// A heuristic, and phrased as one at the call site ("if … is a positional argument"). It does not
+    /// need to be right to be useful: the count line is already the truth, and this only proposes
+    /// which tokens to move behind the terminator.
+    /// </remarks>
+    private static SwallowedTokens? SwallowedPositionals(
+        CliInvocation invocation,
+        CliAction best,
+        Reflection.CliRouteModel model)
+    {
+        // The LAST value-carrying option is the one that ran to the end of the command line, so its
+        // trailing values are the candidates. ICliCollectionCapture is implemented by exactly the
+        // scalar and collection shapes, which excludes the keyed forms — a `[key]` capture's value was
+        // never a mis-parsed positional.
+        var swallower = invocation.Options
+            .OfType<ICliCollectionCapture>()
+            .LastOrDefault(capture => best.DeclaresOptionAlias(capture.Name));
+        if (swallower is null) return null;
+
+        var values = swallower.Values.ToList();
+        if (values.Count == 0) return null;
+
+        // As many trailing values as the route is short of: a greedy parse appended them last.
+        var missing = model.MinSegmentCount - invocation.Segments.Length;
+        var candidates = values.Skip(Math.Max(0, values.Count - missing)).ToList();
+
+        // The unknown-command path renders no option values at all, because with no route matched the
+        // framework cannot know which of them is a secret. Here it can: `best` is a concrete route, so
+        // its Sensitive declarations are readable and the value is redacted rather than echoed into a
+        // usage error (POR-91).
+        if (best.GetOptionInfos().Any(info => info.IsSensitive && info.IsMatch(swallower.Name)))
+        {
+            candidates = [.. candidates.Select(_ => CliInvocation.Redacted)];
+        }
+
+        return new SwallowedTokens(swallower.Name, values.Count, candidates);
+    }
+
+    private sealed record SwallowedTokens(string Option, int ConsumedCount, IReadOnlyList<string> Candidates);
 
     private IEnumerable<string> GetSuggestions(
         CliInvocation invocation,

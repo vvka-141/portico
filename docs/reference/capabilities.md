@@ -361,6 +361,31 @@ second separator means something.
 After the POSIX `--` terminator, a token that looks like an option is a positional and is left exactly
 as typed: `echo -- --name=x` passes `--name=x` through as text.
 
+### A positional after an option needs the `--` terminator
+
+**A bare token following an option belongs to that option.** So a positional written *after* an option
+is consumed by it, and the command fails:
+
+```
+admin compile --output out.dll main.cs      ✗ --output takes both values
+admin compile main.cs --output out.dll      ✓ natural order, no ceremony
+admin compile --output out.dll -- main.cs   ✓ the terminator separates them
+```
+
+The failure is loud and names the fix — it does not silently bind the wrong thing:
+
+```
+Command 'compile {source}' expects 1 argument, got 0.
+Option '--output' consumed 2 values — a bare token following an option belongs to that option.
+If 'main.cs' is a positional argument, pass it after the '--' terminator (e.g. '… -- main.cs').
+```
+
+Most CLIs resolve this implicitly. Portico does not, and the reason is that a **variadic** option
+followed by a positional has no correct greedy answer — `--tags a b main.cs` is indistinguishable from
+three tags. Deciding it would mean tokenizing against the matched route's positional arity, inverting
+the parser's dependency on route matching. The full reasoning and the bar to reopen it are in
+[ROADMAP.md](../ROADMAP.md#implicit-positional-after-option-no-the-terminator-stays-explicit-resolved-2026-07-30-por-82).
+
 ### Short options bundle, POSIX-style
 
 Take a command declaring four shorts — two flags, a scalar and a map:
