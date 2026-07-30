@@ -10,13 +10,22 @@ name: Release
 #          Repository Owner:  vvka-141
 #          Repository:        portico
 #          Workflow File:     release.yml      (file name only, no .github/workflows/ prefix)
-#          Environment:       (leave empty — this workflow uses none)
+#          Environment:       release          (must match the publish job's `environment:` below)
 #   2. A NUGET_USER repository secret holding the nuget.org *profile name* that owns the policy.
 #      Not an email address, and not a credential — it is a secret only to keep it out of logs.
+#   3. A GitHub environment named `release` (Settings -> Environments) carrying at least one
+#      protection rule. Without one the environment exists but gates nothing — see the publish job.
 #
 # A policy is scoped to its owner and covers every package that owner owns. Renaming this file
 # invalidates the policy until nuget.org is updated to match, which is why the name is repeated
 # in the comment above the login step.
+#
+# ORDER MATTERS, AND ONLY IN ONE DIRECTION. nuget.org's environment field is a *filter*, not a
+# handshake: per NuGet's accepted design, the claim is checked only "if an environment filter is
+# provided in the trust policy". So —
+#     workflow declares `environment:`, policy field empty  -> authenticates (claim not checked)
+#     policy field set,  workflow declares no environment   -> FAILS
+# Set the workflow side first (done), the nuget.org side second. Never the reverse (POR-111).
 on:
   push:
     tags: ['v*']
@@ -29,6 +38,21 @@ jobs:
     name: Publish to nuget.org
     needs: verify
     runs-on: ubuntu-latest
+
+    # The job that can mint a nuget.org publishing credential. Before this line, the complete
+    # authorisation check for an irreversible publish to a public registry was "can you push a tag
+    # matching v*". Trusted Publishing removed the secret to steal; it did not remove that (POR-111).
+    #
+    # Two things this buys, and one it does not:
+    #   - it puts the `environment` claim in the OIDC token, so the nuget.org policy can narrow from
+    #     "any run of release.yml in this repo" to "any run that cleared this environment's rules";
+    #   - it gives GitHub a place to require a reviewer or restrict which refs may deploy.
+    #   - it does NOT gate anything by itself. GitHub creates a referenced environment implicitly,
+    #     and an environment with no protection rules approves instantly. The rule is a repository
+    #     setting, not a file in this tree — which is exactly why the header above lists it as a
+    #     prerequisite rather than leaving it to be inferred.
+    environment: release
+
     permissions:
       contents: write   # to create the GitHub Release
       id-token: write   # to request the OIDC token Trusted Publishing exchanges for a key
