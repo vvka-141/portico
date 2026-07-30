@@ -50,3 +50,23 @@ your attention are the ones that read untrusted input or write output that ends 
   string is a vulnerability**, not a cosmetic bug. Two have been found and fixed already.
 
 Out of scope: what *your* command handlers do with the values they are handed. That code is yours.
+
+## How a release is authorised
+
+Worth stating, because "where did this package come from" is a fair question to ask of any dependency.
+
+- **No long-lived publishing credential exists.** Packages are pushed with
+  [nuget.org Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+  `.github/workflows/release.yml` exchanges a short-lived GitHub OIDC token for an API key valid for
+  one hour, one use. There is no `NUGET_API_KEY` secret in the repository and there should never be
+  one.
+- **Publishing is gated on a GitHub environment.** The `publish` job runs in the `release`
+  environment, so the OIDC token carries that claim and the nuget.org policy is scoped to it — the
+  authorisation is not merely "can push a `v*` tag".
+- **Nothing is published without the full verify job passing**, on both supported TFMs and on both
+  Linux and Windows. `release.yml` calls the same reusable workflow CI calls on every push.
+- **A nuget.org version is immutable, and the release path treats it that way.** `--skip-duplicate` is
+  deliberately off: a corrective re-tag must fail loudly rather than silently leave the original
+  artifacts being served.
+- Builds are deterministic with Source Link and embedded untracked sources, so a published assembly
+  can be traced back to the commit it came from.
