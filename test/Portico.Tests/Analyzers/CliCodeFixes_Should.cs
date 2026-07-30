@@ -318,6 +318,70 @@ public class Svc
         Assert.Contains("Add parameter 'string userId'", titles);
     }
 
+    // A placeholder may legally be a C# keyword: CliRouteFacts accepts any `[A-Za-z_][A-Za-z0-9_]*`,
+    // and `{ref}`, `{namespace}` and `{object}` are all ordinary names for a command-line argument —
+    // `git`'s own surface is full of them. The added parameter must therefore be a VERBATIM identifier,
+    // or the fix hands back source that does not compile, which is the one thing a code fix must never
+    // do. The runtime binds on ParameterInfo.Name, which is `ref` for `@ref`, so the route needs no
+    // change to match.
+    [Theory]
+    [InlineData("ref")]
+    [InlineData("namespace")]
+    [InlineData("object")]
+    public async Task POR001_Escape_A_Placeholder_That_Is_A_CSharp_Keyword(string placeholder)
+    {
+        var route = "get {" + placeholder + "}";
+        var source = $$"""
+using Portico;
+
+public class Svc
+{
+    [CliRoute("{{route}}")]
+    [CliCommandExample("get 42")]
+    public int Get() => 0;
+}
+""";
+
+        var fixedSource = await CodeFixTestRunner.ApplyAsync(
+            new RoutePlaceholderAnalyzer(),
+            new RoutePlaceholderCodeFix(),
+            source,
+            select: title => title.Contains("Add parameter"));
+
+        Assert.Contains($"string @{placeholder}", fixedSource);
+        CodeFixTestRunner.AssertCompiles(fixedSource);
+
+        var remaining = await AnalyzerTestRunner.RunAsync(new RoutePlaceholderAnalyzer(), fixedSource);
+        Assert.DoesNotContain(remaining, d => d.Id == "POR001");
+    }
+
+    // A contextual keyword is a legal parameter name and must NOT be escaped — `@value` compiles but is
+    // noise, and the pair with the case above is what pins the rule to "reserved only".
+    [Fact]
+    public async Task POR001_Leave_A_Contextual_Keyword_Placeholder_Unescaped()
+    {
+        var source = """
+using Portico;
+
+public class Svc
+{
+    [CliRoute("set {value}")]
+    [CliCommandExample("set 42")]
+    public int Set() => 0;
+}
+""";
+
+        var fixedSource = await CodeFixTestRunner.ApplyAsync(
+            new RoutePlaceholderAnalyzer(),
+            new RoutePlaceholderCodeFix(),
+            source,
+            select: title => title.Contains("Add parameter"));
+
+        Assert.Contains("string value", fixedSource);
+        Assert.DoesNotContain("@value", fixedSource);
+        CodeFixTestRunner.AssertCompiles(fixedSource);
+    }
+
     // The rename is token-wise, not a substring replace. `user{userId}` is a LITERAL segment the
     // runtime routes fine (POR-61), so rewriting inside it would break a working route. Here the bad
     // placeholder is a whole token and the literal lookalike must survive untouched.

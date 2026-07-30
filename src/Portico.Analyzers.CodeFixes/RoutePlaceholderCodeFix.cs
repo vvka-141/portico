@@ -77,10 +77,12 @@ public sealed class RoutePlaceholderCodeFix : CodeFixProvider
                 diagnostic);
         }
 
+        var identifier = ParameterIdentifier(placeholder!);
+
         context.RegisterCodeFix(
             CodeAction.Create(
-                title: $"Add parameter 'string {placeholder}'",
-                createChangedDocument: ct => AddParameterAsync(context.Document, method, placeholder!, ct),
+                title: $"Add parameter 'string {identifier}'",
+                createChangedDocument: ct => AddParameterAsync(context.Document, method, identifier, ct),
                 // One key for every add: a route rename typically leaves several placeholders needing
                 // parameters, and sweeping them in one pass is the failure mode POR-122 exists to remove.
                 equivalenceKey: $"{nameof(RoutePlaceholderCodeFix)}.AddParameter"),
@@ -119,6 +121,33 @@ public sealed class RoutePlaceholderCodeFix : CodeFixProvider
     }
 
     /// <summary>
+    /// A placeholder name as a parameter identifier — verbatim (<c>@ref</c>) when the name is a
+    /// reserved C# keyword.
+    /// </summary>
+    /// <remarks>
+    /// A route placeholder is constrained only to <c>[A-Za-z_][A-Za-z0-9_]*</c>, so <c>{ref}</c>,
+    /// <c>{namespace}</c> and <c>{object}</c> are legal routes — and ordinary names for a command-line
+    /// argument. Emitting <c>string ref</c> would hand the author source that does not compile, which
+    /// is the one outcome a code fix must never have.
+    /// <para>
+    /// Reserved words only: <see cref="SyntaxFacts.GetKeywordKind"/> returns <see cref="SyntaxKind.None"/>
+    /// for contextual keywords such as <c>value</c>, which are legal parameter names and would only be
+    /// made noisier by an <c>@</c>. The verbatim token keeps the bare name as its <i>value</i> text, so
+    /// the runtime — which binds on <c>ParameterInfo.Name</c>, and sees <c>ref</c> for <c>@ref</c> —
+    /// matches the unchanged route.
+    /// </para>
+    /// </remarks>
+    private static SyntaxToken ParameterIdentifier(string name) =>
+        SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None
+            ? SyntaxFactory.Identifier(name)
+            : SyntaxFactory.Identifier(
+                leading: SyntaxTriviaList.Empty,
+                contextualKind: SyntaxKind.IdentifierToken,
+                text: "@" + name,
+                valueText: name,
+                trailing: SyntaxTriviaList.Empty);
+
+    /// <summary>
     /// Appends <c>string {name}</c> to the method's parameter list.
     /// </summary>
     /// <remarks>
@@ -130,14 +159,14 @@ public sealed class RoutePlaceholderCodeFix : CodeFixProvider
     private static async Task<Document> AddParameterAsync(
         Document document,
         MethodDeclarationSyntax method,
-        string name,
+        SyntaxToken name,
         CancellationToken ct)
     {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
         var parameter = SyntaxFactory
-            .Parameter(SyntaxFactory.Identifier(name))
+            .Parameter(name)
             .WithType(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.StringKeyword))
                 .WithTrailingTrivia(SyntaxFactory.Space));
 
