@@ -94,7 +94,7 @@ public sealed class Portico_Extensibility_Should
     public void Document_every_extension_point_in_the_extensibility_guide()
     {
         var guide = File.ReadAllText(
-            Path.Combine(RepositoryRoot(), "docs", "explanation", "extensibility.md"));
+            Path.Combine(RepositoryPaths.Root(), "docs", "explanation", "extensibility.md"));
 
         Assert.All(DocumentedExtensionPoints, fullName =>
         {
@@ -105,17 +105,5 @@ public sealed class Portico_Extensibility_Should
                 "An undocumented extension point is a hook nobody asked for — the charter's §4.7 " +
                 "definition of speculative extensibility.");
         });
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

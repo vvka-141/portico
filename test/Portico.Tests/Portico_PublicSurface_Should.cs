@@ -194,7 +194,7 @@ public sealed class Portico_PublicSurface_Should
     {
         var rows = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryRoot(), SurfaceDocPath)))
+        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), SurfaceDocPath)))
         {
             // | `CliApplication` | sealed class | primitive | The entry point. … |
             var match = Regex.Match(line, @"^\|\s*`(?<name>[A-Za-z]\w*)(?<generic><[^`]*>)?`\s*\|\s*(?<kind>[^|]+?)\s*\|");
@@ -249,18 +249,6 @@ public sealed class Portico_PublicSurface_Should
     /// <summary><c>CliContractValidator`1</c> → <c>CliContractValidator</c>, which is how docs spell it.</summary>
     private static string SimpleName(Type type) =>
         type.Name.IndexOf('`') is var tick && tick >= 0 ? type.Name[..tick] : type.Name;
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
-    }
 
     /// <summary>
     /// POR-104: adding or removing an exported type is a deliberate act — it must update both this

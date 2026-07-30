@@ -109,17 +109,5 @@ public sealed class ReleaseWorkflow_Should
 
     private static int Indent(string line) => line.Length - line.TrimStart().Length;
 
-    private static string WorkflowFile() => Path.Combine(RepositoryRoot(), WorkflowPath);
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
-    }
+    private static string WorkflowFile() => Path.Combine(RepositoryPaths.Root(), WorkflowPath);
 }

@@ -36,7 +36,7 @@ public sealed class Readme_Should
     /// </summary>
     private static string FirstCodeBlock()
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), ReadmePath));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), ReadmePath));
 
         var start = Array.FindIndex(lines, line => line.StartsWith("```csharp", StringComparison.Ordinal));
         Assert.True(start >= 0, $"{ReadmePath} has no ```csharp block. If the quickstart moved to " +
@@ -95,17 +95,5 @@ public sealed class Readme_Should
             diagnostics.IsEmpty,
             $"{ReadmePath}'s first code block trips Portico's own analyzers:{Environment.NewLine}" +
             string.Join(Environment.NewLine, diagnostics.Select(d => $"  {d.Id}: {d.GetMessage()}")));
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

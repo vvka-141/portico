@@ -37,7 +37,7 @@ public sealed class CliCollectionBindingDocs_Should
     /// </remarks>
     private static IReadOnlyCollection<string> DocumentedShapes()
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), CapabilitiesPath));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), CapabilitiesPath));
 
         var heading = Array.FindIndex(lines, line =>
             line.StartsWith("#### The shapes that bind", StringComparison.Ordinal));
@@ -160,7 +160,7 @@ public sealed class CliCollectionBindingDocs_Should
     /// <summary>Shape name → whether its row claims duplicates are removed.</summary>
     private static Dictionary<string, bool> DocumentedRows()
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), CapabilitiesPath));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), CapabilitiesPath));
         var heading = Array.FindIndex(lines, line =>
             line.StartsWith("#### The shapes that bind", StringComparison.Ordinal));
 
@@ -188,16 +188,4 @@ public sealed class CliCollectionBindingDocs_Should
     private static Type DefinitionNamed(string shape) =>
         CliCollectionOptionMaterializer.SupportedCollectionDefinitions
             .Single(d => $"{d.Name[..d.Name.IndexOf('`')]}<T>" == shape);
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
-    }
 }

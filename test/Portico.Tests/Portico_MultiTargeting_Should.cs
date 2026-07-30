@@ -48,7 +48,7 @@ public sealed class Portico_MultiTargeting_Should
     public void Compile_The_Same_Source_Text_For_Every_Target()
     {
         var conditional = new Regex(@"^\s*#\s*(if|elif|else|endif)\b", RegexOptions.CultureInvariant);
-        var root = Path.Combine(RepositoryRoot(), "src");
+        var root = Path.Combine(RepositoryPaths.Root(), "src");
 
         var offenders = new List<string>();
 
@@ -67,7 +67,7 @@ public sealed class Portico_MultiTargeting_Should
             {
                 if (conditional.IsMatch(lines[i]))
                 {
-                    offenders.Add($"{Path.GetRelativePath(RepositoryRoot(), file)}:{i + 1}: {lines[i].Trim()}");
+                    offenders.Add($"{Path.GetRelativePath(RepositoryPaths.Root(), file)}:{i + 1}: {lines[i].Trim()}");
                 }
             }
         }
@@ -95,7 +95,7 @@ public sealed class Portico_MultiTargeting_Should
     [Fact]
     public void Declare_Both_Target_Frameworks()
     {
-        var props = File.ReadAllText(Path.Combine(RepositoryRoot(), "Directory.Build.props"));
+        var props = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), "Directory.Build.props"));
 
         Assert.True(
             props.Contains("<TargetFrameworks>net8.0;net10.0</TargetFrameworks>", StringComparison.Ordinal),
@@ -103,17 +103,5 @@ public sealed class Portico_MultiTargeting_Should
             "If a target was added or dropped deliberately, update this test and CLAUDE.md's 'Build, " +
             "test, run' section together — and note that Compile_The_Same_Source_Text_For_Every_Target " +
             "becomes vacuous if only one target is left.");
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

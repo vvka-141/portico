@@ -168,7 +168,7 @@ public sealed class CliShortOptionDocs_Should
     /// </remarks>
     private static IReadOnlyCollection<string> TableForms()
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), CapabilitiesPath));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), CapabilitiesPath));
 
         var start = Array.FindIndex(lines, line => line.StartsWith(Heading, StringComparison.Ordinal));
         Assert.True(start >= 0,
@@ -191,17 +191,5 @@ public sealed class CliShortOptionDocs_Should
 
         Assert.True(forms.Count > 0, $"No rows parsed out of the table in {CapabilitiesPath}.");
         return forms;
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

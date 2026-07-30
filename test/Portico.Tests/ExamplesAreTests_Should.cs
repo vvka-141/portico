@@ -33,7 +33,7 @@ public sealed class ExamplesAreTests_Should
     [Fact]
     public void Validate_Every_Contract_Shipped_In_The_Examples()
     {
-        var examples = Path.Combine(RepositoryRoot(), "examples");
+        var examples = Path.Combine(RepositoryPaths.Root(), "examples");
 
         var contracts = SourceFiles(examples, tests: false)
             .SelectMany(TypesDeclaringRoutes)
@@ -105,16 +105,4 @@ public sealed class ExamplesAreTests_Should
 
     private static SyntaxNode Root(string path) =>
         CSharpSyntaxTree.ParseText(File.ReadAllText(path)).GetRoot();
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
-    }
 }

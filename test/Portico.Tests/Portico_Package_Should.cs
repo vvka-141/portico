@@ -63,7 +63,7 @@ public sealed class Portico_Package_Should
     [InlineData("src/Portico.Hosting/Portico.Hosting.csproj")]
     public void FlowTheAnalyzersFromEveryAdapterPackage(string projectPath)
     {
-        var csproj = File.ReadAllText(Path.Combine(RepositoryRoot(), projectPath));
+        var csproj = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), projectPath));
 
         var references = Regex.Matches(csproj, @"<ProjectReference\b[^>]*?/>", RegexOptions.Singleline)
             .Select(match => match.Value)
@@ -90,7 +90,7 @@ public sealed class Portico_Package_Should
     [Fact]
     public void PackTheAgentAssetIntoTheCorePackage()
     {
-        var csproj = File.ReadAllText(Path.Combine(RepositoryRoot(), "src/Portico/Portico.csproj"));
+        var csproj = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), "src/Portico/Portico.csproj"));
 
         // It travels in buildTransitive/ (so it flows through the adapters too) next to the props,
         // and at the package root for a human unzipping the nupkg.
@@ -104,7 +104,7 @@ public sealed class Portico_Package_Should
     public void ExposeTheAgentGuidePathToConsumersWithNoBuildSideEffect()
     {
         var props = File.ReadAllText(
-            Path.Combine(RepositoryRoot(), "src/Portico/buildTransitive/Portico.props"));
+            Path.Combine(RepositoryPaths.Root(), "src/Portico/buildTransitive/Portico.props"));
 
         Assert.Contains("<PorticoAgentGuide>", props);
         Assert.Contains("PORTICO-FOR-AGENTS.md", props);
@@ -122,19 +122,7 @@ public sealed class Portico_Package_Should
     [InlineData("POR010")]                       // the full analyzer table is present
     public void KeepTheAgentAssetCoveringItsLoadBearingTopics(string mustContain)
     {
-        var asset = File.ReadAllText(Path.Combine(RepositoryRoot(), "PORTICO-FOR-AGENTS.md"));
+        var asset = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), "PORTICO-FOR-AGENTS.md"));
         Assert.Contains(mustContain, asset);
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }

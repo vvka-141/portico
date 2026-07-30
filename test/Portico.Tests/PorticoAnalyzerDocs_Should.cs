@@ -100,7 +100,7 @@ public sealed class PorticoAnalyzerDocs_Should
     [Fact]
     public void Assess_Every_Live_Rule_In_The_Message_Audit()
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), AuditPath));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), AuditPath));
 
         var assessed = lines
             .Select(line => Regex.Match(line, @"^\|\s*\[(?<id>POR\d{3})\]\(#por\d{3}\)\s*\|"))
@@ -176,7 +176,7 @@ public sealed class PorticoAnalyzerDocs_Should
         Assert.Equal(expected, numbers);
 
         var nextFree = $"POR{numbers.Max() + 1:D3}";
-        var claim = File.ReadAllLines(Path.Combine(RepositoryRoot(), RulesPath))
+        var claim = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), RulesPath))
             .FirstOrDefault(line => line.Contains("next free rule", StringComparison.OrdinalIgnoreCase));
 
         Assert.True(claim is not null,
@@ -261,7 +261,7 @@ public sealed class PorticoAnalyzerDocs_Should
     [InlineData(AuditPath)]
     public void Count_The_Code_Fixes_Correctly_In_Prose(string path)
     {
-        var text = File.ReadAllText(Path.Combine(RepositoryRoot(), path));
+        var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), path));
         var claims = Regex.Matches(text, @"\b(?<count>[A-Za-z]+) of the (?<total>[A-Za-z]+)\b[^.]*?code fix",
             RegexOptions.IgnoreCase);
 
@@ -305,7 +305,7 @@ public sealed class PorticoAnalyzerDocs_Should
     /// </remarks>
     private static Dictionary<string, string> TableCodeFixCells(string path)
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), path));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), path));
         var cells = new Dictionary<string, string>(StringComparer.Ordinal);
         var column = -1;
 
@@ -350,7 +350,7 @@ public sealed class PorticoAnalyzerDocs_Should
             body.Clear();
         }
 
-        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryRoot(), path)))
+        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), path)))
         {
             var match = Regex.Match(line, @"^##\s+(?<id>POR\d{3})\b");
             if (match.Success)
@@ -407,7 +407,7 @@ public sealed class PorticoAnalyzerDocs_Should
     /// </remarks>
     private static IReadOnlyCollection<string> TableRuleIds(string path, string heading)
     {
-        var lines = File.ReadAllLines(Path.Combine(RepositoryRoot(), path));
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), path));
 
         var start = Array.FindIndex(lines, line => line.StartsWith(heading, StringComparison.Ordinal));
         Assert.True(start >= 0,
@@ -438,7 +438,7 @@ public sealed class PorticoAnalyzerDocs_Should
     {
         var headings = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryRoot(), RulesPath)))
+        foreach (var line in File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), RulesPath)))
         {
             var match = Regex.Match(line, @"^##\s+(?<id>POR\d{3})\b");
             if (match.Success) headings[match.Groups["id"].Value] = line;
@@ -453,7 +453,7 @@ public sealed class PorticoAnalyzerDocs_Should
 
         foreach (var path in new[] { ManifestPath, ShippedManifestPath })
         {
-            foreach (var line in File.ReadAllLines(Path.Combine(RepositoryRoot(), path)))
+            foreach (var line in File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), path)))
             {
                 var match = Regex.Match(line, @"^(?<id>POR\d{3})\s*\|");
                 if (match.Success) ids.Add(match.Groups["id"].Value);
@@ -461,17 +461,5 @@ public sealed class PorticoAnalyzerDocs_Should
         }
 
         return ids;
-    }
-
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "portico.sln")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-        return directory!.FullName;
     }
 }
