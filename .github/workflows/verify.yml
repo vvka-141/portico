@@ -40,11 +40,22 @@ jobs:
         run: bash eng/check-template-tokens.sh
 
       # The release workflow extracts its notes with this script. If it is broken, the failure
-      # surfaces mid-release — after the packages are irreversibly on nuget.org. Run its tests
-      # on every push instead, where a break is free.
+      # surfaces mid-release — after the tag is pushed, so recovery means deleting a tag and
+      # re-cutting it. Run its tests on every push instead, where a break costs a commit.
+      #
+      # This comment used to end "after the packages are irreversibly on nuget.org", which is not
+      # what release.yml does: notes are extracted several steps BEFORE the nuget push, and the
+      # push is deliberately the last fallible thing in the job. The ordering is the safeguard;
+      # this step is the convenience. Both are worth having, for different reasons.
       - name: Test the changelog extractor
         if: matrix.os == 'ubuntu-latest'
         run: bash eng/test-extract-changelog-section.sh
+
+      # And the extractor against the real CHANGELOG.md, not only its fixture. A section that is
+      # present but empty passes every test above and still fails the release.
+      - name: Check the changelog shape
+        if: matrix.os == 'ubuntu-latest'
+        run: bash eng/check-changelog-shape.sh
 
       # Same argument, and it applies harder: this is the script that decides whether the push
       # happens at all. A guard nobody tests is a guard nobody should trust.
