@@ -34,17 +34,6 @@ public sealed class CliCommandExampleAttribute(string example, string descriptio
     /// <summary>Optional one-line description rendered beneath the example in help output.</summary>
     public string Description { get; } = description;
 
-    /// <summary>
-    /// Returns every <see cref="CliCommandExampleAttribute"/> applied to <paramref name="mi"/>,
-    /// in declaration order. Used by the help renderer and contract validator.
-    /// </summary>
-    /// <example><code>
-    /// MethodInfo mi = typeof(MyTool).GetMethod(nameof(MyTool.Greet))!;
-    /// foreach (var example in CliCommandExampleAttribute.Get(mi)) Console.WriteLine(example.Example);
-    /// </code></example>
-    public static IEnumerable<CliCommandExampleAttribute> Get(MethodInfo mi) =>
-        mi.GetCustomAttributes<CliCommandExampleAttribute>();
-
     /// <summary>Returns <see cref="Example"/>.</summary>
     /// <example><code>
     /// var attribute = new CliCommandExampleAttribute("greet --name Ada", "greet a user");

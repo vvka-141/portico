@@ -104,6 +104,22 @@
     <!-- Quiet the "no XML docs" noise without losing the generated doc file. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <!--
+      Without a baseline this only checks that net8.0 and net10.0 expose the same surface. With one it
+      also checks the pack against what is already on nuget.org, so an accidental break fails the
+      build instead of reaching a consumer.
+
+      0.1.1, not 0.1.0: it is the newest published version AND the only one all three library packages
+      share — the adapters were first pushed at 0.1.1 (verified against nuget.org's flat container, not
+      assumed from the tag list).
+
+      0.x licenses breaking changes, so this deliberately does NOT mean "never break the API". It means
+      a break is *surfaced and named*: acknowledge an intended one in CompatibilitySuppressions.xml,
+      which is a reviewable diff, rather than leaving the check off and learning about breaks from a
+      user. Bump the baseline when a release makes the suppressions moot.
+      See docs/explanation/public-surface.md (POR-83 §1).
+    -->
+    <PackageValidationBaselineVersion>0.1.1</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <PropertyGroup Label="Reproducible build">
