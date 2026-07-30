@@ -341,6 +341,8 @@ public sealed partial class CliApplication
                 offenders[1].MethodDescription);
         }
 
+        RejectIndistinguishableRoutes(_actions);
+
         (_shortOptionSchema, _registeredOptionNames) = BuildShortOptionSchema(_actions);
 
         WarnAboutShadowedBuiltInTriggers(_actions, _helpTriggers, _versionTriggers);
@@ -672,6 +674,65 @@ public sealed partial class CliApplication
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Refuses a pair of routes that <b>no command line can ever reach</b> — same segment shape once
+    /// placeholder names are collapsed, and the same declared options.
+    /// </summary>
+    /// <remarks>
+    /// <c>x {first}</c> beside <c>x {second}</c> are distinct <see cref="CliAction.RouteSignature"/>s,
+    /// so the duplicate-route check above does not see them, and POR002 does not either. Both register,
+    /// and then <em>every</em> invocation of <c>x anything</c> exits 2 as ambiguous: the placeholder's
+    /// name is invisible at the command line, so a user has no way to indicate which they meant. Two
+    /// permanently dead commands is a configuration error, and it should be reported where every other
+    /// configuration error is (POR-83 §3).
+    /// <para>
+    /// <b>The option check is what keeps this from breaking working programs.</b> Same-shape routes
+    /// distinguished by their options DO dispatch — <c>y {a} --alpha</c> beside <c>y {b} --beta</c>
+    /// resolves <c>y foo --alpha 1</c> correctly, which is <c>RankByOptions</c> doing exactly its
+    /// documented job. Verified by running it, not assumed. So only the pair that no option can
+    /// separate is refused; the POR-119 rule applies, and a Create-time throw must never fail a legal
+    /// composition.
+    /// </para>
+    /// <para>
+    /// This is <b>not</b> POR-114 and does not prejudge it. That ticket is about a <em>literal</em>
+    /// outranking a placeholder — two shapes a user can tell apart, where the question is which should
+    /// win. Here the shapes are identical after normalization and there is nothing to prefer.
+    /// </para>
+    /// </remarks>
+    private static void RejectIndistinguishableRoutes(ImmutableArray<CliAction> actions)
+    {
+        var collision = actions
+            .GroupBy(
+                action => (action.RouteShape, action.OptionAliasFingerprint),
+                CollisionKeyComparer.Instance)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (collision is null) return;
+
+        var offenders = collision.ToArray();
+        throw new CliConfigurationException(
+            $"Routes '{offenders[0].RouteSignature}' and '{offenders[1].RouteSignature}' differ only in " +
+            $"the name of a placeholder, and declare the same options — so no command line can tell them " +
+            $"apart and neither would ever run. " +
+            $"{offenders[0].MethodDescription} and {offenders[1].MethodDescription}. " +
+            $"Give them different literal segments, or different options, or merge them into one command.");
+    }
+
+    /// <summary>Case-insensitive on the shape, to match the duplicate-route check above.</summary>
+    private sealed class CollisionKeyComparer : IEqualityComparer<(string Shape, string Options)>
+    {
+        public static readonly CollisionKeyComparer Instance = new();
+
+        public bool Equals((string Shape, string Options) x, (string Shape, string Options) y) =>
+            StringComparer.OrdinalIgnoreCase.Equals(x.Shape, y.Shape) &&
+            StringComparer.Ordinal.Equals(x.Options, y.Options);
+
+        public int GetHashCode((string Shape, string Options) key) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(key.Shape),
+                StringComparer.Ordinal.GetHashCode(key.Options));
     }
 
     private void ReportShapeMismatch(CliInvocation invocation, List<CliAction> nearMisses)
@@ -1162,6 +1223,23 @@ public sealed partial class CliApplication
         public override string ToString() => method.RouteSignature;
 
         public string RouteSignature => method.RouteSignature;
+
+        /// <summary>The route with every argument segment collapsed to <c>{}</c> — what the command
+        /// line can actually distinguish. See <c>CliMethodInfo.RouteShape</c>.</summary>
+        public string RouteShape => method.RouteShape;
+
+        /// <summary>
+        /// Every option alias this route declares, ordered and case-normalized so two routes' sets can
+        /// be compared. Two routes with the same <see cref="RouteShape"/> can only ever be told apart
+        /// by an option, so equal sets mean no input can separate them.
+        /// </summary>
+        public string OptionAliasFingerprint => method
+            .GetOptions()
+            .SelectMany(option => option.Aliases)
+            .Select(alias => alias.ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(alias => alias, StringComparer.Ordinal)
+            .Join(" ");
 
         public string MethodDescription => method.ToString();
 

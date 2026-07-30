@@ -571,6 +571,35 @@ internal sealed partial class CliMethodInfo : MethodInfoDecorator
             })
             .Join(" ");
 
+    /// <summary>
+    /// The route as the <em>command line</em> sees it: literals verbatim, every argument segment
+    /// collapsed to <c>{}</c>. <c>x {first}</c> and <c>x {second}</c> both yield <c>"x {}"</c>.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately separate from <see cref="RouteSignature"/> rather than a change to it.
+    /// <see cref="RouteSignature"/> is rendered in help, in errors, in shell completion and by the
+    /// public <c>CliApplication.GetRouteSignatures()</c>, and all of those want the placeholder's name
+    /// — it is the only clue to what the argument means. Identity is the one question the name must not
+    /// answer, because <b>the name is invisible at the command line</b>: a user typing <c>x foo</c>
+    /// cannot possibly indicate which of the two they meant (POR-83 §3).
+    /// <para>
+    /// Sits next to <see cref="ComputeRouteSignature"/> on purpose. Two functions mapping the same
+    /// segments to a string must not drift about what a segment is, and the tokenizer lesson from
+    /// POR-71 is the same one.
+    /// </para>
+    /// </remarks>
+    internal string RouteShape => ComputeRouteShape(_model.Segments);
+
+    private static string ComputeRouteShape(ImmutableArray<CliRouteSegment> segments) =>
+        segments
+            .Select(segment => segment switch
+            {
+                CliLiteralSegment literal => literal.Text,
+                CliArgumentSegment => "{}",
+                _ => "?"
+            })
+            .Join(" ");
+
     private static bool IsCliMethod(MethodInfo methodInfo)
     {
         return methodInfo.GetCustomAttributes<CliRouteAttribute>().Any();

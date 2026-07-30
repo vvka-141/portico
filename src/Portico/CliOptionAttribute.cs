@@ -286,11 +286,20 @@ public class CliOptionAttribute : Attribute
     /// parameter is nullable, has a C#-supplied default, or this attribute supplies
     /// <see cref="DefaultValue"/>. The reflected default wins over the attribute default.
     /// </summary>
-    /// <example><code>
-    /// var option = new CliOptionAttribute("--retries") { DefaultValue = "3" };
-    /// bool optional = option.IsOptional(parameter, out object? fallback); // true, fallback = 3
-    /// </code></example>
-    public bool IsOptional(ParameterInfo parameter, out object? defaultValue) =>
+    /// <remarks>
+    /// <c>internal</c> since POR-83 §2, together with the <see cref="PropertyInfo"/> overload. The rule
+    /// drawn there: a member whose signature needs a <c>System.Reflection</c> type belongs to the
+    /// reflection pipeline, because an attribute author never holds one — inside an attribute
+    /// declaration there is no <see cref="ParameterInfo"/> to pass. The members that take a
+    /// <see cref="string"/> or a <see cref="Type"/> — <see cref="IsMatch"/>, <see cref="CanAccept"/>,
+    /// <see cref="GetValueComparer"/> — stay public, because a subclass can genuinely use those.
+    /// <para><b>Neither overload is redundant</b>, which is what POR-83 asked. They differ in the one
+    /// argument that matters: a parameter has a reflected default (<c>int tail = 100</c>) and a property
+    /// has none, so <c>hasReflectedDefault</c> is <see langword="true"/> on one path and always
+    /// <see langword="false"/> on the other. Collapsing them would silently give bundle properties a
+    /// default they cannot have — and these two paths have drifted before (POR-59).</para>
+    /// </remarks>
+    internal bool IsOptional(ParameterInfo parameter, out object? defaultValue) =>
         CliOptionDefaultResolver.Resolve(
             type: parameter.ParameterType,
             memberKind: "parameter",
@@ -308,11 +317,11 @@ public class CliOptionAttribute : Attribute
     /// property is nullable or this attribute supplies <see cref="DefaultValue"/>; properties
     /// have no reflected default to fall back on.
     /// </summary>
-    /// <example><code>
-    /// var option = new CliOptionAttribute("--verbose") { DefaultValue = "false" };
-    /// bool optional = option.IsOptional(property, out object? fallback); // true
-    /// </code></example>
-    public bool IsOptional(PropertyInfo property, out object? defaultValue) =>
+    /// <remarks>
+    /// <c>internal</c> since POR-83 §2 — see the <see cref="ParameterInfo"/> overload for the rule and
+    /// for why the two are not interchangeable.
+    /// </remarks>
+    internal bool IsOptional(PropertyInfo property, out object? defaultValue) =>
         CliOptionDefaultResolver.Resolve(
             type: property.PropertyType,
             memberKind: "property",

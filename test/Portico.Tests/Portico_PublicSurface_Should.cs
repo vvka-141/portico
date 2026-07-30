@@ -360,4 +360,131 @@ public sealed class Portico_PublicSurface_Should
                 ? Environment.NewLine + "REMOVED: " + string.Join(", ", removed)
                 : ""));
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Member-level surface (POR-83 §2). Track_every_exported_type_by_name pins the set of exported
+    // TYPES; these pin the two member-level rules that audit settled. POR-104 deliberately stopped at
+    // types, and the four members POR-83 named were invisible to it — as was a fifth, dead one that
+    // enumerating the surface found and the ticket's hand-written list did not.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A member whose signature needs a <c>System.Reflection</c> type belongs to the reflection
+    /// pipeline, not to the user — an attribute author never holds a <see cref="ParameterInfo"/>,
+    /// because inside an attribute declaration there is nothing to get one from.
+    /// </summary>
+    /// <remarks>
+    /// This is the rule POR-83 §2 resolves the audit's member list with, and it is the member-level
+    /// form of the argument that ticket makes best: <c>CliApplication</c> is sealed and the
+    /// materializer seam is SEALED (POR-36), so a public surface of pipeline mechanics contradicts a
+    /// deliberately narrow extensibility story. The members that take a <see cref="string"/> or a
+    /// <see cref="Type"/> stay public, because a subclass of <c>CliOptionAttribute</c> can genuinely
+    /// use those — this narrows what nobody can call correctly, not what nobody happens to call.
+    /// </remarks>
+    [Fact]
+    public void Keep_Reflection_Typed_Members_Off_The_Public_Surface()
+    {
+        static bool IsReflectionType(Type type) =>
+            (type.IsByRef ? type.GetElementType() ?? type : type).Namespace == "System.Reflection";
+
+        var offenders = AllShippedAssemblies
+            .SelectMany(assembly => assembly.GetExportedTypes())
+            .SelectMany(type => type
+                .GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
+                            BindingFlags.DeclaredOnly)
+                .Select(member => (Type: type, Member: member)))
+            .Where(entry => SignatureTypes(entry.Member).Any(IsReflectionType))
+            .Select(entry => $"{entry.Type.FullName}.{entry.Member.Name}")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            "These exported members expose a System.Reflection type, which makes framework plumbing " +
+            "part of the public contract: " + string.Join(", ", offenders) + ". Make them internal. " +
+            "If one is genuinely for a subclass to call, say so in docs/explanation/public-surface.md " +
+            "and add it to this test's allow-list deliberately — there is no allow-list today, and " +
+            "that is the point.");
+    }
+
+    /// <summary>
+    /// Every genuinely-mutable public property on the exported surface, and why it is allowed to be
+    /// one. A settable property the framework populates by reflection is a seam whose every use is
+    /// wrong, which is what POR-83 §2 called the strongest removal candidate on its list.
+    /// </summary>
+    /// <remarks>
+    /// <c>init</c> accessors are excluded: they are how a positional record and an attribute named
+    /// argument are both spelled, and they cannot be written after construction, so they are not a
+    /// mutation seam. Distinguishing them is the whole reason this test reads the
+    /// <c>IsExternalInit</c> modreq rather than <c>SetMethod.IsPublic</c> — a naive check reports
+    /// twenty properties, seventeen of them records, and buries the four that matter.
+    /// </remarks>
+    [Fact]
+    public void Allow_Only_The_Documented_Mutable_Properties()
+    {
+        var allowed = new SortedSet<string>(StringComparer.Ordinal)
+        {
+            // The display form of an argument in help output: `[CliArgument("path", Name = "PATH")]`.
+            // An attribute named argument REQUIRES a settable property, and this one is the user's to
+            // choose. ParameterName — the resolved name, which is not theirs — is internal set.
+            "Portico.CliArgumentAttribute.Name",
+
+            // A CliOptions bundle binds by SetValue on each property, and a middleware IS a bundle
+            // (CliMiddleware : CliOptions). These two are the framework's own worked examples of that,
+            // so their setters are the binding mechanism, not a leak.
+            "Portico.CliTimingMiddleware.Timing",
+            "Portico.CliTracingMiddleware.Level",
+        };
+
+        var actual = new SortedSet<string>(
+            AllShippedAssemblies
+                .SelectMany(assembly => assembly.GetExportedTypes())
+                .SelectMany(type => type
+                    .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static |
+                                   BindingFlags.DeclaredOnly)
+                    .Where(property => property.SetMethod is { IsPublic: true } setter && !IsInitOnly(setter))
+                    .Select(property => $"{type.FullName}.{property.Name}")),
+            StringComparer.Ordinal);
+
+        var added = new SortedSet<string>(actual, StringComparer.Ordinal);
+        added.ExceptWith(allowed);
+
+        var gone = new SortedSet<string>(allowed, StringComparer.Ordinal);
+        gone.ExceptWith(actual);
+
+        Assert.True(
+            added.Count == 0 && gone.Count == 0,
+            "The set of mutable public properties changed." +
+            (added.Count > 0
+                ? Environment.NewLine + "NEW MUTABLE: " + string.Join(", ", added) +
+                  Environment.NewLine + "A settable property the framework fills in is a mutation seam. " +
+                  "Prefer `internal set`, or `init` if it is set once at construction. If it must be " +
+                  "public, add it here with the reason."
+                : "") +
+            (gone.Count > 0
+                ? Environment.NewLine + "NO LONGER MUTABLE: " + string.Join(", ", gone) +
+                  Environment.NewLine + "Drop the entry."
+                : ""));
+    }
+
+    /// <summary>The types appearing in a member's signature — parameters plus return/property/field type.</summary>
+    private static IEnumerable<Type> SignatureTypes(MemberInfo member) => member switch
+    {
+        MethodInfo method => method.GetParameters().Select(p => p.ParameterType).Append(method.ReturnType),
+        ConstructorInfo ctor => ctor.GetParameters().Select(p => p.ParameterType),
+        PropertyInfo property => [property.PropertyType],
+        FieldInfo field => [field.FieldType],
+        _ => [],
+    };
+
+    /// <summary>
+    /// True for an <c>init</c> accessor. The C# compiler marks one with a required custom modifier of
+    /// <c>System.Runtime.CompilerServices.IsExternalInit</c> on the setter's return; there is no
+    /// reflection API that reports "init" directly.
+    /// </summary>
+    private static bool IsInitOnly(MethodInfo setter) =>
+        setter.ReturnParameter
+            .GetRequiredCustomModifiers()
+            .Any(modifier => modifier.Name == "IsExternalInit");
 }

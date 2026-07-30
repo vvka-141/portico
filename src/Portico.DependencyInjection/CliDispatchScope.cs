@@ -72,9 +72,19 @@ internal static class CliDispatchScope
     }
 
     /// <summary>
-    /// Compatibility cleanup for custom <see cref="ICliApplicationBuilder"/> implementations that
-    /// cannot use the core's internal asynchronous lifetime seam.
+    /// The synchronous entry point <see cref="CliServiceScopeMiddleware.OnActionExecuted"/> needs.
     /// </summary>
+    /// <remarks>
+    /// This blocks, and it has to: <see cref="CliMiddleware.OnActionExecuted"/> returns <c>void</c>, so
+    /// there is no awaitable to hand back. The async path (<see cref="CloseAsync"/>) is what the core's
+    /// own lifetime seam uses; this one exists for the hook that cannot await.
+    /// <para>
+    /// This used to say it was "compatibility cleanup for custom <c>ICliApplicationBuilder</c>
+    /// implementations". There are none, and none are invited — the interface has exactly one
+    /// implementation, <c>CliApplication.Builder</c>, which is <c>private sealed</c>. Naming a
+    /// non-existent audience made a real caller look speculative (POR-83 §2).
+    /// </para>
+    /// </remarks>
     public static void Close() => CloseAsync().AsTask().GetAwaiter().GetResult();
 }
 

@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+
+<!--
+  Deliberate API breaks against the 0.1.1 baseline (PackageValidationBaselineVersion in
+  Directory.Build.props). Portico is 0.x, which licenses these; the baseline exists so each one is
+  named here rather than discovered by a consumer.
+
+  ⚠ Regenerating with `-p:ApiCompatGenerateSuppressionFile=true` REWRITES this file and DROPS these
+  comments. Re-add them, or the file becomes the unexplained suppression list POR-83 warned against.
+  Each entry appears twice, once per TFM.
+
+  All five are POR-83 §2 — the member-level surface audit POR-104 stopped short of. Reason per target:
+
+    CliOptionAttribute.IsOptional(ParameterInfo, out object)
+    CliOptionAttribute.IsOptional(PropertyInfo, out object)
+    CliArgumentAttribute.References(ParameterInfo)
+        Now internal. A member whose signature needs a System.Reflection type belongs to the
+        reflection pipeline: an attribute author never holds a ParameterInfo, because inside an
+        attribute declaration there is nothing to get one from. `References` was worse than unusable
+        — it answers only after the pipeline fills ParameterName in, so from outside it returned
+        false for every real parameter. Enforced by
+        Portico_PublicSurface_Should.Keep_Reflection_Typed_Members_Off_The_Public_Surface.
+
+    CliArgumentAttribute.set_ParameterName(string)
+        Setter now internal; the getter is unchanged and still public. The framework resolves this by
+        reflection, so every user write was wrong in one of two ways: before discovery it is
+        overwritten, after discovery it breaks the binding just resolved. POR-70 removed the
+        (parameterName, description) constructor for the same reason. `Name` — the display form — is
+        still yours to set.
+
+    CliCommandExampleAttribute.Get(MethodInfo)
+        Deleted outright, per CLAUDE.md's no-deprecation rule. Zero callers repo-wide; its own doc
+        claimed "used by the help renderer and contract validator" and both read GetCustomAttributes
+        directly (CliMethodInfo, CliContractValidator). The exact shape POR-101 deleted from
+        CliOptionAttribute — found by enumerating the surface, not by reading the audit's list.
+
+  When a release makes these moot, bump PackageValidationBaselineVersion and delete the file.
+-->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliArgumentAttribute.References(System.Reflection.ParameterInfo)</Target>
+    <Left>lib/net10.0/Portico.dll</Left>
+    <Right>lib/net10.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliArgumentAttribute.set_ParameterName(System.String)</Target>
+    <Left>lib/net10.0/Portico.dll</Left>
+    <Right>lib/net10.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliCommandExampleAttribute.Get(System.Reflection.MethodInfo)</Target>
+    <Left>lib/net10.0/Portico.dll</Left>
+    <Right>lib/net10.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliOptionAttribute.IsOptional(System.Reflection.ParameterInfo,System.Object@)</Target>
+    <Left>lib/net10.0/Portico.dll</Left>
+    <Right>lib/net10.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliOptionAttribute.IsOptional(System.Reflection.PropertyInfo,System.Object@)</Target>
+    <Left>lib/net10.0/Portico.dll</Left>
+    <Right>lib/net10.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliArgumentAttribute.References(System.Reflection.ParameterInfo)</Target>
+    <Left>lib/net8.0/Portico.dll</Left>
+    <Right>lib/net8.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliArgumentAttribute.set_ParameterName(System.String)</Target>
+    <Left>lib/net8.0/Portico.dll</Left>
+    <Right>lib/net8.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliCommandExampleAttribute.Get(System.Reflection.MethodInfo)</Target>
+    <Left>lib/net8.0/Portico.dll</Left>
+    <Right>lib/net8.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliOptionAttribute.IsOptional(System.Reflection.ParameterInfo,System.Object@)</Target>
+    <Left>lib/net8.0/Portico.dll</Left>
+    <Right>lib/net8.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Portico.CliOptionAttribute.IsOptional(System.Reflection.PropertyInfo,System.Object@)</Target>
+    <Left>lib/net8.0/Portico.dll</Left>
+    <Right>lib/net8.0/Portico.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>

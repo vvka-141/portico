@@ -50,7 +50,16 @@ public class CliArgumentAttribute : Attribute
     /// construction — the reflection pipeline fills it in during route discovery. Use
     /// <see cref="Name"/> for the resolved display name.
     /// </summary>
-    public string ParameterName { get; set; }
+    /// <remarks>
+    /// The setter is <c>internal</c>, deliberately. This is resolved by reflection, not declared: the
+    /// only correct value is the name of the parameter the attribute sits on, so a public setter was a
+    /// mutation seam whose every use was wrong — writing it before discovery is overwritten, writing it
+    /// after breaks the binding the framework just resolved. POR-70 already removed the
+    /// <c>(parameterName, description)</c> constructor that let you supply it; this is the same
+    /// capability arriving by the back door (POR-83 §2). Use <see cref="Name"/> to control the
+    /// <em>display</em> form — that one is genuinely yours to set.
+    /// </remarks>
+    public string ParameterName { get; internal set; }
 
     /// <summary>
     /// Gets a description of the parameter, used to generate help text in CLI applications.
@@ -71,11 +80,13 @@ public class CliArgumentAttribute : Attribute
     /// </summary>
     /// <param name="pi">The ParameterInfo to check against.</param>
     /// <returns>True if this attribute's parameter name matches the provided ParameterInfo's name; otherwise, false.</returns>
-    /// <example><code>
-    /// var argument = new CliArgumentAttribute("target path") { ParameterName = "path" };
-    /// bool refersTo = argument.References(parameterInfo); // true when parameterInfo.Name == "path"
-    /// </code></example>
-    public bool References(ParameterInfo pi) => ParameterName.Equals(pi.Name);
+    /// <remarks>
+    /// <c>internal</c> since POR-83 §2. It answers only after the pipeline has filled
+    /// <see cref="ParameterName"/> in, so from outside the framework it returns <see langword="false"/>
+    /// for every real parameter — a member that can only mislead its caller. It is the route/parameter
+    /// matcher's own helper, and now says so.
+    /// </remarks>
+    internal bool References(ParameterInfo pi) => ParameterName.Equals(pi.Name);
 
     /// <summary>
     /// Tests whether a CLI string can be bound to <paramref name="argumentType"/>, returning
