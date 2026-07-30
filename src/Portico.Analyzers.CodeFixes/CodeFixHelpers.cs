@@ -14,9 +14,9 @@ namespace Portico.Analyzers;
 /// <remarks>
 /// It carried type/property/field overloads and using-directive helpers across the extraction; their
 /// callers (the DTO / SQLite / claim-check code fixes) stayed behind in the origin, so they had zero
-/// callers here and were removed (POR-28). Portico has two code fixes: POR004's, which uses the
-/// method overload below, and POR006's, which uses none of this. Re-add an overload when a fix needs
-/// it, not in anticipation of one.
+/// callers here and were removed (POR-28). Of the seven fixes now in this assembly, exactly one —
+/// POR004's — uses the method overload below; the other six attribute nothing. Re-add an overload
+/// when a fix needs it, not in anticipation of one.
 /// </remarks>
 internal static class CodeFixHelpers
 {
