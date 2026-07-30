@@ -479,6 +479,36 @@ This is deliberate — explicit over implicit. ASP.NET and Express would quietly
 Portico declines to guess and tells you why. It is a real constraint, and if you are modelling a
 passthrough command, model it with a distinct prefix rather than a catch-all beside a literal.
 
+### A placeholder's name is not part of a route's identity
+
+`[CliRoute("x {first}")]` and `[CliRoute("x {second}")]` are the *same route* as far as a command line
+is concerned — **the name is invisible when you type**, so `x foo` cannot indicate which you meant. If
+nothing else separates them, both commands are unreachable, and Portico refuses to build:
+
+```
+Routes 'x {first}' and 'x {second}' differ only in the name of a placeholder, and declare the same
+options — so no command line can tell them apart and neither would ever run. Give them different
+literal segments, or different options, or merge them into one command.
+```
+
+Reported at `CliApplication.Create`, like every other configuration error, instead of on each of the
+user's invocations.
+
+**"If nothing else separates them" is exact.** Same-shape routes whose *options* differ are a supported
+shape and still build, because [route ranking](#route-ranking-is-a-tie-breaker-not-overload-selection)
+can resolve them:
+
+```csharp
+[CliRoute("y {first}")]  int First(string first,  [CliOption("--alpha")] string alpha = "");
+[CliRoute("y {second}")] int Second(string second, [CliOption("--beta")]  string beta  = "");
+```
+
+`y foo --alpha 1` and `y foo --beta 2` each dispatch. `y foo` alone is still ambiguous at run time —
+correctly, because those routes *are* reachable, just not by that command line.
+
+The placeholder's name still matters everywhere else: it names the argument in `--help`, in error
+messages, and in shell completion. It is collapsed for identity only.
+
 ### "Did you mean"
 
 A mistyped route is met with the closest real ones, ranked by edit distance:

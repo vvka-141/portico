@@ -10,6 +10,23 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Changed
 
+- **Two routes that differ only in a placeholder's name are refused at `CliApplication.Create`.**
+  `x {first}` beside `x {second}` used to build and then fail *every* invocation as ambiguous — the name
+  is invisible at the command line, so neither command could ever run. Narrow on purpose: same-shape
+  routes whose **options** differ still build and still dispatch, because route ranking can resolve
+  them. Route signatures keep their placeholder names in help, errors and completion; the collapse is
+  for identity only.
+- **Four members left the public surface, and one dead one was deleted** (0.x; recorded in
+  `src/Portico/CompatibilitySuppressions.xml` with a reason each). `CliOptionAttribute.IsOptional`
+  (both overloads) and `CliArgumentAttribute.References` are now `internal` — they require a
+  `System.Reflection` type, which no attribute author holds, and `References` returned `false` for every
+  real parameter when called from outside the framework. `CliArgumentAttribute.ParameterName` keeps its
+  public getter and gains an `internal` setter: the framework resolves it, so every user write was
+  wrong. `CliCommandExampleAttribute.Get(MethodInfo)` is **deleted** — zero callers, and its own doc
+  named two that read `GetCustomAttributes` directly. Verdicts and the two rules behind them are in
+  `docs/explanation/public-surface.md`; `Portico_PublicSurface_Should` now fails the build if the
+  member-level surface widens.
+
 - **A positional swallowed by a declared option now says so.** `tool compile --output out.dll main.cs`
   reported only `Command 'compile {source}' expects 1 argument, got 0.` — true, and useless to someone
   who plainly typed the argument. It now names the option, how many values it took, the rule (*a bare
