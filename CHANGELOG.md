@@ -8,6 +8,24 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
+### Added
+
+- **Code fixes for POR001, POR003 and POR005** — Ctrl-. now clears six of the twelve rules instead of
+  three, and all six support *Fix all in document / project*, which is what matters after a rename that
+  produces a dozen diagnostics at once.
+  - **POR005** appends the missing `{placeholder}` to the `[CliRoute]` string. One action, build green.
+  - **POR001** offers a rename per parameter the method declares, plus *add parameter*. Both remedies
+    are legitimate, so neither is presumed. The rename is token-wise, so a braced literal segment like
+    `user{id}` — which routes fine — is left alone.
+  - **POR003** is **partial on purpose**: offered for an undashed alias (`"verbose"` → `"--verbose"`)
+    and for an empty segment from a stray pipe (`"--verbose|"` → `"--verbose"`), and **not offered at
+    all** for `""`, whitespace, `"-"` or `"--"`. Those carry no name to recover, and a guess you accept
+    without reading is worse than the error. The repair is re-validated before being offered, so it can
+    never hand back a spec the rule still reports.
+
+  `docs/reference/analyzer-rules.md` now states per rule whether a fix exists and, for the six that
+  have none, why — in every case the correction needs a decision the analyzer cannot see.
+
 ### Changed
 
 - **Two routes that differ only in a placeholder's name are refused at `CliApplication.Create`.**

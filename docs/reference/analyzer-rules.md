@@ -9,20 +9,26 @@ decidable from your declarations alone; that is the test for whether a rule belo
 replace that check — it moves the failure into your edit loop, where you can fix it without running
 anything.
 
-| Rule | Severity | What it catches |
-|---|---|---|
-| [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter |
-| [POR002](#por002) | Error | Two methods **on one type** declare the same route |
-| [POR003](#por003) | Error | A malformed `[CliOption]` alias spec |
-| [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` |
-| [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder |
-| [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor |
-| [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code |
-| [POR009](#por009) | Error | Two options on one command declaring the same alias |
-| [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string |
-| [POR011](#por011) | Error | A route declares the same `{placeholder}` twice |
-| [POR012](#por012) | Warning | A `[CliOption]` on a `bool` is probably meant to be a switch |
-| [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` |
+**Six of the twelve ship a code fix**, so Ctrl-. clears the diagnostic. All six support *Fix all in
+document / project*, which matters most after a rename: one parameter rename can produce a dozen
+POR001s at once. The other six deliberately offer nothing — in each case the correction needs a decision
+the analyzer cannot see, and **a code fix that guesses is worse than no code fix, because you accept it
+without reading.** Each rule below says which it is and why.
+
+| Rule | Severity | What it catches | Code fix (Ctrl-.) |
+|---|---|---|---|
+| [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter | Rename, or add the parameter |
+| [POR002](#por002) | Error | Two methods **on one type** declare the same route | — |
+| [POR003](#por003) | Error | A malformed `[CliOption]` alias spec | Partial — see below |
+| [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` | Insert an example stub |
+| [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder | Add the placeholder to the route |
+| [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor | Insert the constructor |
+| [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code | — |
+| [POR009](#por009) | Error | Two options on one command declaring the same alias | — |
+| [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string | — |
+| [POR011](#por011) | Error | A route declares the same `{placeholder}` twice | — |
+| [POR012](#por012) | Warning | A `[CliOption]` on a `bool` is probably meant to be a switch | Change to `CliFlag?` |
+| [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` | Add the `when` filter |
 
 ---
 
@@ -38,6 +44,10 @@ int Deploy(string environment) => 0;    // ← but the parameter is 'environment
 A `{name}` token in a route is bound to the parameter of the same name. Rename the placeholder, or
 rename the parameter. There is nothing else the framework could bind it to.
 
+**Code fix:** offers one **Rename placeholder** action per parameter the method declares, plus
+**Add parameter `string {name}`**. Both remedies are legitimate and which one is right is your call, so
+both are offered rather than one being presumed. A method with no parameters gets only the add.
+
 ## POR002
 
 **Two methods on the same type declare the same route.**
@@ -51,6 +61,9 @@ routes (`storage status` and `queue status` never collide), or your application 
 of them. The analyzer can see neither the mount nor the registration, so it says nothing — and the
 runtime, which sees both, still rejects a genuine collision at `CliApplication.Create`.
 
+**Code fix:** none. Which of the two methods should keep the route, and what the other one's route
+should become, is not visible to the analyzer.
+
 ## POR003
 
 **Malformed `[CliOption]` spec.**
@@ -62,6 +75,13 @@ runtime, which sees both, still rejects a genuine collision at `CliApplication.C
 ```
 
 The spec is a pipe-separated alias list: `"--verbose"`, `"--verbose|-v"`, `"-v"`.
+
+**Code fix:** partial, and deliberately so. Offered for the two shapes that carry unambiguous intent —
+an undashed alias (`"verbose"` → `"--verbose"`, or `"-v"` for a single character) and an empty segment
+from a leading, doubled or trailing pipe (`"--verbose|"` → `"--verbose"`). For `""`, a whitespace-only
+spec, `"-"` or `"--"` **no action is offered**: there is no name to recover, and a guess you accept
+without reading is worse than the error. The repair is re-validated before it is offered, so it can
+never hand back a spec this rule still reports.
 
 ## POR004
 
@@ -97,6 +117,11 @@ not mention has no position to bind to. Put it in the route: `[CliRoute("copy {t
 
 The mirror image of [POR001](#por001), which reports a placeholder with no parameter.
 
+**Code fix:** appends the missing `{placeholder}` to the `[CliRoute]` string — one action, one
+keystroke, build green. Appended last rather than inserted, because where in the path the argument
+belongs is your decision and the end is the only position that cannot change the meaning of an existing
+segment.
+
 ## POR006
 
 **A `CliOptions` bundle needs a public parameterless constructor.**
@@ -128,6 +153,9 @@ than useless: an exception inside it crashes the process.
 
 Throw `CliExitException` for error paths.
 
+**Code fix:** none. Changing a return type means deciding what the handler should return, which is the
+method's logic rather than a declaration.
+
 ## POR009
 
 **Two options on one command declare the same alias.**
@@ -146,6 +174,10 @@ in different files.
 **Case follows the framework's rule:** a single-character short alias is case-**sensitive**, so `-v`
 and `-V` are different options (the `curl -v` / `curl -V` idiom). Longer aliases are
 case-**insensitive**, so `--name` and `--NAME` collide.
+
+**Code fix:** none. Which of the two colliding options is the mistaken one is intent the analyzer
+cannot see, and a fix that appended a suffix (`--name2`) would produce a compiling CLI with a nonsense
+surface — worse than the build error.
 
 ## POR010
 
@@ -169,6 +201,9 @@ startup. At `Error` severity, a false positive would fail a build that works, wh
 than the runtime error it replaces. Where it cannot be certain, it stays silent and the runtime check
 catches the rest.
 
+**Code fix:** none. The fix is to write a `TypeConverter`, or to change the declared type to one that
+already converts. Neither is mechanical.
+
 ## POR011
 
 **A route declares the same `{placeholder}` twice.**
@@ -182,6 +217,9 @@ Both slots resolve to the same parameter. At dispatch the second value silently 
 data loss that `CliContractValidator<T>` does not catch, making it a false green in the framework's
 central verification mechanism. Use distinct placeholder names for distinct positions:
 `[CliRoute("copy {src} {dst}")]`.
+
+**Code fix:** none, for POR009's reason: which of the two repeated placeholders is the mistaken one,
+and what it should be renamed to, is not something the analyzer can know.
 
 ## POR012
 

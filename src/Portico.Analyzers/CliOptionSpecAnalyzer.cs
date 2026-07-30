@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -49,11 +50,83 @@ public sealed class CliOptionSpecAnalyzer : DiagnosticAnalyzer
         var problem = ValidateSpec(spec);
         if (problem is null) return;
 
+        // The repaired spec travels as a diagnostic property, not as text in the message. The code fix
+        // registers itself only when this is present, so the decision "is this mechanically
+        // correctable" is made HERE, beside ValidateSpec, and cannot drift from it. A fix that parsed
+        // its own diagnostic message would break on the next rewording — and rewording is what
+        // docs/explanation/analyzer-message-audit.md exists to encourage (POR-122).
+        var properties = ImmutableDictionary<string, string?>.Empty;
+        if (TryRepairSpec(spec) is { } repaired)
+        {
+            properties = properties.Add(RepairedSpecProperty, repaired);
+        }
+
         context.ReportDiagnostic(Diagnostic.Create(
             PorticoDiagnostics.MalformedCliOptionSpec,
             literal.GetLocation(),
+            properties,
             spec,
             problem));
+    }
+
+    /// <summary>The diagnostic-property key carrying a mechanically repaired spec, when one exists.</summary>
+    internal const string RepairedSpecProperty = "RepairedSpec";
+
+    /// <summary>
+    /// A corrected spec for the failure modes that carry unambiguous author intent, or
+    /// <see langword="null"/> when there is nothing to infer.
+    /// </summary>
+    /// <remarks>
+    /// Two modes are repairable, and only two:
+    /// <list type="bullet">
+    ///   <item><description>an undashed alias — <c>"verbose"</c> means <c>"--verbose"</c>, and a
+    ///     single character means <c>"-v"</c>;</description></item>
+    ///   <item><description>an empty segment from a leading, doubled or trailing pipe —
+    ///     <c>"--verbose|"</c> means <c>"--verbose"</c>.</description></item>
+    /// </list>
+    /// Everything else returns <see langword="null"/> deliberately. An empty spec, a whitespace-only
+    /// one, and a bare <c>"-"</c> or <c>"--"</c> carry no name to recover, and an alias padded with
+    /// whitespace is left alone rather than silently reshaped. <b>A code fix that guesses is worse than
+    /// no code fix, because the user accepts it without reading.</b>
+    /// <para>
+    /// The result is re-validated before it is offered, so this can never hand the user a spec the
+    /// analyzer would report again.
+    /// </para>
+    /// </remarks>
+    internal static string? TryRepairSpec(string spec)
+    {
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+
+        var repaired = new List<string>();
+        foreach (var raw in spec.Split('|'))
+        {
+            // An empty (or whitespace-only) segment is the trailing/doubled-pipe case: drop it.
+            if (raw.Trim().Length == 0) continue;
+
+            // A padded alias is not this fix's business — reshaping whitespace inside a spec is a
+            // judgement about layout, not a correction.
+            if (raw != raw.Trim()) return null;
+
+            var alias = raw;
+            if (alias.Any(char.IsWhiteSpace)) return null;
+
+            // Dashes with no name behind them: nothing to recover.
+            if (alias == "-" || alias == "--") return null;
+
+            if (alias[0] != '-')
+            {
+                alias = alias.Length == 1 ? "-" + alias : "--" + alias;
+            }
+
+            repaired.Add(alias);
+        }
+
+        if (repaired.Count == 0) return null;
+
+        var result = string.Join("|", repaired);
+
+        // Never offer something still invalid, and never offer a no-op.
+        return result != spec && ValidateSpec(result) is null ? result : null;
     }
 
     /// <summary>
