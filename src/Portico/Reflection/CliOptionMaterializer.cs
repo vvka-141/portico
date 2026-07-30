@@ -672,16 +672,31 @@ internal sealed class CliDictionaryOptionMaterializer : CliOptionMaterializer
     /// because the bracket form is a filename-expansion pattern that zsh — macOS's default login
     /// shell — refuses to pass through unquoted (POR-81).
     /// </summary>
-    private string SampleUsage() => $"{LongName()} key=value";
+    private string SampleUsage() => $"{HintAlias()} key=value";
 
     /// <summary>The query-string-shaped alternative, e.g. <c>'--config[key]' value</c>, quoted as a
     /// shell needs it.</summary>
-    private string BracketUsage() => $"'{LongName()}[key]' value";
+    private string BracketUsage() => $"'{HintAlias()}[key]' value";
 
-    private string LongName()
+    /// <summary>
+    /// The single alias a usage hint should name: the first long one, or the option's short alias
+    /// when it declares no long form.
+    /// </summary>
+    /// <remarks>
+    /// There is deliberately no placeholder fallback. This returned a literal <c>"--opt"</c> for an
+    /// option with no long alias, which put a flag the user's CLI does not have into the one message
+    /// whose whole job is telling them what to type instead — and a map option may legitimately be
+    /// declared <c>[CliOption("-t")]</c>. <see cref="CliOptionAttribute.Aliases"/> is never empty (a
+    /// spec with no alias is refused when the attribute is constructed), so the last branch is
+    /// unreachable in practice and exists only so an error path cannot itself throw.
+    /// </remarks>
+    private string HintAlias()
     {
         var longName = _attribute.LongOptionNames.FirstOrDefault();
-        return longName is null ? "--opt" : $"--{longName}";
+        if (longName is not null) return $"--{longName}";
+
+        var shortName = _attribute.ShortOptionNames.FirstOrDefault();
+        return shortName is not null ? $"-{shortName}" : _attribute.DisplayAliases;
     }
 }
 

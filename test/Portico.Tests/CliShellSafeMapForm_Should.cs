@@ -33,6 +33,7 @@ public sealed class CliShellSafeMapForm_Should
         public Dictionary<string, string>? Env { get; private set; }
         public Dictionary<string, int>? Ports { get; private set; }
         public Dictionary<string, string[]>? Headers { get; private set; }
+        public Dictionary<string, string>? Tags { get; private set; }
         public string? Filter { get; private set; }
 
         [CliRoute("config")]
@@ -64,6 +65,14 @@ public sealed class CliShellSafeMapForm_Should
         public int Search([CliOption("--filter|-f")] string filter)
         {
             Filter = filter;
+            return 0;
+        }
+
+        [CliRoute("tag")]
+        [CliCommandExample("tag -t env=prod")]
+        public int Tag([CliOption("-t")] Dictionary<string, string> tags)
+        {
+            Tags = tags;
             return 0;
         }
     }
@@ -310,5 +319,34 @@ public sealed class CliShellSafeMapForm_Should
         Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
         Assert.Contains("expected a key/value pair", result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("hunter2", result.StandardError, StringComparison.Ordinal);
+    }
+
+    // Every usage hint on this path — `Use --opt key=value`, `or the bracket form '--opt[key]' value`
+    // — is built from the option's FIRST LONG alias. A map option is allowed to have only a short
+    // one, and then the hint named a literal `--opt`: an option the user's CLI does not have. An
+    // error that sends someone to a flag that does not exist is worse than one that says less, and
+    // it is a map option's errors that a user meets most, because the pair syntax is the part people
+    // get wrong.
+    [Fact]
+    public void Name_The_Real_Option_In_The_Hint_When_There_Is_No_Long_Alias()
+    {
+        var (result, _) = Run("app tag -t oops");
+
+        Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
+        Assert.DoesNotContain("--opt", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("-t key=value", result.StandardError, StringComparison.Ordinal);
+        Assert.Contains("'-t[key]' value", result.StandardError, StringComparison.Ordinal);
+    }
+
+    // The same hint, reached through the empty-key throw site rather than the missing-separator one,
+    // because the placeholder was in the shared helper and every caller inherited it.
+    [Fact]
+    public void Name_The_Real_Option_In_The_Empty_Key_Hint_Too()
+    {
+        var (result, _) = Run("app tag -t =eu");
+
+        Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
+        Assert.Contains("empty map key", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("--opt", result.StandardError, StringComparison.Ordinal);
     }
 }

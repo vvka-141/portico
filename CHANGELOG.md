@@ -101,6 +101,13 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **A map option's usage hint named `--opt` — a flag that does not exist — when the option had no
+  long alias.** Every *"Use `--config key=value`"* and *"empty map key"* message on the map path
+  builds its hint from the option's first long alias, and fell back to a literal `--opt` when there
+  was none. So `[CliOption("-t")] Dictionary<string, string>` answered a mistyped pair by telling you
+  to type `--opt`, sending you to a flag your CLI does not have — in the one message whose whole job
+  is saying what to type instead. The hint now names the short alias. Present since the initial port.
+
 - **A nullable struct collection — `ImmutableArray<T>?` — now binds.** `ImmutableArray<T>` is a
   struct, so the nullable form is the only way to write an *optional* immutable-array option; it was
   refused at `CliApplication.Create` with *"has type 'Nullable\`1', which cannot be built from a
