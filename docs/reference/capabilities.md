@@ -89,17 +89,39 @@ free, shipped answer to a live concern.
 ```
 
 ```
-admin reindex '--shard[eu]' 3 '--shard[us]' 5
+admin reindex --shard eu=3 us=5
 ```
 
-> **Shell quoting required.** The brackets in `--shard[eu]` are filename-expansion
-> characters. On **zsh** (the default shell on macOS) an unquoted `--shard[eu]`
-> fails with `zsh: no matches found` before Portico ever sees it. **Quote the
-> option name** — `'--shard[eu]'` or `--shard\[eu\]` — in any shell invocation.
-> Inside `[CliCommandExample]` attributes the value is an argv array and must
-> *not* be quoted.
-
 First-class, not a parsing trick: the key is a string, the value is converted like any other option.
+
+**Two spellings bind identically.** `key=value` is the canonical one because it needs no shell
+quoting; the bracket form is the query-string shape the [HTTP metaphor](../explanation/charter.md)
+derives, and it is the only one that can carry a key containing `=`.
+
+| You type | Key | Value |
+|---|---|---|
+| `--shard eu=3` | `eu` | `3` |
+| `--shard=eu=3` | `eu` | `3` |
+| `'--shard[eu]' 3` | `eu` | `3` |
+| `'--shard[eu]=3'` | `eu` | `3` |
+| `--shard dsn=host=db;port=5432` | `dsn` | `host=db;port=5432` — the **first** `=` splits |
+| `'--shard[a=b]' 3` | `a=b` | `3` — a key containing `=` needs the brackets |
+
+Mix them freely in one invocation; they fill the same dictionary, and a key supplied twice is the same
+duplicate-key usage error either way.
+
+> **The bracket form needs shell quoting.** The brackets in `--shard[eu]` are
+> filename-expansion characters. On **zsh** (the default shell on macOS) an
+> unquoted `--shard[eu]` fails with `zsh: no matches found` before Portico ever
+> sees it — the shell aborts the command, so no diagnostic Portico could emit
+> would reach you. Either use `--shard eu=3`, or quote the option name:
+> `'--shard[eu]'` / `--shard\[eu\]`. Inside `[CliCommandExample]` attributes the
+> value is an argv array and must *not* be quoted.
+
+The split of `key=value` happens in the map binder, not in the parser — the parser does not know an
+option's declared type, so `--shard eu=3` reaches it as an ordinary option with one bare value. This is
+why the scalar rule below (*everything after the first separator is the value, verbatim*) is unchanged:
+for a map, that value is then read as a pair.
 
 **A repeated key accumulates when the value type is a collection.** Headers, labels and selectors
 repeat keys as a matter of course, so the declared value type chooses the semantics:
@@ -110,8 +132,8 @@ repeat keys as a matter of course, so the declared value type chooses the semant
 ```
 
 ```
-admin call '--header[Accept]' json html            one option, several values
-admin call '--header[Accept]' json '--header[Accept]' html   the option repeated
+admin call '--header[Accept]' json html          one option, several values
+admin call --header Accept=json Accept=html      the option's key repeated
 ```
 
 Both forms bind the same thing. Key order and value order are preserved as typed, and each value
@@ -326,13 +348,15 @@ it.)
 
 ```
 admin db seed --rows 250        admin db seed --rows=250
-admin reindex '--shard[eu]' 3   admin reindex '--shard[eu]=3'
+admin reindex --shard eu=3      admin reindex --shard=eu=3
 admin drain --timeout "90 sec"  admin drain --timeout="90 sec"
 ```
 
 The space form and the glued GNU form (`--opt=value`) are equivalent, for scalars, collections and
 maps alike. Everything after the **first** separator is the value, verbatim — `--filter=name=foo`
-binds `name=foo`, and a quoted value with spaces survives.
+binds `name=foo`, and a quoted value with spaces survives. On a **map** option that value is then read
+as `key=value` (see [Map options](#map-options--the-cfgenvprod-analogue)), which is the one place a
+second separator means something.
 
 After the POSIX `--` terminator, a token that looks like an option is a positional and is left exactly
 as typed: `echo -- --name=x` passes `--name=x` through as text.
@@ -358,6 +382,7 @@ public int Sync(
 | `-n5` | `-n 5` — the glued POSIX form |
 | `-n=5` | `-n=5` — an assignment, so the value is `5`, never `=5` |
 | `-e[region] eu` | unchanged — a map short keeps its `[key]` |
+| `-e region=eu` | unchanged — the shell-safe map form is already two tokens |
 | `-ax` | unchanged — `x` is not a declared short |
 | `--all` | unchanged — a long option is never split |
 

@@ -99,10 +99,15 @@ public sealed class FleetContract_Should
         Assert.Equal(500, tailed.Arguments["tail"]);
     }
 
-    [Fact]
-    public void Bind_A_Map_Option_Into_A_Dictionary()
+    // Both documented spellings of a map option, asserted to bind the SAME dictionary. The
+    // shell-safe `key=value` form is canonical because `[…]` is a glob pattern zsh refuses unquoted;
+    // the bracket form remains legal and is the only one that can carry a key containing '=' (POR-81).
+    [Theory]
+    [InlineData("queue retain --keep orders=7 audit=90")]
+    [InlineData("queue retain --keep[orders] 7 --keep[audit] 90")]
+    public void Bind_A_Map_Option_Into_A_Dictionary(string example)
     {
-        var e = Fleet.Single(x => x.Example == "queue retain --keep[orders] 7 --keep[audit] 90");
+        var e = Fleet.Single(x => x.Example == example);
 
         Assert.Equal(nameof(IFleetTool.SetRetention), e.Handler);
         var keep = Assert.IsType<Dictionary<string, int>>(e.Arguments["keep"]);

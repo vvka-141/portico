@@ -103,13 +103,17 @@ public interface IFleetTool
 
     /// <summary>
     /// Set per-topic retention. Shows a <b>map</b> option — the CLI analogue of a
-    /// <c>?keep[orders]=7</c> query string — binding to a <see cref="Dictionary{TKey,TValue}"/>.
+    /// <c>?keep[orders]=7</c> query string — binding to a <see cref="Dictionary{TKey,TValue}"/>, in
+    /// both of the spellings that bind it.
     /// </summary>
     [Description("Set per-topic message retention (days)")]
     [CliRoute("queue retain")]
+    // Both examples are executed by FleetContract_Should. `key=value` is the canonical spelling —
+    // `[…]` is a glob pattern that zsh refuses unquoted, and the shell fails before Portico is
+    // invoked (POR-81). The bracket form stays covered because it is still legal input.
+    [CliCommandExample("queue retain --keep orders=7 audit=90")]
     [CliCommandExample("queue retain --keep[orders] 7 --keep[audit] 90")]
     int SetRetention(
-        // Map option: --keep[key] value repeats to fill the dictionary.
         [CliOption("--keep", "Retention days per topic")] Dictionary<string, int>? keep = null);
 
     /// <summary>
