@@ -635,14 +635,14 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
 
         if (options.Count == 0)
         {
-            // Environment-variable fallback (opt-in per attribute). Applies to scalar options only.
-            if (!string.IsNullOrWhiteSpace(_attribute.EnvironmentVariable))
+            // Environment-variable fallback (opt-in per attribute), read through the base class's
+            // accessor — the same one the flag and collection paths use. This branch used to inline
+            // its own copy of the null/whitespace check, which is how the three paths came to
+            // disagree about what a set-but-empty variable means without anyone deciding they
+            // should (POR-161). One accessor is where that rule will go.
+            if (EnvironmentValue(_attribute) is { } envValue)
             {
-                var envValue = Environment.GetEnvironmentVariable(_attribute.EnvironmentVariable);
-                if (envValue is not null)
-                {
-                    return _valueParser.Invoke(envValue);
-                }
+                return _valueParser.Invoke(envValue);
             }
 
             if (_isOptional)
