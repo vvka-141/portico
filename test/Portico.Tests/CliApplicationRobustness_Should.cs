@@ -146,4 +146,50 @@ public sealed class CliApplicationRobustness_Should
         Assert.Empty(console.OutWriter.ToString());
         Assert.Empty(console.ErrorWriter.ToString());
     }
+
+    /// <summary>
+    /// Every parameter of every public <c>AddCommands</c> overload is null-checked, and the
+    /// exception names the parameter the caller actually passed.
+    /// </summary>
+    /// <remarks>
+    /// Two of the three overloads used to check one parameter each. The failures were not silent,
+    /// they were misattributed: <c>rootRoutes.Distinct()</c> on a null throws
+    /// <see cref="ArgumentNullException"/> naming LINQ's internal <c>'source'</c>, which is not a
+    /// parameter the caller can see, and a null <c>serviceType</c> surfaced as a
+    /// <see cref="NullReferenceException"/> from inside route discovery — one frame that says
+    /// nothing and one that says nothing useful. The lifetime-builder overload beside them had
+    /// checked all four since it was written, which is what made the gap look accidental rather
+    /// than intended.
+    /// </remarks>
+    [Theory]
+    [InlineData("instance")]
+    [InlineData("rootRoutes-on-instance-overload")]
+    [InlineData("serviceType")]
+    [InlineData("factory")]
+    [InlineData("rootRoutes-on-factory-overload")]
+    public void Name_The_Null_Parameter_Of_Every_AddCommands_Overload(string nullArgument)
+    {
+        Action create = nullArgument switch
+        {
+            "instance" =>
+                () => CliApplication.Create(cfg => cfg.AddCommands(null!, [])),
+            "rootRoutes-on-instance-overload" =>
+                () => CliApplication.Create(cfg => cfg.AddCommands(new NoopService(), null!)),
+            "serviceType" =>
+                () => CliApplication.Create(cfg => cfg.AddCommands(null!, () => new NoopService(), [])),
+            "factory" =>
+                () => CliApplication.Create(cfg => cfg.AddCommands(typeof(NoopService), null!, [])),
+            _ =>
+                () => CliApplication.Create(cfg => cfg.AddCommands(typeof(NoopService), () => new NoopService(), null!)),
+        };
+
+        var exception = Assert.Throws<ArgumentNullException>(create);
+
+        // 'source' is LINQ's parameter, not one the caller passed. Catching it here is the point:
+        // an ArgumentNullException that names the wrong parameter reads as correct and is not.
+        Assert.NotEqual("source", exception.ParamName);
+        Assert.False(
+            string.IsNullOrEmpty(exception.ParamName),
+            $"Null {nullArgument} threw ArgumentNullException with no ParamName at all.");
+    }
 }

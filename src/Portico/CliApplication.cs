@@ -1017,16 +1017,24 @@ public sealed partial class CliApplication
             return this;
         }
 
+        // Every parameter is checked, on all three overloads. An unchecked one does not go
+        // unnoticed, it goes unattributed: `rootRoutes.Distinct()` on a null throws
+        // ArgumentNullException naming LINQ's internal 'source', which is not a parameter the
+        // caller can see, and a null serviceType surfaced as a NullReferenceException from inside
+        // route discovery. Both told the caller nothing about which argument they got wrong.
         public ICliApplicationBuilder AddCommands(object instance, IEnumerable<CliRouteAttribute> rootRoutes)
         {
             ThrowIf.ArgumentNull(instance);
+            ThrowIf.ArgumentNull(rootRoutes);
             Services.Add(new Service(instance.GetType(), () => instance, null, [..rootRoutes.Distinct()]));
             return this;
         }
 
         public ICliApplicationBuilder AddCommands(Type serviceType, Func<object> factory, IEnumerable<CliRouteAttribute> rootRoutes)
         {
+            ThrowIf.ArgumentNull(serviceType);
             ThrowIf.ArgumentNull(factory);
+            ThrowIf.ArgumentNull(rootRoutes);
             Services.Add(new Service(serviceType, () => factory(), null, [..rootRoutes.Distinct()]));
             return this;
         }
