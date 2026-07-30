@@ -98,6 +98,11 @@ public sealed class RoutePlaceholderCodeFix : CodeFixProvider
     /// when it is an entire whitespace-delimited token — <c>user{id}</c> is a literal segment that routes
     /// fine (POR-61). A naive <c>Replace</c> would rewrite the inside of such a literal and change a
     /// route that worked.
+    /// <para>
+    /// The tokenizing is <see cref="CliRouteFacts.RenamePlaceholder"/>'s, shared with the rule that
+    /// reported the diagnostic. A private copy here split on a single space and so could not rewrite
+    /// what a <c>\s+</c> tokenizer had found.
+    /// </para>
     /// </remarks>
     private static async Task<Document> RenameAsync(
         Document document,
@@ -109,11 +114,7 @@ public sealed class RoutePlaceholderCodeFix : CodeFixProvider
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
-        var rewritten = string.Join(
-            " ",
-            literal.Token.ValueText
-                .Split(' ')
-                .Select(token => token == $"{{{placeholder}}}" ? $"{{{target}}}" : token));
+        var rewritten = CliRouteFacts.RenamePlaceholder(literal.Token.ValueText, placeholder, target);
 
         return document.WithSyntaxRoot(root.ReplaceNode(
             literal,

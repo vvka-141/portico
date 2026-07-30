@@ -28,7 +28,11 @@ internal static class CliRouteFacts
         @"^\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private static readonly Regex RouteTokenSeparator = new(@"\s+", RegexOptions.Compiled);
+    // The separator is CAPTURED so Split returns the whitespace runs alongside the tokens. Placeholders
+    // skips them; RenamePlaceholder puts them back verbatim. One tokenizer with two consumers is the
+    // point: the rename originally split on a single space of its own, so a tab-separated route — which
+    // the runtime and Placeholders both segment fine — reported POR001 and then renamed nothing.
+    private static readonly Regex RouteTokenSeparator = new(@"(\s+)", RegexOptions.Compiled);
 
     /// <summary>
     /// True if <paramref name="attribute"/> binds to <c>Portico.CliRouteAttribute</c>. Subclasses are
@@ -76,5 +80,32 @@ internal static class CliRouteFacts
             var match = PlaceholderRegex.Match(token.Trim());
             if (match.Success) yield return match.Groups["name"].Value;
         }
+    }
+
+    /// <summary>
+    /// <paramref name="routeString"/> with the whole-token placeholder <c>{from}</c> rewritten to
+    /// <c>{to}</c>. Every other token is left byte-for-byte alone, including a braced <i>literal</i>
+    /// such as <c>user{from}</c>, and every whitespace run is preserved.
+    /// </summary>
+    /// <remarks>
+    /// This lives beside <see cref="Placeholders"/>, and not in the code fix that calls it, because the
+    /// two have to agree about what a token is: a rename that finds nothing where the rule reported
+    /// something is a fix that silently does nothing, which is worse for the author than an error with
+    /// no fix at all. Sharing the tokenizer is what makes that disagreement unrepresentable rather than
+    /// merely unlikely (POR-122).
+    /// <para>
+    /// Whitespace is restored verbatim rather than normalised to single spaces: reformatting the
+    /// author's route is not part of correcting one placeholder in it.
+    /// </para>
+    /// </remarks>
+    public static string RenamePlaceholder(string routeString, string from, string to)
+    {
+        var parts = RouteTokenSeparator.Split(routeString);
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (parts[i] == "{" + from + "}") parts[i] = "{" + to + "}";
+        }
+
+        return string.Concat(parts);
     }
 }

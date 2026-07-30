@@ -408,6 +408,42 @@ public class Svc
         Assert.Contains("""[CliRoute("user{userId} {id} details")]""", fixedSource);
     }
 
+    // The rename must tokenize the route the way the ANALYZER does, or it reports a placeholder it
+    // then cannot rewrite. The runtime splits on `\s+` (CliMethodInfo.cs) and CliRouteFacts mirrors
+    // that, so a tab is a segment separator like any other and POR001 fires here correctly. A rename
+    // that split on a single space left the route untouched and the diagnostic standing — a fix that
+    // silently does nothing, which is worse than an unfixable error because the author believes it
+    // worked. The whitespace run itself is preserved: reformatting the author's route is not a
+    // correction.
+    [Theory]
+    [InlineData(@"user\t{userId} details", @"user\t{id} details")]
+    [InlineData(@"user  {userId}  details", @"user  {id}  details")]
+    public async Task POR001_Rename_Across_Any_Whitespace_The_Route_Splits_On(string route, string expected)
+    {
+        var source = $$"""
+using Portico;
+
+public class Svc
+{
+    [CliRoute("{{route}}")]
+    [CliCommandExample("user 42 details")]
+    public int Details(string id) => 0;
+}
+""";
+
+        var fixedSource = await CodeFixTestRunner.ApplyAsync(
+            new RoutePlaceholderAnalyzer(),
+            new RoutePlaceholderCodeFix(),
+            source,
+            select: title => title.Contains("Rename"));
+
+        Assert.Contains($"[CliRoute(\"{expected}\")]", fixedSource);
+        CodeFixTestRunner.AssertCompiles(fixedSource);
+
+        var remaining = await AnalyzerTestRunner.RunAsync(new RoutePlaceholderAnalyzer(), fixedSource);
+        Assert.DoesNotContain(remaining, d => d.Id == "POR001");
+    }
+
     // --- POR003: malformed [CliOption] spec -> only the deterministic subset --------------------
 
     [Theory]
