@@ -88,8 +88,13 @@ jobs:
           \`eng/check-dotnet-lifecycle.sh\` and runs locally. Close this when the decision is taken —
           it reopens by itself the following Wednesday if the condition still holds."
 
+          # No --label. `gh issue create` validates labels before creating anything, so naming one
+          # that does not exist in the repository aborts the whole call and the alert is simply lost —
+          # which is what happened with `dependencies`, a label Dependabot creates on its first PR and
+          # which therefore may or may not exist when this runs. Dedup keys on the exact title anyway,
+          # so the label was never load-bearing; an alert must not depend on repository furniture.
           if [ -z "$existing" ]; then
-            gh issue create --title "$TITLE" --body "$body" --label dependencies
+            gh issue create --title "$TITLE" --body "$body"
             exit 0
           fi
 
