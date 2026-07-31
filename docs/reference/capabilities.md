@@ -19,7 +19,9 @@ Config layering without a config file, declared on the option itself.
 ```
 
 The command line wins over the environment; the environment wins over the default. An operator sets
-`PORTICO_API_TOKEN` once in the container and stops typing it.
+`PORTICO_API_TOKEN` once in the container and stops typing it. **A variable set to nothing does not
+count as the environment having said anything** — it falls through to the default, on every option
+shape; the per-shape table below spells that out.
 
 **`--help` names the variable**, because for a containerized service `--help` is frequently the only
 surface an operator has — they did not write the tool and have no checkout:
@@ -261,9 +263,20 @@ never asks:
 | collection | `PORTICO_TAGS=a,b,c` | comma-separated (see below); a value containing a comma must come from argv |
 | **map** | — | **not supported, and it throws at startup** |
 
-**Set-but-empty is off.** `docker run -e FOO` and an undefined variable in a compose file both pass
-`FOO=`, so treating "the variable exists" as "the flag is on" would silently enable a flag nobody
-asked for — on the most common container idiom there is.
+**Set-but-empty means absent — for every shape.** `docker run -e FOO` and an undefined variable in a
+compose file both pass `FOO=`, so a variable set to nothing is treated exactly as an unset one: the
+option falls back to its declared default. A flag stays off, a collection stays at its default, and
+`PORTICO_PORT=` on an `int` option leaves `8080` in place instead of failing the process with
+*"'' is not a valid value for Int32"*.
+
+> This used to be a flag-only rule, and the other shapes each answered it differently: the collection
+> path agreed by accident, and the scalar path bound the empty string — so a containerised tool
+> refused to start when its orchestrator passed an empty variable, at the worst possible moment and
+> for a reason its operator never chose. One rule now, in one place (POR-161).
+
+The cost is that the environment cannot say *"explicitly the empty string"*, nor a whitespace-only
+one. Nothing becomes unexpressible: argv still says it, as `--name ""`. A variable is a source of
+**defaults**, and an empty answer from a default source is not an answer.
 
 **A collection's comma is an environment-only separator.** One variable has no other way to carry a
 list, so `PORTICO_TAGS=a,b,c` binds three elements. argv does not split — you repeat the flag

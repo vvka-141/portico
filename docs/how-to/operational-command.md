@@ -56,7 +56,9 @@ string? connectionString = null
 ```
 
 `EnvironmentVariable` means an operator sets it once in the container and stops typing it. argv still
-wins when both are present, so a one-off override needs no config change.
+wins when both are present, so a one-off override needs no config change. A variable set to **nothing**
+counts as unset — `docker run -e PGCONNSTR` and a compose file interpolating an undefined variable both
+pass `PGCONNSTR=`, and the option falls through to its default rather than binding an empty string.
 
 `Sensitive = true` means the value never reaches anything the framework writes — trace output, timing
 output, conversion errors, the echo of a mistyped command. In a container **stderr is the log

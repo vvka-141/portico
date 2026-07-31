@@ -194,4 +194,167 @@ public sealed class CliEnvironmentFallback_Should
         Assert.Contains("--shard", error.Message, StringComparison.Ordinal);
         Assert.Contains("not supported on map options", error.Message, StringComparison.Ordinal);
     }
+
+    // --- POR-161: a set-but-empty variable means ABSENT, for every shape -------------------------
+    //
+    // The three paths disagreed, each having decided locally and only one having written its reason
+    // down. The flag path chose "off" and said why; the collection path reached the same answer by
+    // accident, as a side effect of dropping empty items after a split; the scalar path bound the
+    // empty string. So `PORT=` on an `int` option failed the PROCESS with a usage error and never
+    // reached its declared default of 8080.
+    //
+    // `docker run -e FOO` passes `FOO=`, and so does a compose file interpolating a variable nobody
+    // set. Portico's audience is the admin CLI inside a service's container, which makes that the
+    // mainline case — a tool that refuses to start because the orchestrator passed an empty string
+    // is failing at the worst possible moment, for a reason its operator did not choose.
+    //
+    // The rule now lives in ONE place, CliOptionMaterializer.EnvironmentValue, so the shapes cannot
+    // drift apart again. These tests are the proof that all four agree.
+
+    public sealed class DefaultsTool
+    {
+        public int Port;
+        public string? Name;
+        public List<string>? Tags;
+        public CliFlag? Verbose;
+
+        [CliRoute("serve")]
+        [CliCommandExample("serve")]
+        public int Serve(
+            [CliOption("--port", EnvironmentVariable = "POR161_PORT")] int port = 8080,
+            [CliOption("--name", EnvironmentVariable = "POR161_NAME")] string name = "fallback",
+            [CliOption("--tag", EnvironmentVariable = "POR161_TAGS")] List<string>? tags = null,
+            [CliOption("--verbose", EnvironmentVariable = "POR161_VERBOSE")] CliFlag? verbose = null)
+        {
+            Port = port;
+            Name = name;
+            Tags = tags;
+            Verbose = verbose;
+            return 0;
+        }
+    }
+
+    private static (int ExitCode, DefaultsTool Tool) Serve(params (string Name, string? Value)[] environment)
+    {
+        var tool = new DefaultsTool();
+        var app = CliApplication.Create(cfg => cfg.WithConsole(new StringCliConsole()).AddCommands(tool));
+
+        foreach (var (name, value) in environment)
+        {
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        try
+        {
+            return (app.Run("app serve"), tool);
+        }
+        finally
+        {
+            foreach (var (name, _) in environment)
+            {
+                Environment.SetEnvironmentVariable(name, null);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The sharp one from the ticket: an empty variable on a value-typed option used to fail the
+    /// process, because "" is not an Int32 and the declared default was never consulted.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Fall_Back_To_The_Declared_Default_For_A_Value_Type(string empty)
+    {
+        var (exitCode, tool) = Serve(("POR161_PORT", empty));
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(8080, tool.Port);
+    }
+
+    /// <summary>
+    /// A string option keeps its declared default too, rather than binding the empty string.
+    /// </summary>
+    /// <remarks>
+    /// This is the half of the decision that gives something up: the environment can no longer say
+    /// "explicitly empty". Nothing becomes unexpressible — argv still says it — and a variable is a
+    /// source of defaults, where an empty answer is not an answer.
+    /// </remarks>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Keep_The_Declared_Default_For_A_String(string empty)
+    {
+        var (exitCode, tool) = Serve(("POR161_NAME", empty));
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("fallback", tool.Name);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Leave_A_Collection_At_Its_Default(string empty)
+    {
+        var (exitCode, tool) = Serve(("POR161_TAGS", empty));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(tool.Tags!);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Leave_A_Flag_Off(string empty)
+    {
+        var (exitCode, tool) = Serve(("POR161_VERBOSE", empty));
+
+        Assert.Equal(0, exitCode);
+        Assert.Null(tool.Verbose);
+    }
+
+    /// <summary>
+    /// The rule is about EMPTY, not about the environment fallback itself — a non-empty variable
+    /// still wins over the declared default, on every shape.
+    /// </summary>
+    /// <remarks>
+    /// Without this, "empty means absent" could be implemented as "ignore the environment entirely"
+    /// and every test above would still pass. It is the assertion that keeps the fix from being a
+    /// removal.
+    /// </remarks>
+    [Fact]
+    public void Still_Let_A_Non_Empty_Variable_Win()
+    {
+        var (exitCode, tool) = Serve(
+            ("POR161_PORT", "9090"),
+            ("POR161_NAME", "from-env"),
+            ("POR161_TAGS", "a,b"),
+            ("POR161_VERBOSE", "1"));
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(9090, tool.Port);
+        Assert.Equal("from-env", tool.Name);
+        Assert.Equal(["a", "b"], tool.Tags);
+        Assert.NotNull(tool.Verbose);
+    }
+
+    /// <summary>argv still outranks a non-empty variable — the precedence POR-54 established.</summary>
+    [Fact]
+    public void Still_Let_Argv_Win_Over_The_Environment()
+    {
+        var tool = new DefaultsTool();
+        var app = CliApplication.Create(cfg => cfg.WithConsole(new StringCliConsole()).AddCommands(tool));
+
+        Environment.SetEnvironmentVariable("POR161_PORT", "9090");
+        try
+        {
+            Assert.Equal(0, app.Run("app serve --port 7070"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("POR161_PORT", null);
+        }
+
+        Assert.Equal(7070, tool.Port);
+    }
 }

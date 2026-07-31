@@ -63,8 +63,9 @@ identically; prefer `key=value`, since `[…]` is a glob pattern that zsh refuse
 `CliOptions` **bundle property** does *not* work that way — give it `DefaultValue = "10"` on
 the attribute, or it is required. `TimeSpan` reads how an operator types it: `"30 seconds"`,
 `"2 minutes"`, `"1.5 hours"`, `"PT2M"`. `EnvironmentVariable = "VAR"` supplies a fallback
-(command line > environment > default). `Sensitive = true` redacts the value from every log
-line Portico emits.
+(command line > environment > default); a variable set to **nothing** counts as unset on every
+option shape, so `VAR=` from `docker run -e VAR` falls through to the default rather than
+binding an empty string. `Sensitive = true` redacts the value from every log line Portico emits.
 
 ## Examples are tests — the point of the framework
 
