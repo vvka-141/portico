@@ -68,6 +68,23 @@ zero-width codepoints that hide text a human reviewer cannot see **but a model s
 The framework now strips control characters and invisible codepoints from the strings *it* composes
 out of user input. Tabs and newlines survive; they are layout, not injection.
 
+**The rule is: nothing survives that a reader cannot see.** Not a list of characters that have been
+attacked so far — that list only ever grows one incident at a time, and the answer to *"is X covered?"*
+becomes *"whoever was attacked last"*. In practice that means every Unicode **format** character
+(`Cf` — which is where the zero-widths, the bidi controls behind
+[Trojan Source](https://trojansource.codes/) (CVE-2021-42574), and the **tag block** all live), plus
+the short list of invisible codepoints that are not `Cf`: variation selectors, the Hangul fillers and
+the combining grapheme joiner.
+
+The tag block (U+E0020–U+E007F) is worth naming. It encodes readable ASCII in codepoints that most
+renderers drop and every model reads — the "invisible instructions" vector — and it sits outside the
+BMP, so catching it means the sanitizer walks **runes**, not UTF-16 chars.
+
+What this costs is confined to diagnostics: a variation selector is invisible by construction, so an
+emoji in an error message may lose its colour presentation and a CJK ideograph its glyph variant.
+That is the right trade in the one place where not carrying an invisible payload outranks typography —
+and, again, **handler output is untouched**.
+
 **It does not touch handler output.** A handler writes with `Console.Write*` and owns its bytes — the
 handler contract is sacred, and a framework that filtered them would break every program that
 deliberately emits colour. This is the framework sanitizing its own echo, nothing more.

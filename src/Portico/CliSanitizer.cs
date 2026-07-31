@@ -1,3 +1,6 @@
+using System;
+using System.Buffers;
+using System.Globalization;
 using System.Text;
 
 namespace Portico;
@@ -28,30 +31,87 @@ internal static class CliSanitizer
     /// ANSI sequence) and zero-width codepoints removed. Tab and newline survive: they are legitimate
     /// layout in a multi-line diagnostic, and neither hides text nor moves the cursor.
     /// </summary>
+    /// <remarks>
+    /// Iterates <b>runes</b>, not chars. The tag block (U+E0020–U+E007F) is the "invisible
+    /// instructions" injection vector — ASCII encoded in codepoints most renderers drop and every
+    /// model reads — and it lives outside the BMP, so a char-by-char loop met it as two surrogates
+    /// that individually look like ordinary characters and could not express it at all (POR-160).
+    /// <para>
+    /// A malformed sequence — an unpaired surrogate — is dropped rather than replaced. It came from
+    /// argv, it cannot render, and substituting U+FFFD would put a character in the message that the
+    /// user did not type.
+    /// </para>
+    /// </remarks>
     public static string Sanitize(string? text)
     {
         if (string.IsNullOrEmpty(text)) return string.Empty;
 
         StringBuilder? builder = null;
-        for (var i = 0; i < text!.Length; i++)
+        var index = 0;
+
+        while (index < text!.Length)
         {
-            var c = text[i];
-            if (IsAllowed(c))
+            var status = Rune.DecodeFromUtf16(text.AsSpan(index), out var rune, out var consumed);
+
+            if (status == OperationStatus.Done && IsAllowed(rune))
             {
-                builder?.Append(c);
-                continue;
+                builder?.Append(text.AsSpan(index, consumed));
+            }
+            else
+            {
+                // First offender: copy everything before it, then drop it and every later one.
+                builder ??= new StringBuilder(text.Length).Append(text, 0, index);
             }
 
-            // First offender: copy everything before it, then drop it and every later one.
-            builder ??= new StringBuilder(text.Length).Append(text, 0, i);
+            index += consumed;
         }
 
         return builder?.ToString() ?? text;
     }
 
-    private static bool IsAllowed(char c)
+    /// <summary>
+    /// <b>The policy: nothing survives that a reader cannot see.</b> A diagnostic is text a human
+    /// reads or a model ingests, so a codepoint that renders as nothing has no business in one —
+    /// whatever its script or intent.
+    /// </summary>
+    /// <remarks>
+    /// Enumerated rules used to accumulate one incident at a time — zero-widths, then the bidi
+    /// family — which meant the answer to "is X covered?" was whoever had last been attacked. This
+    /// is the rule instead, and POR-160 is where it was written down.
+    /// <para>
+    /// <b>Every format character, by category, not by table.</b> <see cref="UnicodeCategory.Format"/>
+    /// is the BCL's own Unicode data and it already contains the codepoint that motivated this
+    /// ticket: the tag block is <c>Cf</c>, so the injection vector is covered by asking the runtime
+    /// rather than by hard-coding a range list this repository would then own and have to age. It
+    /// also covers, for free, every zero-width and bidi control the enumerated rules listed by hand.
+    /// </para>
+    /// <para>
+    /// <b>Why not Unicode's Default_Ignorable_Code_Point,</b> which is the property that most exactly
+    /// means "renderers may show nothing here". It is the right idea and the wrong mechanism: the BCL
+    /// does not expose it, so using it means transcribing ~18 ranges from the UCD into this file and
+    /// re-verifying them at every Unicode revision — a table nobody would re-check, guarding a
+    /// security boundary. <c>Cf</c> plus the short list below reaches the same codepoints for the
+    /// threats that exist, and the parts it over-covers (Arabic number signs, interlinear annotation)
+    /// are format characters too, which have no place in a diagnostic either.
+    /// </para>
+    /// <para>
+    /// <b>The list below is only what is invisible but NOT <c>Cf</c></b>, each verified against
+    /// <see cref="Rune.GetUnicodeCategory"/> rather than assumed. Note what is absent: no blanket
+    /// category rule for non-spacing marks. Variation selectors are <c>Mn</c> — and so is every
+    /// combining accent, so stripping the category would corrupt <c>café</c> into <c>cafe</c>. That
+    /// near-miss is the reason these are enumerated.
+    /// </para>
+    /// <para>
+    /// <b>What this costs, so it is not rediscovered as a bug.</b> A variation selector is invisible
+    /// by construction, so U+FE0F stops an emoji rendering in its colour form, and U+E0100+ stops a
+    /// CJK ideograph selecting a glyph variant. Both degrade inside <i>error messages only</i> —
+    /// never handler output, which this class does not touch — and a diagnostic is the last place
+    /// typographic fidelity outranks not carrying an invisible payload.
+    /// </para>
+    /// </remarks>
+    private static bool IsAllowed(Rune rune)
     {
-        var code = (int)c;
+        var code = rune.Value;
 
         // Tab and newline are legitimate layout in a multi-line diagnostic. Neither hides text nor
         // moves the cursor, so both survive.
@@ -61,23 +121,25 @@ internal static class CliSanitizer
         // (0x7F) and the C1 block (0x80-0x9F).
         if (code < 0x20 || code == 0x7F || (code >= 0x80 && code <= 0x9F)) return false;
 
-        // Invisible to a human, read by a model: zero-width space/joiners and the LTR/RTL marks
-        // (U+200B-U+200F), the word joiner (U+2060) and the BOM (U+FEFF). Text nobody can see is
-        // still text in an agent's context window.
-        if (code >= 0x200B && code <= 0x200F) return false;
-        if (code == 0x2060 || code == 0xFEFF) return false;
+        // Zero-widths, joiners, the BOM, the whole bidi control family — including the isolates that
+        // Unicode 6.3 introduced as the replacement for the deprecated overrides, i.e. the spelling
+        // a Trojan Source attack (CVE-2021-42574) would actually use — and the tag block. All Cf.
+        if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.Format) return false;
 
-        // The bidi control family, in full. These reorder rendered text without changing a byte, so
-        // a crafted argv token can make stderr display something other than what it says — the
-        // Trojan Source attack (CVE-2021-42574). The set is deliberately all nine plus the Arabic
-        // letter mark: this check used to cover only U+202A-U+202E, which are the *deprecated*
-        // embeddings and overrides, and let the isolates through. Unicode 6.3 introduced the
-        // isolates as the recommended replacement for exactly those codepoints, so blocking one
-        // half and not the other blocked the spelling an attacker would not use.
-        if (code == 0x061C) return false;                    // ALM
-        if (code >= 0x202A && code <= 0x202E) return false;   // LRE RLE PDF LRO RLO
-        if (code >= 0x2066 && code <= 0x2069) return false;   // LRI RLI FSI PDI
-
-        return true;
+        return !IsInvisibleNonFormat(code);
     }
+
+    /// <summary>Invisible codepoints the <c>Cf</c> category does not reach.</summary>
+    private static bool IsInvisibleNonFormat(int code) => code switch
+    {
+        0x034F => true,                                     // COMBINING GRAPHEME JOINER (Mn)
+        0x115F or 0x1160 or 0x3164 or 0xFFA0 => true,       // Hangul fillers — blank, but Lo
+        >= 0x17B4 and <= 0x17B5 => true,                    // KHMER VOWEL INHERENT AQ/AA (Mn)
+        >= 0x180B and <= 0x180F => true,                    // Mongolian variation selectors (Mn)
+        0x2065 => true,                                     // unassigned, reserved default-ignorable
+        >= 0xFE00 and <= 0xFE0F => true,                    // VARIATION SELECTOR-1..16 (Mn)
+        >= 0xFFF0 and <= 0xFFF8 => true,                    // unassigned, reserved default-ignorable
+        >= 0xE0100 and <= 0xE01EF => true,                  // VARIATION SELECTOR SUPPLEMENT (Mn)
+        _ => false,
+    };
 }
