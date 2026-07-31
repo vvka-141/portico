@@ -11,10 +11,10 @@
 
 Your service's operational surface is an API. Treat it like one.
 
-ASP.NET Core for the terminal: your routes are routes, and **your examples are executable tests** —
-so the CLI cannot lie about what it accepts. One `CliContractValidator<T>` test runs every
-`[CliCommandExample]` through the real pipeline, and a stale one fails the build. Roslyn analyzers
-check the rest at compile time. Zero dependencies. DI is opt-in.
+**The .NET CLI framework with a testing story.** ASP.NET Core for the terminal: your routes are
+routes, your options bind like a model, and **your examples are executable tests** — one
+`CliContractValidator<T>` test runs every `[CliCommandExample]` through the real pipeline, so the
+CLI cannot lie about what it accepts. DI and the Generic Host are one package away and work today.
 
 ```csharp
 using Portico;
@@ -22,8 +22,10 @@ using Portico;
 public interface IAdminTool
 {
     [CliRoute("db migrate")]
-    [CliCommandExample("db migrate --connection-string \"Host=db\"")]
-    int Migrate([CliOption("--connection-string|-c", Sensitive = true)] string connectionString);
+    [CliCommandExample("db migrate --connection-string \"Host=db\"", "Apply pending migrations")]
+    int Migrate(
+        [CliOption("--connection-string|-c", "Postgres connection string", Sensitive = true)]
+        string connectionString);
 }
 
 public sealed class AdminTool : IAdminTool
@@ -44,9 +46,67 @@ public static class Program
 
 That is the whole framework: a plain C# method, one route attribute, one example.
 
+**That declaration is already three things.** It is the command, it is the `--help` page, and it is a
+test — none of them written twice.
+
+Here is the help, which you did not write:
+
+```
+$ admin --help
+Usage: admin db migrate [options]
+
+Options:
+  --connection-string, -c  Postgres connection string
+
+Examples:
+  admin db migrate --connection-string "Host=db"
+      Apply pending migrations
+```
+
+And here is the test, which is the whole test:
+
+```csharp
+public sealed class AdminContract_Should
+{
+    [Fact]
+    public void Dispatch_Every_Example() => new CliContractValidator<IAdminTool>().Validate();
+}
+```
+
+`Validate()` runs every `[CliCommandExample]` on the interface through the **real** pipeline against a
+`DispatchProxy` — parsing, routing and binding included. Rename `Migrate`, change an option, or let
+the example drift from what the CLI accepts, and that one test fails. The example in the help output
+above is the same string the test just executed, which is why the help cannot be stale.
+
+## Use Portico when…
+
+- **You need to test your CLI.** `dotnet/command-line-api#1583` — *"How do we unit test it?"* — has
+  been open since January 2022, through GA, and Microsoft ships no testing page. Portico's answer is
+  the two tools above: `CliContractValidator<T>` for the contract, `CliTestHarness` for end-to-end
+  runs without spawning a process.
+- **Your CLI lives inside a service that already uses DI and hosting.** `Portico.Hosting` and
+  `Portico.DependencyInjection` work today, with a scope per dispatch.
+- **It is an operational surface** — exit codes a CI step can branch on, signals handled, secrets
+  that stay out of your logs.
+- **You want mistakes caught while you type**, not at 3am. Roslyn analyzers ship inside the package —
+  no second `dotnet add package` — and seven of the twelve rules come with a code fix, so Ctrl-.
+  clears the diagnostic.
+
+**Not for you if** you need AOT or sub-millisecond startup — see
+[What Portico is not](#what-portico-is-not), and read it before you invest an afternoon.
+
+## Install
+
 ```
 dotnet add package Portico
 ```
+
+| | |
+|---|---|
+| **Target frameworks** | `net8.0`, `net10.0` — the same zero-dependency assembly on both |
+| **You need** | the .NET SDK matching your target; nothing else |
+| **Which package** | `Portico` is the whole framework, analyzers and test surface included. Add `Portico.DependencyInjection` for `IServiceProvider`, `Portico.Hosting` for the Generic Host. Both are opt-in. |
+| **AOT** | **not supported.** Portico uses reflection and `DispatchProxy` deliberately — see [aot.md](docs/explanation/aot.md). If you need AOT, [ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework) is the better tool and we say so. |
 
 Two paths from there, and the templates serve both:
 
