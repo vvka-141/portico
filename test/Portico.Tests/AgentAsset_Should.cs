@@ -26,17 +26,16 @@ namespace Portico;
 /// that mention it check that it is packaged and that its analyzer TABLE is current; none of them
 /// looks at its code.
 /// <para>
-/// Only the "complete, working tool" block is verified, and the two reasons for that differ. Most
-/// other blocks in the file are deliberate fragments — an attribute on its own, a signature with no
-/// type around it — and making those compile would mean adapting them here, which reintroduces the
-/// second source of truth this extraction exists to avoid.
+/// Both blocks in that section are verified — the worked tool, and the xUnit contract test beneath
+/// it, which is compiled <i>against</i> the tool because it names <c>IGreeter</c> from it. Between
+/// them they cover all three parts of the sentence: it compiles, it dispatches (the analyzers agree
+/// the routes and examples are well-formed), and the contract test that proves the dispatch is
+/// itself real code.
 /// </para>
 /// <para>
-/// The xUnit contract-test block immediately below this one is <b>not</b> a fragment, and its
-/// absence here is a real gap rather than a considered exclusion. It is a complete test class, and
-/// verifying it would prove the "and is contract-tested" third of the section's claim, which nothing
-/// currently does; it needs xUnit metadata references, a different reference set from
-/// <see cref="AnalyzerTestRunner"/>'s. Named rather than quietly implied to be covered.
+/// The other blocks in the file are deliberate fragments — an attribute on its own, a signature with
+/// no type around it — and making those compile would mean adapting them here, which reintroduces
+/// the second source of truth this extraction exists to avoid.
 /// </para>
 /// </remarks>
 // ReSharper disable once InconsistentNaming
@@ -46,9 +45,10 @@ public sealed class AgentAsset_Should
     private const string Heading = "## A complete, working tool";
 
     /// <summary>
-    /// The first fenced <c>csharp</c> block under <see cref="Heading"/>, verbatim.
+    /// The <paramref name="index"/>-th (0-based) fenced <c>csharp</c> block under
+    /// <see cref="Heading"/>, verbatim.
     /// </summary>
-    private static string WorkedExample()
+    private static string CodeBlock(int index)
     {
         var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.Root(), AssetPath));
 
@@ -57,14 +57,26 @@ public sealed class AgentAsset_Should
             $"{AssetPath} has no '{Heading}' section. If it was renamed, update this test — do not " +
             "delete the guard, because the section's whole promise is that its code works.");
 
-        var start = Array.FindIndex(lines, heading + 1, line => line.StartsWith("```csharp", StringComparison.Ordinal));
-        Assert.True(start > heading, $"{AssetPath}'s '{Heading}' section has no ```csharp block.");
+        var cursor = heading + 1;
+        for (var skipped = 0; skipped < index; skipped++)
+        {
+            var skipStart = Array.FindIndex(lines, cursor, line => line.StartsWith("```csharp", StringComparison.Ordinal));
+            Assert.True(skipStart >= cursor,
+                $"{AssetPath}'s '{Heading}' section has fewer than {index + 1} ```csharp blocks.");
+            cursor = Array.FindIndex(lines, skipStart + 1, line => line.StartsWith("```", StringComparison.Ordinal)) + 1;
+        }
+
+        var start = Array.FindIndex(lines, cursor, line => line.StartsWith("```csharp", StringComparison.Ordinal));
+        Assert.True(start >= cursor,
+            $"{AssetPath}'s '{Heading}' section has fewer than {index + 1} ```csharp blocks.");
 
         var end = Array.FindIndex(lines, start + 1, line => line.StartsWith("```", StringComparison.Ordinal));
-        Assert.True(end > start, $"{AssetPath}'s first ```csharp fence under '{Heading}' is never closed.");
+        Assert.True(end > start, $"{AssetPath}: a ```csharp fence under '{Heading}' is never closed.");
 
         return string.Join(Environment.NewLine, lines[(start + 1)..end]);
     }
+
+    private static string WorkedExample() => CodeBlock(0);
 
     private static CSharpCompilation Compile() =>
         CSharpCompilation.Create(
@@ -74,6 +86,49 @@ public sealed class AgentAsset_Should
             // A library, so the block's `Main` compiles as an ordinary method and the block needs no
             // adaptation — same reasoning as Readme_Should.
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    /// <summary>
+    /// The worked example <b>and</b> the xUnit contract test beneath it, compiled together — which
+    /// is how a reader meets them, since the test class names <c>IGreeter</c> from the block above.
+    /// </summary>
+    /// <remarks>
+    /// This is the "and is contract-tested" third of the section's claim, and it needed no new
+    /// reference set after all: <see cref="AnalyzerTestRunner"/>'s references are the trusted
+    /// platform assemblies <i>plus every assembly loaded in the test host</i>, and xUnit is loaded
+    /// in an xUnit host by definition. The queue note that predicted a fiddly xUnit reference set
+    /// was wrong, and cheaply so — trying it was faster than reasoning about it.
+    /// <para>
+    /// Compiled but not executed. Running it would need a Portico application built from the block's
+    /// own types, which <c>CliContractValidator&lt;IGreeter&gt;</c> does for itself — but the point
+    /// here is the promise the document makes about its <i>code</i>, and a test class that does not
+    /// compile cannot have contract-tested anything.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void Compile_The_Contract_Test_Beside_It()
+    {
+        var compilation = CSharpCompilation.Create(
+            assemblyName: "AgentAssetContractTest",
+            syntaxTrees:
+            [
+                CSharpSyntaxTree.ParseText(WorkedExample()),
+                CSharpSyntaxTree.ParseText(CodeBlock(1)),
+            ],
+            references: AnalyzerTestRunner.MetadataReferences,
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var errors = compilation
+            .GetDiagnostics()
+            .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        Assert.True(
+            errors.Count == 0,
+            $"{AssetPath}'s contract-test block does not compile against its own worked example, " +
+            $"though the section says the code is contract-tested:" + Environment.NewLine +
+            string.Join(Environment.NewLine, errors.Select(e =>
+                $"  {e.Id} @ {e.Location.GetLineSpan().StartLinePosition}: {e.GetMessage()}")));
+    }
 
     [Fact]
     public void Compile_Its_Worked_Example()
