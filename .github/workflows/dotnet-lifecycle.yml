@@ -33,10 +33,17 @@ jobs:
         id: radar
         shell: bash
         run: |
+          # `set +e` EXPLICITLY, not merely "no set -e": GitHub runs `shell: bash` as
+          # `bash --noprofile --norc -e -o pipefail`, so errexit is already on before this script
+          # starts and omitting it is not the same as disabling it. Without this the step aborts the
+          # moment the radar reports a finding — exit 3 — and the issue is never opened. Found by the
+          # workflow_dispatch run POR-146's acceptance criteria asks for, which is what that criterion
+          # is for.
+          set +e
           set -uo pipefail
 
           # The script's exit code IS the interface: 0 nothing to report, 3 needs a decision,
-          # 1 could not answer. `set -e` is deliberately absent so 3 is not mistaken for a crash.
+          # 1 could not answer.
           report="$(bash eng/check-dotnet-lifecycle.sh 2>&1)"
           status=$?
 
