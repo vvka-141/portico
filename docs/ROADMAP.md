@@ -162,6 +162,29 @@ it, not a new one. If they do recover in one turn, the gap is cosmetic and this 
 If the evidence arrives, **sketch the two-phase design before writing it** — that is a precondition,
 not advice.
 
+### Targeting `net9.0`: **NO**, and it must stay absent. Resolved 2026-07-31 (POR-146).
+
+The TFM set is `net8.0;net10.0`. `net9.0` is missing on purpose, and the question gets re-asked often
+enough to be worth answering here.
+
+NuGet resolves assets by **nearest compatible framework**, not exact match. Since
+`net10.0 ⊃ net9.0 ⊃ net8.0`, a .NET 9 application referencing Portico already takes the `lib/net8.0/`
+asset — correctly, and with nothing failing. No consumer is excluded today.
+
+An explicit `net9.0` target would only buy a consumer something if the package had
+`#if NET9_0_OR_GREATER` implementation branches, per-TFM dependency groups, or framework-reference
+pruning differences. Portico has **none of those** — zero dependencies, and no `#if` anywhere, which
+`Portico_MultiTargeting_Should` now enforces rather than merely claims. Microsoft's own library
+guidance says to avoid multi-targeting when the source is identical across targets and there are no
+dependencies. So `net9.0` is pure CI-matrix and package-size cost for zero reach.
+
+**The related question — whether to keep `net8.0` — is open and dated.** Both .NET 8 and .NET 9 reach
+end of support on **2026-11-10** (.NET 9's STS window was extended from 18 to 24 months; any note
+saying May 2026 is stale). `eng/check-dotnet-lifecycle.sh` reports this weekly via
+`.github/workflows/dotnet-lifecycle.yml`, which raises one deduplicated issue rather than answering
+the question. Dropping a target is a judgement call about who you stop shipping to, and automating
+the alert is as far as that should go.
+
 ---
 
 ## Parked — explicitly deferred. Do not pick these up without revisiting the Charter.

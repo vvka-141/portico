@@ -22,11 +22,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The BUILD SDK comes from global.json, which Dependabot's `dotnet-sdk` ecosystem keeps
+      # current — one automated surface instead of a version pinned here and another pinned there,
+      # drifting apart silently (POR-146).
+      #
+      # `8.0.x` STAYS, and is not an SDK pin. It installs the .NET 8 RUNTIME, which is what the
+      # net8.0 test leg executes on; without it `dotnet test` runs only half the matrix and still
+      # reports success. Both inputs compose — actions/setup-dotnet installs the versions from
+      # `dotnet-version` AND the one resolved from `global-json-file`.
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 8.0.x
+          global-json-file: global.json
 
       - name: Check docs integrity
         if: matrix.os == 'ubuntu-latest'
@@ -62,6 +69,14 @@ jobs:
       - name: Test the release artifact preflight
         if: matrix.os == 'ubuntu-latest'
         run: bash eng/test-verify-release-artifacts.sh
+
+      # The lifecycle radar runs on a weekly schedule, not here — a target framework entering
+      # maintenance is a decision to schedule, not a build break. Its LOGIC is gated here, against
+      # fixtures, because a radar that silently stopped parsing would report "all clear" forever and
+      # nothing else would notice (POR-146).
+      - name: Test the .NET lifecycle radar
+        if: matrix.os == 'ubuntu-latest'
+        run: bash eng/test-check-dotnet-lifecycle.sh
 
       - name: Restore
         run: dotnet restore portico.sln

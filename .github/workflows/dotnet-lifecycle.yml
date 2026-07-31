@@ -1,0 +1,97 @@
+name: .NET lifecycle radar
+
+# Nothing automates the choice of a target framework, and nothing should — dropping one is a
+# judgement call about who you stop shipping to. This automates the ALERT instead, so the decision
+# lands on the board months ahead instead of being discovered by a consumer whose runtime stopped
+# getting security fixes (POR-146).
+#
+# Dependabot covers actions, NuGet packages and the SDK in global.json. Neither it nor Renovate
+# touches <TargetFrameworks>. This is what fills that gap.
+
+on:
+  schedule:
+    # Wednesday, after Patch Tuesday — the index is refreshed on Patch Tuesday, so checking a day
+    # later reads the new phases rather than last month's.
+    - cron: "0 9 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  radar:
+    name: Check shipped target frameworks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Read support phase for every shipped target
+        id: radar
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          # The script's exit code IS the interface: 0 nothing to report, 3 needs a decision,
+          # 1 could not answer. `set -e` is deliberately absent so 3 is not mistaken for a crash.
+          report="$(bash eng/check-dotnet-lifecycle.sh 2>&1)"
+          status=$?
+
+          printf '%s\n' "$report"
+
+          {
+            echo "status=$status"
+            echo "report<<REPORT_EOF"
+            printf '%s\n' "$report"
+            echo "REPORT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # A radar that cannot read the index must say so out loud. Silence here would look identical
+      # to "everything is fine", which is the one thing it must never do.
+      - name: Fail if the radar could not answer
+        if: steps.radar.outputs.status == '1'
+        run: |
+          echo "::error::The .NET lifecycle radar could not determine support phases. See the log."
+          exit 1
+
+      - name: Open or update the tracking issue
+        if: steps.radar.outputs.status == '3'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPORT: ${{ steps.radar.outputs.report }}
+          TITLE: ".NET lifecycle: a shipped target framework needs a decision"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Deduplicated by exact title. This runs weekly and the condition it reports persists for
+          # months, so opening a fresh issue each Wednesday would bury the decision under its own
+          # reminders. One issue, commented only when the report actually changes.
+          existing="$(gh issue list --state open --search "in:title \"$TITLE\"" \
+            --json number,title,body --jq \
+            "[.[] | select(.title == \"$TITLE\")] | first // empty")"
+
+          body="$REPORT
+
+          ---
+          Raised by \`.github/workflows/dotnet-lifecycle.yml\`; the check itself is
+          \`eng/check-dotnet-lifecycle.sh\` and runs locally. Close this when the decision is taken —
+          it reopens by itself the following Wednesday if the condition still holds."
+
+          if [ -z "$existing" ]; then
+            gh issue create --title "$TITLE" --body "$body" --label dependencies
+            exit 0
+          fi
+
+          number="$(printf '%s' "$existing" | jq -r .number)"
+
+          if [ "$(printf '%s' "$existing" | jq -r .body)" = "$body" ]; then
+            echo "Issue #$number is open and its report is unchanged — saying nothing."
+            exit 0
+          fi
+
+          gh issue edit "$number" --body "$body"
+          gh issue comment "$number" --body "The support-phase report changed; the issue body above is updated."

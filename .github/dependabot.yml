@@ -26,3 +26,23 @@ updates:
       prefix: "chore"
     labels:
       - dependencies
+
+  # Keeps global.json's SDK current. This ecosystem has existed since 2024-11-19 and the repo simply
+  # never opted in, so the SDK was the one version surface with nothing watching it while actions and
+  # packages both had cover (POR-146).
+  #
+  # It needs the CONCRETE three-part version in global.json — Dependabot cannot parse a floating
+  # `10.0.x`. `rollForward: latestFeature` is what keeps a developer's local SDK from having to match
+  # exactly; the pin is a floor, not a straitjacket.
+  #
+  # Note what this does NOT do: nothing automates <TargetFrameworks>, and no tool updates the
+  # `dotnet-version:` input of setup-dotnet. Choosing a target framework is a judgement call and
+  # should stay one — the lifecycle-radar workflow raises the question instead of answering it.
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    labels:
+      - dependencies
