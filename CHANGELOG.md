@@ -97,6 +97,23 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   that drives it — is now recorded in `docs/ROADMAP.md` and documented in
   `docs/reference/capabilities.md`, which it never was.
 
+- **stderr sanitization is a policy now, not a list of characters that have been attacked.** The rule
+  is *nothing survives that a reader cannot see*: every Unicode **format** character (`Cf`), plus the
+  invisible codepoints that are not `Cf` — variation selectors, Hangul fillers, the combining grapheme
+  joiner. Soft hyphen, the Mongolian separators, the deprecated format controls (U+206A–U+206F) and
+  the reserved default-ignorable blocks all reached stderr verbatim before; they no longer do.
+
+  The one that matters most is the **tag block** (U+E0020–U+E007F) — readable ASCII encoded in
+  codepoints renderers drop and models read, the "invisible instructions" injection vector. It sits
+  outside the BMP, so the sanitizer now walks **runes** rather than UTF-16 chars; a char-by-char loop
+  could not express those codepoints at all. An unpaired surrogate is dropped rather than replaced,
+  so no character you did not type appears in a message.
+
+  Combining accents are untouched — `café` stays `café`. Variation selectors share a Unicode category
+  with them, so a category-wide rule would have corrupted every accented argument; they are enumerated
+  for exactly that reason. As before, this applies **only** to strings the framework composes, never
+  to handler output.
+
 - **Breaking (0.x): an `EnvironmentVariable` set to nothing now counts as unset, on every option
   shape.** `docker run -e FOO` and a compose file interpolating an undefined variable both pass
   `FOO=`, so a variable set to nothing falls through to the option's declared default. The three
