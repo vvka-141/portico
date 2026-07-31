@@ -5,17 +5,20 @@
 
 ## 1. Mission
 
-Give .NET developers the CLI framework that feels idiomatic to how they already write ASP.NET Core services.
-A terminal tool should be designed, tested, and evolved the same way a controller is — because a CLI *is* an API;
-the transport just happens to be argv instead of HTTP.
+Give .NET systems a typed operational boundary that can be compiled, composed, and evolved with the
+domain and application code it operates. A terminal tool should be designed like any other adapter:
+its contract is explicit, its implementation uses ordinary .NET services and assemblies, and its
+transport happens to be argv instead of HTTP.
 
 ## 2. Target user
 
 A .NET developer (intermediate to senior) who:
 - Has written ASP.NET Core controllers or minimal APIs.
-- Has tried existing .NET CLI frameworks and found a shape mismatch — wanted attribute routing,
-  examples-as-tests, map options, or freedom from `Microsoft.Extensions.*` coupling.
-- Wants to stand up a production CLI in under a day and have it be testable, themeable, and refactor-safe.
+- Operates a substantial .NET application, platform, or enterprise codebase and wants a CLI to reuse
+  its typed contracts, application services, DI, configuration, and logging.
+- Wants the operational interface to speak the organization's vocabulary through reusable attributes
+  and policy middleware, without a parallel tree of parser-specific wiring.
+- Values runtime assembly composition and reflection more than Native AOT or minimum binary size.
 
 ## 3. The metaphor (non-negotiable)
 
@@ -93,6 +96,14 @@ A CLI is an HTTP API without the H.
    - Minimalism is about *what is forced on users*, not about *feature count*. A library
      with 20 opt-in convenience bundles and 2 required concepts is more minimalist than
      one with 2 bundles and 5 hooks that every user has to understand.
+8. **Reflection-first is the product model.** Portico composes ordinary .NET metadata, contracts,
+   converters, middleware and referenced assemblies at runtime. NativeAOT and trimming are not
+   secondary execution modes. Reconsidering this requires evidence that the target user changed and
+   a design that does not create two behavioral implementations.
+9. **The boundary may speak domain language.** `CliOptionAttribute` and `CliArgumentAttribute` stay
+   inheritable so a platform can package stable operational concepts instead of repeating raw parser
+   metadata. These attributes describe the command boundary; they do not move business execution
+   into attributes or make Portico itself a domain layer.
 
 ## 5. Non-goals
 
@@ -255,26 +266,31 @@ gates, not nice-to-haves.
 
 ## 7. Positioning sentence
 
-> **"ASP.NET Core for the terminal. Your routes are routes, and your examples are executable tests —
-> so the CLI cannot lie about what it accepts."**
+> **Portico is a contract-first operational command framework for .NET systems. Compile your
+> operational CLI with the system it operates.**
 
 Every piece of public copy must pass the "would a .NET developer recognize this in 5 seconds?" test.
+"ASP.NET Core for the terminal" remains a useful API-shape analogy, not the product definition.
 
 ### What the pitch is NOT (POR-44)
 
-The load-bearing clause is the second one. The first is recognition; the second is the claim.
+The load-bearing idea is the shared compilation and composition boundary. Executable examples are
+its verification mechanism, not the whole reason the product exists.
 
 - **Not "declarative attributes".** Attribute routing is **table stakes** in 2026 — clap derive (Rust),
   picocli (Java), typer (Python), kong (Go), oclif (Node) all have it. Leading with it concedes the
   argument to everyone.
-- **Not "less boilerplate".** Boilerplate cost is approaching zero: an agent will emit two hundred
-  lines of builder wiring and never tire. Brevity is not a benefit to a tireless author, so a pitch
-  built on it is dead on arrival.
-- **Not "declarative is better for LLMs".** That is *unmeasured* (POR-42). It must not appear on any
-  public surface until it is measured, however plausible it sounds.
+- **Not "the fewest lines in every benchmark".** Agents make typing framework wiring cheap, but the
+  resulting code still has to be reviewed, understood, debugged, and evolved. The defensible claim
+  is low accidental ceremony and high semantic density: routes say what the operational contract
+  means; shared attributes and middleware carry repeated domain meaning.
+- **Not "AI makes it correct".** That is unmeasured (POR-42). The narrower claim is observable:
+  Portico expresses more intent as ordinary C# symbols, Roslyn diagnostics, and executable contract
+  examples, giving a coding agent concrete compiler and test feedback.
 
-What is scarce is not typing speed. It is **ground truth**: a description of the command surface that
-cannot drift from the surface itself. Most incumbents' examples are free text —
+What is scarce is not typing speed. It is **shared meaning and ground truth**: an operational
+vocabulary that lives with the .NET contracts, plus a description of the command surface that cannot
+drift from the surface itself. Most incumbents' examples are free text —
 `cobra.Command.Example`, oclif's `examples`, yargs' `.example()`, OpenCLI's `examples: [string]` — printed
 in help, never verified. Portico's are executed through the real pipeline against the real contract,
 and a stale one fails the test suite and CI.

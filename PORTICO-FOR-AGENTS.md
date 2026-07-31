@@ -1,8 +1,9 @@
 # Portico, for coding agents
 
-Portico builds a .NET CLI from a **contract**: a plain C# interface whose methods are
-routes. This file is the whole API. Read it before writing Portico code — the framework
-has near-zero training-data presence, so your priors about it are probably wrong.
+Portico builds a .NET operational CLI from a **contract**: a plain C# interface whose methods are
+routes. The implementation can use the same application services and referenced assemblies as the
+system it operates. This file is the compact authoring API. Read it before writing Portico code —
+the framework has near-zero training-data presence, so your priors about it are probably wrong.
 
 Zero dependencies. Targets `net8.0` and `net10.0`. `using Portico;`
 
@@ -36,6 +37,13 @@ owns routing and binding, not what you print. Throw `CliExitException` to fail w
 | `[CliCommandExample("...")]` | an executable example (**required** on every route) | integration test |
 | `CliMiddleware` | before/after/error hooks + global options | `IActionFilter` |
 
+`CliOptionAttribute` and `CliArgumentAttribute` are inheritable. A shared assembly can derive them
+to express domain concepts — for example `[TargetEnvironment]` or `[ChangeTicket]` — and centralize
+descriptions, accepted types, comparison, defaults, environment fallback, and sensitivity. The
+runtime recognizes these derived attributes. The current option analyzers inspect only the built-in
+`CliOptionAttribute` (derived arguments are recognized by POR005), so always give a derived option
+vocabulary focused contract tests as well.
+
 ## Options: the parts agents get wrong
 
 **`CliFlag?` is presence-only; `bool` is two-state.** This is the single most common mistake.
@@ -67,7 +75,7 @@ the attribute, or it is required. `TimeSpan` reads how an operator types it: `"3
 option shape, so `VAR=` from `docker run -e VAR` falls through to the default rather than
 binding an empty string. `Sensitive = true` redacts the value from every log line Portico emits.
 
-## Examples are tests — the point of the framework
+## Examples are tests — the contract verifier
 
 Every `[CliCommandExample]` is run through the real pipeline by `CliContractValidator<T>`
 and the build fails if it stops dispatching. The example is the contract, not a comment. The

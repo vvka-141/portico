@@ -1,4 +1,35 @@
-# The agent-first CLI contract, scored
+# The two agent contracts
+
+"Agent-first" describes two different relationships, and Portico supports them differently:
+
+1. a coding agent **authors or changes** a Portico CLI; and
+2. an execution agent **invokes** the finished CLI as a tool.
+
+The first is an architectural design concern. The second is an operational safety concern. Calling
+both of them "AI-first" without separating them makes a large promise that cannot be evaluated.
+
+## Coding agents authoring a Portico CLI
+
+Portico is designed to give an agent a short, compiler-legible feedback loop. The route, parameters,
+option semantics, examples, and implementation signature are ordinary C# symbols. Roslyn diagnostics
+catch known contract errors at compile time; `CliContractValidator<T>` exercises the declared
+examples through real routing and binding in the test suite. The agent can therefore propose a
+change, compile it, run the contract tests, and revise against precise feedback instead of reasoning
+from prose alone.
+
+This does not mean an agent is guaranteed to write correct software, or that Portico has a measured
+accuracy advantage over every other framework. It means more of the CLI's intent is represented in
+artifacts that a compiler and a test runner can challenge. The concise authoring surface and its
+common failure modes are collected in [`PORTICO-FOR-AGENTS.md`](../../PORTICO-FOR-AGENTS.md); the
+complete diagnostic set is in [Analyzer rules](../reference/analyzer-rules.md).
+
+There is one important edge. The runtime recognizes attributes derived from `CliOptionAttribute`,
+but the current option analyzers do not inspect them. (POR005 does recognize derived
+`CliArgumentAttribute` declarations.) A coding agent working in a domain-specific option layer must
+therefore rely on focused contract tests as well as compiler diagnostics. See
+[Create domain-specific options](../how-to/domain-specific-options.md#current-analyzer-boundary).
+
+## Agents invoking the finished CLI
 
 A seven-point contract for "a CLI an agent can drive" is converging in the wild, arrived at
 independently by several authors. It is not in [clig.dev](https://clig.dev) — the canonical CLI design

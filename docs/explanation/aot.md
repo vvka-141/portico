@@ -1,136 +1,152 @@
-# Portico — AOT considerations (deferred)
+# Why Portico is reflection-first
 
-> **Status.** Deferred. Not on the 1.0 roadmap. This document explains why, what the triage
-> criteria would be if we revisit, and what the minimal-investment path would look like. Do
-> not start implementation work without re-reading [the decision log](#decision-log) at the
-> bottom of this file and confirming the stated conditions still hold.
+> **Decision:** Portico deliberately uses reflection and does not support trimming or NativeAOT.
+> This is the runtime model, not a temporary feature gap. If NativeAOT, minimal binary size or
+> sub-millisecond startup is a requirement, choose an AOT-first framework.
 
----
+Portico optimizes for a different kind of command-line application: an operational binary assembled
+from a substantial .NET system. It may reference application services, domain types, cloud SDKs,
+configuration, dependency injection, policy and several team-owned command-contract assemblies.
 
-## 1. The decision
+For that application, the managed runtime is not overhead surrounding the CLI. It is the platform
+the CLI exists to use.
 
-**Portico 1.0 ships without AOT support.** The runtime uses reflection for route
-discovery, option binding, and help rendering — exactly as it does today. Consumers who publish
-with `PublishAot=true` will see trim warnings and the framework will not work correctly under a
-trimmed AOT binary.
+## Reflection is the composition mechanism
 
-This is a deliberate choice, not a backlog item. The cost of building a source generator for AOT
-would be weeks of implementation plus indefinite dual-maintenance (every new feature has to land
-in both the reflection path and the generator emission); the benefit would be parity with a
-feature gap that the framework's actual target users do not have.
+Portico reads ordinary .NET metadata:
 
-## 2. Who AOT matters for — and doesn't
+- `[CliRoute]` methods become command routes;
+- method parameters and `CliOptions` properties become bound inputs;
+- derived option and argument attributes can supply domain-specific conversion;
+- interface contracts can live in one assembly and be implemented in another;
+- referenced contracts can be mounted beneath route prefixes;
+- DI factories resolve only the handler reached by the invocation;
+- help is rendered from the same discovered surface.
 
-**AOT matters** when a CLI is:
-- Invoked many times per shell session (shell completion wrappers, git-like tools).
-- Distributed globally as a standalone binary (`dotnet tool install -g` competing against `go install` / `cargo install`).
-- Running in cold-start-sensitive environments (Lambda, serverless, HEALTHCHECK scripts).
+No generated command tree sits beside the application graph. The command surface is derived from
+the types the application already compiled.
 
-**AOT does not matter** when a CLI is:
-- A microservice entrypoint that runs once per container start. The container takes seconds to
-  become healthy; saving 130 ms of .NET startup is invisible.
-- An admin / configuration tool embedded in a larger .NET application. The runtime is already
-  loaded; the assembly is already on disk.
-- A developer productivity tool inside a .NET monorepo, where `dotnet run` or `dotnet <tool>` is
-  the invocation shape.
+```mermaid
+flowchart TD
+    A["Referenced .NET assemblies"] --> B["Reflection over command contracts"]
+    B --> C["Validated route and binding model"]
+    C --> D["DI-resolved application services"]
+    D --> E["Operational command execution"]
+```
 
-The framework's initial target audience — .NET shops building internal tooling and microservice
-entrypoints — is almost entirely the second list.
+That model supports Portico's central proposition: **compile the operational CLI with the system it
+operates**. See [Why Portico?](why-portico.md).
 
-## 3. Why not "do it anyway, just in case"
+## What the choice buys
 
-Three concrete costs:
+### Ordinary assembly composition
 
-1. **Dual implementation.** Every time a new attribute, parameter shape, or type converter is
-   added, it has to be implemented twice — once for the reflection path, once for the generator
-   emission — until reflection is removed entirely. Removing reflection is a breaking change for
-   any consumer who hasn't opted into AOT.
-2. **Source-generator maintenance burden.** Roslyn source generators are not free. They break on
-   C# language updates, produce duplicate symbols under multi-project references, add
-   1–3 s to incremental build times, and require Roslyn-literate maintenance. A typical .NET
-   developer cannot effectively debug a misbehaving generator.
-3. **No current user pain.** No user (including the framework's author) has asked for AOT. The
-   only driver for the feature was a speculative "what would a Microsoft reviewer say" critique.
-   That critique is useful for framing the work, but it is not a user need.
+A team can publish a contract assembly using ordinary project or package references. A platform
+binary references exact versions, mounts the contracts and lets the C# compiler check their type
+relationships. There is no source-generator protocol or runtime plugin loader between the contract
+and the composer.
 
-## 4. Market reality check
+### Domain-specific command vocabulary
 
-At the time of writing, **no mainstream .NET CLI ships as AOT.**
+Because attributes and `TypeConverter` are normal runtime extension points, an organization can
+publish `[TargetEnvironment]`, `[ChangeTicket]` or `[ProductionApproval]` as reusable boundary
+language. The same assembly can carry the domain value types and conversion policy those attributes
+accept.
 
-- `dotnet` itself is a native bootloader, but every `dotnet-*` sub-tool (`dotnet-ef`,
-  `dotnet-format`, `dotnet-aspnet-codegenerator`) is reflection-based.
-- The widely-used CLI ecosystem (`gh`, `kubectl`, `terraform`, `aws`) is Go or Python — .NET is
-  not the language of choice for *distributable* CLIs.
-- ASP.NET Core itself did not get AOT support until .NET 8 in 2023 — seven years after 1.0.
+### Existing application runtime
 
-A developer who prioritizes AOT binary size / startup speed today has more reason to pick Go or
-Rust than to wait for Portico to add AOT. The framework's wedge is *.NET developer ergonomics*
-for .NET shops — not *portable binary distribution* for cross-ecosystem competition.
+The DI and Generic Host adapters reuse the service's configuration, logging, application lifetime
+and container. A command can resolve the same application-layer service as another .NET host rather
+than rebuilding its dependencies in a separate generated program.
 
-## 5. Triage criteria — when to revisit
+### One behavioral implementation
 
-Reopen this decision if **any two** of the following become true:
+Routing, binding and help have one reflection path. Supporting both reflection and generated paths
+would require every behavior and bug fix to remain equivalent across two implementations. Portico
+does not take on that permanent compatibility surface without evidence that its target users need it.
 
-1. Multiple (3+) users file concrete issues asking for AOT support with specific scenarios.
-2. A user contributes a working source-generator prototype as a pull request.
-3. The `dotnet tool install` distribution pattern becomes the primary way Portico CLIs are
-   consumed (evidence: NuGet download telemetry shows this).
-4. A competing .NET CLI framework of Portico's *shape* (Spectre.Console.Cli, System.CommandLine)
-   ships AOT and starts winning adopters who cite AOT as the reason. ConsoleAppFramework does not
-   count: it is AOT-first by design and always has been, so it is the baseline this decision was
-   taken against, not new evidence. (This criterion used to name **Cocona**; it was archived on
-   2025-12-14 and is no longer a competitor at all.)
+## What the choice costs
 
-Until then, the cost/benefit does not pencil out.
+Reflection is not free:
 
-## 6. The minimal-investment path, if ever needed
+- route discovery and materialization add managed-runtime startup work;
+- the referenced assembly graph can produce a larger deployment;
+- trimming may remove metadata and members Portico needs;
+- `DispatchProxy` and runtime type discovery require dynamic code;
+- configuration mistakes that an analyzer cannot see are rejected when
+  `CliApplication.Create` builds the route table rather than by generated code;
+- a globally distributed standalone tool must carry a .NET runtime or rely on one being installed.
 
-### Option A — Trim annotations only, no generator ✅ Done (POR-85)
+Portico mitigates late failures with Roslyn analyzers, startup validation, typed contracts and
+contract tests. Those checks make reflection bounded and observable; they do not turn it into AOT.
 
-`[RequiresUnreferencedCode]` and `[RequiresDynamicCode]` are on every public entry point
-(`CliApplication.Create`/`Run`/`RunAsync`, `CliContractValidator<T>`, `CliTestHarness`,
-`CliHostExtensions.RunPorticoAsync`). Internal reflection sites carry targeted `#pragma warning
-disable` suppressions. `EnableTrimAnalyzer` is enabled in the Portico.csproj so the library's
-own build is warning-clean. See § 7 for consumer-facing details.
+## Choose the optimization target deliberately
 
-This does **not** make trimming work — the framework remains reflection-dependent by design
-(§§ 1–4). What it does is make a trimmed publish fail with clear compiler warnings instead of
-silently at runtime.
+Portico is a good fit when the command:
 
-### Option B — Full source generator
+- runs migrations, deployments, backfills or maintenance against a .NET system;
+- reuses a large application or platform assembly graph;
+- needs Generic Host, DI, configuration and cloud clients already present in that graph;
+- is built and versioned with the solution it operates;
+- performs work whose duration dominates process startup;
+- benefits from team-owned contract assemblies compiled into one binary.
 
-A full source generator replacing every reflection hot-path with generator output is the
-larger alternative. Estimated weeks of implementation, indefinite dual-maintenance, and a
-meaningful IDE/build-speed tax. Only pursue if Option A is demonstrably insufficient for a
-concrete user.
+Prefer an AOT-first framework when the command:
 
-## 7. What consumers should know today
+- is invoked repeatedly in a tight shell loop;
+- must be distributed as a tiny standalone executable;
+- has a cold-start budget where managed-runtime startup is material;
+- targets NativeAOT, trimming, mobile or constrained environments;
+- does not benefit from linking the larger .NET application system.
 
-`CliApplication.Create`, every `Run`/`RunAsync` overload, `CliContractValidator<T>.Validate`/
-`Enumerate`, `CliTestHarness` and `CliHostExtensions.RunPorticoAsync` are annotated with
-`[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. A consumer who publishes with
-`PublishTrimmed=true` or `PublishAot=true` will see build-time IL2026/IL3050 warnings naming
-these APIs and pointing at this document.
+[ConsoleAppFramework](https://github.com/Cysharp/ConsoleAppFramework) and
+[CliFx](https://github.com/Tyrrrz/CliFx) are better fits when attributed or method-oriented CLI code
+must also be source-generated and AOT-compatible. [The alternatives, honestly](alternatives.md)
+keeps the dated comparison.
 
-The annotations do not make trimming work — they make it **fail visibly, at build time**, instead
-of silently at runtime. The framework's reflection surface (route discovery, option binding, type
-conversion, `DispatchProxy`) is incompatible with trimming and NativeAOT by design (§§ 1–4 above).
-Suppressing the warnings does not change that; the trimmed binary will fail.
+Portico should not compete with Go or Rust on their strongest CLI dimensions. Its advantage exists
+where the full managed application system is more valuable than the smallest possible executable.
 
-If AOT becomes a blocker for a real scenario, file an issue describing the use case — the decision
-above is reversible, and § 6 sketches the minimal path.
+## Consumer-visible behavior
 
----
+`CliApplication.Create`, every `Run`/`RunAsync` overload, `CliContractValidator<T>`, `CliTestHarness`
+and `CliHostExtensions.RunPorticoAsync` carry `[RequiresUnreferencedCode]` and
+`[RequiresDynamicCode]`.
+
+A consumer using `PublishTrimmed=true` or `PublishAot=true` receives IL2026/IL3050 warnings at build
+time. These annotations make the incompatibility visible; they do not make trimming safe.
+Suppressing the warnings does not change the runtime requirements.
+
+## Why not generate only the route table?
+
+A partial generator sounds smaller than replacing the entire runtime, but it creates the same
+semantic split. Route discovery, inherited attributes, option materialization, converters, help,
+middleware options and assembly mounts would have to agree about which metadata is authoritative.
+Generating only one layer moves the boundary rather than removing it.
+
+That work may become justified, but it would be a product change rather than a transparent
+optimization.
+
+## Revisit conditions
+
+Reopen the decision when evidence changes the target, for example:
+
+1. Several users present concrete operational scenarios blocked specifically by AOT.
+2. Portico is primarily distributed as a global standalone tool rather than built with a system.
+3. Managed startup becomes material in measured target workloads.
+4. A maintained generator design preserves derived attributes, assembly composition, middleware and
+   runtime diagnostics without creating two divergent behavioral paths.
+5. The .NET runtime gains a metadata-preservation mechanism that makes Portico's reflection model
+   safe under trimming without a parallel implementation.
+
+Until then, reflection is the simpler and more faithful implementation of Portico's purpose.
 
 ## Decision log
 
-- **2026-07-27** — implemented § 6 Option A (POR-85). All public entry points annotated with
-  `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]`; `EnableTrimAnalyzer` enabled;
-  internal reflection sites carry targeted pragma suppressions. The build is warning-clean.
-  The framework remains reflection-dependent; the annotations make a trimmed publish fail
-  visibly (IL2026/IL3050 at build time) rather than silently at runtime.
-- **2026-04-20** — decided to defer AOT indefinitely. The original prescriptive plan is replaced
-  by this considerations document. Driver: framework author's own use cases (dockerised
-  microservice CLI entrypoints) don't require AOT; no concrete external demand; source-generator
-  maintenance burden doesn't pencil out against the benefit. Reopen when §5 triage criteria
-  firm up.
+- **2026-07-31** — reframed the decision around Portico's positive runtime proposition: assembly
+  composition and application-system reuse. Removed the obsolete claim that mainstream .NET CLI
+  frameworks do not ship AOT; both ConsoleAppFramework and CliFx now do.
+- **2026-07-27** — annotated all public entry points with `[RequiresUnreferencedCode]` and
+  `[RequiresDynamicCode]`; enabled the trim analyzer so consumers receive visible build warnings.
+- **2026-04-20** — deferred NativeAOT after finding no target-user demand sufficient to justify a
+  second generated implementation.

@@ -2,7 +2,8 @@
 
 Generic Host integration for [Portico](https://www.nuget.org/packages/Portico). Your service
 already has a `HostApplicationBuilder`, its configuration, its logging and its container — its
-admin CLI should reuse them, not rebuild them.
+admin CLI should reuse them, not rebuild them. This package turns that existing host and its
+referenced application assemblies into the runtime of the operational executable.
 
 ```
 dotnet add package Portico.Hosting

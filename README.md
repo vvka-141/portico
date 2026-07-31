@@ -7,14 +7,18 @@
 [![Downloads](https://img.shields.io/nuget/dt/Portico.svg)](https://www.nuget.org/packages/Portico)
 [![License](https://img.shields.io/github/license/vvka-141/portico)](LICENSE)
 
-**The command surface for .NET backend services.**
+**A contract-first operational command framework for .NET systems.**
 
-Your service's operational surface is an API. Treat it like one.
+**Compile your operational CLI with the system it operates.** Portico turns ordinary C# contracts,
+application services and referenced assemblies into one composable command surface. A migration,
+deployment or maintenance command can use the same domain types, dependency graph, cloud clients,
+policies and lifecycle as the production system — without rebuilding them in a parallel command
+object graph or a shell script.
 
-**The .NET CLI framework with a testing story.** ASP.NET Core for the terminal: your routes are
-routes, your options bind like a model, and **your examples are executable tests** — one
-`CliContractValidator<T>` test runs every `[CliCommandExample]` through the real pipeline, so the
-CLI cannot lie about what it accepts. DI and the Generic Host are one package away and work today.
+Portico is reflection-first by design. Its unit of composition is a .NET contract and assembly, not
+an AOT-generated standalone executable. Routes bind like ASP.NET endpoints, middleware carries
+application-wide options and policy, and examples are executable checks of the surface operators
+actually receive.
 
 ```csharp
 using Portico;
@@ -44,7 +48,7 @@ public static class Program
 }
 ```
 
-That is the whole framework: a plain C# method, one route attribute, one example.
+That is the core shape: a plain C# method, one route attribute, one example.
 
 **That declaration is already three things.** It is the command, it is the `--help` page, and it is a
 test — none of them written twice.
@@ -63,7 +67,7 @@ Examples:
       Apply pending migrations
 ```
 
-And here is the test, which is the whole test:
+And here is the complete contract test:
 
 ```csharp
 public sealed class AdminContract_Should
@@ -78,22 +82,49 @@ public sealed class AdminContract_Should
 the example drift from what the CLI accepts, and that one test fails. The example in the help output
 above is the same string the test just executed, which is why the help cannot be stale.
 
+## Why Portico
+
+- **One compilation boundary.** The CLI references the same application and platform assemblies as
+  the system it operates. Incompatible service, domain-model and package changes meet the compiler
+  instead of a production script.
+- **A domain-specific operational language.** Derive option and argument attributes, use domain
+  value types, and package those conventions for every command. A contract can say
+  `[ChangeTicket] ChangeTicket ticket` rather than restating aliases, conversion and policy on each
+  parameter.
+- **Commands and policy compose.** Team-owned contracts mount beneath route prefixes. A
+  `CliMiddleware` is both a bundle of application-wide options and the behavior that enforces them,
+  so controls such as `--dry-run`, approvals and auditing travel together.
+- **Large surfaces remain discoverable.** Help is generated from the composed contract, and fuzzy
+  suggestions recover near-miss command paths and option names. The operator does not need a second
+  registry to discover capabilities contributed by another assembly.
+- **Compiler- and agent-legible.** Typed declarations, Roslyn diagnostics and code fixes give human-
+  and machine-authored changes a local correction loop. Executable examples verify the final
+  routing and binding contract.
+- **The managed runtime is an advantage.** Portico chooses reflection, DI, Generic Host and assembly
+  metadata over NativeAOT. It is for substantial .NET systems, not for competing with Go or Rust on
+  single-file size or sub-millisecond startup.
+
+The architectural argument, boundaries and tradeoffs are in **[Why Portico?](docs/explanation/why-portico.md)**.
+
 ## Use Portico when…
 
-- **You need to test your CLI.** `dotnet/command-line-api#1583` — *"How do we unit test it?"* — has
-  been open since January 2022, through GA, and Microsoft ships no testing page. Portico's answer is
-  the two tools above: `CliContractValidator<T>` for the contract, `CliTestHarness` for end-to-end
-  runs without spawning a process.
+- **The command invokes substantial application logic.** Deployment orchestration, migrations,
+  backfills, maintenance and cloud operations should reuse the codebase rather than reimplement it.
+- **Several teams contribute to one operational binary.** Contracts can ship in separate assemblies
+  and be mounted by a platform-owned composition root.
+- **Your organization has an operational vocabulary.** Reusable attributes, types and middleware
+  can express environments, regions, approvals, change tickets and safety policy consistently.
 - **Your CLI lives inside a service that already uses DI and hosting.** `Portico.Hosting` and
-  `Portico.DependencyInjection` work today, with a scope per dispatch.
+  `Portico.DependencyInjection` reuse that runtime, with a scope per dispatch.
 - **It is an operational surface** — exit codes a CI step can branch on, signals handled, secrets
   that stay out of your logs.
-- **You want mistakes caught while you type**, not at 3am. Roslyn analyzers ship inside the package —
+- **You want integration mistakes caught while you type**, not at 3am. Roslyn analyzers ship inside the package —
   no second `dotnet add package` — and seven of the twelve rules come with a code fix, so Ctrl-.
   clears the diagnostic.
 
-**Not for you if** you need AOT or sub-millisecond startup — see
-[What Portico is not](#what-portico-is-not), and read it before you invest an afternoon.
+**Not for you if** this is a small standalone utility, if runtime and assembly reuse are irrelevant,
+or if you need NativeAOT or sub-millisecond startup. See [What Portico is not](#what-portico-is-not)
+before you invest an afternoon.
 
 ## Install
 
@@ -294,8 +325,9 @@ unusual is that verification survives the mount: tell the validator where a cont
 run against the composed route table, still red when it stops dispatching.
 
 Sub-CLIs are .NET assemblies you reference — this is not a wrapper over the real `aws` or `az`, and
-there is no runtime plugin discovery. See [composing CLIs](docs/how-to/compose-clis.md) and the
-worked example in [`examples/PlatformCli`](examples/PlatformCli).
+there is no runtime plugin discovery. See [composing CLIs](docs/how-to/compose-clis.md),
+[packaging command capabilities](docs/how-to/package-command-capabilities.md), and the worked
+example in [`examples/PlatformCli`](examples/PlatformCli).
 
 ## It is an HTTP API without the H
 
@@ -361,15 +393,16 @@ Honest concessions, because a comparison that concedes nothing is not worth read
   source generator with zero reflection, zero allocation and NativeAOT support. If startup time or
   binary size is your constraint, use it — it will beat Portico and we are not going to pretend
   otherwise.
-- **Not AOT.** Portico uses reflection for routing, binding and help. This follows from the target:
-  an admin CLI inside a service container does not care about a startup delta that is invisible
-  next to the container start it lives inside. See
-  [docs/explanation/aot.md](docs/explanation/aot.md) — the decision, and the conditions under which
-  we would revisit it.
+- **Not AOT.** Portico uses reflection as its composition mechanism for contracts, derived
+  attributes, middleware and referenced assemblies. That trades trimming and minimum startup for a
+  runtime model that follows ordinary .NET metadata. See [why reflection-first](docs/explanation/aot.md)
+  for the benefits, costs, and conditions under which we would revisit it.
 - **Not Microsoft's.** [System.CommandLine](https://learn.microsoft.com/dotnet/standard/commandline/)
   went **2.0 GA in November 2025** — the "perpetual beta" jab is dead, and 2.0 also cut library size
   ~32% and improved parsing ~40%. If your organisation's rule is "prefer the first-party option,"
-  that rule is defensible. Portico's bet against it is not stability and not speed; it is **shape**.
+  that rule is defensible. Portico's bet against it is not stability and not speed; it is
+  **composition and shape** — contracts, reusable attributes, middleware policy, and assemblies are
+  the primary model rather than a separate builder tree.
   People who left it say they wanted *"a simple programming style rather than the complex fluent
   style with nested lambdas that the library favored"*
   ([discussion](https://github.com/spectreconsole/spectre.console/discussions/1397)) — which is
@@ -391,6 +424,11 @@ and is honest about what is not finished:
 
 - **No machine-readable command manifest yet.** An agent learns the surface by reading `--help`,
   which is honest and verified but not structured.
+- **Derived option attributes outrun the option analyzers.** Runtime binding recognizes the
+  inherited vocabulary, but POR003, POR009, POR010 and POR012 currently inspect only the built-in
+  `CliOptionAttribute`. Keep focused contract tests beside a shared attribute package; the
+  [domain-specific options guide](docs/how-to/domain-specific-options.md#current-analyzer-boundary)
+  names the affected rules.
 - **A literal route beside a catch-all is not a supported shape.** `db migrate` alongside
   `db {command}` is ambiguous, and Portico refuses to guess rather than silently preferring the
   literal. Deliberate, and [documented](docs/reference/capabilities.md#a-literal-route-beside-a-catch-all-is-not-a-supported-shape).
@@ -412,10 +450,13 @@ Choose the shortest path for the job:
 
 | Goal | Read |
 |---|---|
+| Understand why Portico exists | [Why Portico?](docs/explanation/why-portico.md) |
 | Build a production-shaped command | [Your first operational command](docs/how-to/operational-command.md) |
+| Define reusable domain option attributes | [Domain-specific options](docs/how-to/domain-specific-options.md) |
+| Combine global options with operational policy | [Operational policy middleware](docs/how-to/operational-policy-middleware.md) |
 | Look up routing, binding, middleware or testing behavior | [Capabilities reference](docs/reference/capabilities.md) |
 | Understand or suppress a diagnostic | [Analyzer rules](docs/reference/analyzer-rules.md) |
-| Mount several team-owned contracts | [Composing CLIs](docs/how-to/compose-clis.md) |
+| Package and mount team-owned capabilities | [Package command capabilities](docs/how-to/package-command-capabilities.md) |
 | Move from Cocona | [Migration guide](docs/how-to/migrate-from-cocona.md) |
 | Decide whether Portico is the right framework | [The alternatives, honestly](docs/explanation/alternatives.md) |
 

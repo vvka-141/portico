@@ -1,7 +1,9 @@
 # Portico.DependencyInjection
 
 `Microsoft.Extensions.DependencyInjection` adapter for [Portico](https://www.nuget.org/packages/Portico).
-Resolve your CLI command contracts from an `IServiceProvider`, one scope per dispatched command.
+Resolve your CLI command contracts from an `IServiceProvider`, one scope per dispatched command. It
+lets the operational boundary use the same implementations and dependency graph as the rest of the
+.NET system instead of rebuilding them behind CLI-specific factories.
 
 ```
 dotnet add package Portico.DependencyInjection

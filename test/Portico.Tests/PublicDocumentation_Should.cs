@@ -213,6 +213,22 @@ public sealed class PublicDocumentation_Should
     }
 
     [Fact]
+    public void Index_The_Core_Architectural_Guides()
+    {
+        var index = File.ReadAllText(Path.Combine(Root, "docs", "README.md"));
+        string[] guides =
+        [
+            "explanation/why-portico.md",
+            "explanation/aot.md",
+            "how-to/domain-specific-options.md",
+            "how-to/operational-policy-middleware.md",
+            "how-to/package-command-capabilities.md",
+        ];
+
+        Assert.All(guides, guide => Assert.Contains($"]({guide})", index, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Resolve_Every_Local_Markdown_Anchor()
     {
         var failures = new List<string>();

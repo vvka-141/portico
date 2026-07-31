@@ -94,11 +94,12 @@ Use it on a parameter the same way you'd use `[CliOption]`:
 public int Import([CliJsonOption("--manifest|-m")] Manifest manifest) { ... }
 ```
 
-#### Analyzer coverage gap for derived attributes
+#### Analyzer coverage gap for derived option attributes
 
-The Roslyn analyzers POR003, POR009 and POR010 match `[CliOption]` and `[CliArgument]` by name.
-A derived attribute (`[CliJsonOption]`) is invisible to them — they will not flag a malformed
-spec, a duplicate alias, or an unconvertible type on it.
+The Roslyn option analyzers POR003, POR009, POR010 and POR012 match the built-in `[CliOption]`
+attribute directly. A derived option attribute (`[CliJsonOption]`) is invisible to them — they will
+not flag a malformed spec, a duplicate alias, an unconvertible type, or a likely `bool`/`CliFlag?`
+mix-up on it. POR005 does recognize derived `[CliArgument]` attributes.
 
 **Runtime still validates.** `CliOptionMaterializer` checks the same invariants at dispatch time
 and throws `CliConfigurationException` from `CliApplication.Create` before a single command runs.

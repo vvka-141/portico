@@ -1,8 +1,8 @@
 # Documentation
 
 Portico's docs follow the [Diataxis](https://diataxis.fr/) framework: four quadrants, each serving a
-different need. Start with the tutorial if you are new; reach for reference when you need the answer
-to a specific question.
+different need. If you are evaluating Portico, start with [Why Portico?](explanation/why-portico.md).
+If you are ready to build, start with the tutorial.
 
 ## Tutorial — learning-oriented
 
@@ -16,6 +16,9 @@ to a specific question.
 |---|---|
 | [Your first operational command](how-to/operational-command.md) | The niche, demonstrated: env fallback, redaction, durations, exit codes, drain-on-SIGTERM |
 | [Composing CLIs](how-to/compose-clis.md) | Mount several contracts into one binary |
+| [Package command capabilities](how-to/package-command-capabilities.md) | Ship team-owned contracts and implementations as assemblies, then compose an operational binary |
+| [Create domain-specific options](how-to/domain-specific-options.md) | Turn derived attributes into a reusable operational vocabulary |
+| [Build an operational policy middleware](how-to/operational-policy-middleware.md) | Bundle global control parameters with the policy that interprets them |
 | [Migrating from Cocona](how-to/migrate-from-cocona.md) | The concept mapping, and when another framework is the better move |
 
 ## Reference — information-oriented
@@ -29,10 +32,11 @@ to a specific question.
 
 | | |
 |---|---|
+| [Why Portico?](explanation/why-portico.md) | The architectural proposition: compile the operational interface with the .NET system it operates |
 | [Extensibility](explanation/extensibility.md) | What you can extend, and what is deliberately sealed |
-| [AOT](explanation/aot.md) | Why not, and what would change our mind |
-| [The alternatives, honestly](explanation/alternatives.md) | What every competitor is better at, and the one claim we make |
-| [The agent-first CLI contract, scored](explanation/agent-first-contract.md) | What Portico answers, what it declines, and why |
+| [Why reflection-first](explanation/aot.md) | Why runtime discovery is a design choice, its costs, and when AOT should win |
+| [The alternatives, honestly](explanation/alternatives.md) | What every competitor is better at, and where Portico's architecture differs |
+| [The two agent contracts](explanation/agent-first-contract.md) | Helping agents author correct Portico code and invoke the resulting CLI safely |
 
 ## Project internals and decisions
 

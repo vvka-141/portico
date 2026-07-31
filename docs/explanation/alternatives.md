@@ -4,7 +4,7 @@
 carries a date. If you are reading this much later, re-check before believing it — and if you find it
 stale, that is a bug worth an issue. It has been one twice, which is why the notice is here.
 
-Portico is one of five reasonable choices for a .NET CLI, and for many projects it is not the right
+Portico is one of six reasonable choices for a .NET CLI, and for many projects it is not the right
 one. This page says which, and why. A comparison that concedes nothing is not worth reading.
 
 ## Where things stand
@@ -33,26 +33,54 @@ increment.
 
 That makes **two of the five source-generator based**, not one — so "reflection-based" is now the
 minority position among actively-developed alternatives, and this page should not be read as
-implying otherwise. It does not change [the AOT decision](aot.md), which rests on the
-backend-services niche rather than on generators being rare: an admin CLI inside a service container
-does not care about a startup delta. A comparison table moving is not new evidence about that.
+implying otherwise. It does not change [the reflection-first decision](aot.md), which rests on the
+operational .NET-system niche rather than on generators being rare: Portico accepts managed startup
+cost to compose the application's assembly graph. A comparison table moving is not new evidence
+about that trade.
+
+## The architectural question before the feature checklist
+
+All six can parse a command line. The useful question is what role the CLI is meant to play.
+
+| If you primarily need... | Start with... |
+|---|---|
+| Microsoft's general-purpose parser and first-party stewardship | System.CommandLine |
+| Native AOT, minimal startup, and generated dispatch | ConsoleAppFramework or CliFx |
+| Rich terminal presentation | Spectre.Console.Cli, often with Spectre.Console |
+| A small attribute-based application after Cocona | ConsoleAppFramework, CliFx, or Portico, depending on the constraints below |
+| An operational entry point compiled with a substantial .NET system | Portico |
+
+Portico's architectural bet is that an operational CLI can be another adapter over the same typed
+application and domain assemblies as the production engine. A contract assembly can carry routes,
+domain-specific option attributes, executable examples, and middleware policy; an implementation
+assembly can call the same application services used elsewhere; a small executable composes them.
+The compiler then checks that assembly graph as one .NET system.
+
+That is a different optimization target from a standalone utility. It favors runtime composition,
+ordinary DI, and semantic density over generated dispatch and the smallest possible binary. It also
+creates a responsibility: referencing an assembly must not become an excuse to bypass an intentional
+service or authorization boundary. [Why Portico?](why-portico.md) states both the proposition and
+that limit in full.
 
 ## What each one is better at than Portico
 
 **System.CommandLine — if institutional safety is the constraint.** It is Microsoft's, it reached
-**2.0 GA in November 2025**, and the old "perpetual beta, do not build on it" line is dead — do not
-let anyone (including us) sell it to you. The 2.0 release also cut library size by ~32%, cut the
+**2.0 GA in November 2025**, and the old "perpetual beta" criticism no longer applies. The 2.0
+release also cut library size by ~32%, cut the
 NativeAOT baseline app size by ~20%, improved startup ~12% and parsing ~40% against beta4. If your
 organisation's rule is "prefer the first-party option," that rule is defensible here.
 
-Portico's bet against it is not stability and not performance. It is **shape**: a builder-and-lambda
-tree is what people say drove them off it. From the Spectre.Console community, on why they migrated
-away — they wanted *"a simple programming style rather than the complex fluent style with nested
-lambdas that the library favored"*, said it *"became more annoying to use over time"*, and wanted
-*"very predictable debugging"*
+Portico's bet against it is not stability and not performance. It is **composition and shape**:
+System.CommandLine gives an application a capable syntax tree and handler API; Portico makes the
+typed command contract, reusable attribute vocabulary, middleware policy, and referenced assembly
+graph the primary units of composition. A builder-and-lambda tree is also what people say drove them
+off System.CommandLine. From the Spectre.Console community, on why they migrated away — they wanted
+*"a simple programming style rather than the complex fluent style with nested lambdas that the
+library favored"*, said it *"became more annoying to use over time"*, and wanted *"very predictable
+debugging"*
 ([spectre.console discussion #1397](https://github.com/spectreconsole/spectre.console/discussions/1397)).
-That is a citation, not our taste. It is also the whole reason Portico declares routes with
-attributes on methods.
+That is a citation, not our taste. It is one reason Portico declares routes with attributes on
+methods.
 
 Worth knowing if you are coming from an attribute-binding framework: System.CommandLine 2.0 GA'd with
 `System.CommandLine.Hosting` and `System.CommandLine.NamingConventionBinder` **deprecated on NuGet**.
@@ -61,10 +89,9 @@ you.
 
 **ConsoleAppFramework — if startup time, allocation or binary size is the constraint.** It is a
 source generator: zero reflection, zero allocation, NativeAOT. It will beat Portico on every one of
-those numbers and we are not going to pretend otherwise. Portico uses reflection and `DispatchProxy`
-deliberately — an admin CLI running inside a service's container does not care about a startup
-delta that is invisible next to the container start it lives inside ([the AOT decision](aot.md),
-and what would change our mind).
+those numbers and we are not going to pretend otherwise. Portico instead uses reflection and
+`DispatchProxy` as the composition model for a larger managed application graph
+([the reflection-first decision](aot.md), including its costs and revisit conditions).
 
 **Spectre.Console — if the output is the product.** Tables, progress bars, colour, live displays.
 Portico does not own presentation and does not want to. Compose them: Azure Functions Core Tools
@@ -85,15 +112,16 @@ closest thing to Portico that satisfies both — and Portico does not.
 This page used to call CliFx "small, stable and mature". That predated the 3.0.0 rewrite and
 undersold it.
 
-**Cocona — nothing, any more.** It was archived by its author on **14 December 2025**. It was the
-closest thing to Portico's shape, and if you are stranded there, we wrote you a
+**Cocona — for maintaining an existing application, not starting a new one.** It was archived by
+its author on **14 December 2025**. It was the closest thing to Portico's shape, and if you are
+maintaining one, we wrote you a
 [migration guide](../how-to/migrate-from-cocona.md) that is explicit about when ConsoleAppFramework
 or System.CommandLine is the better destination instead.
 
-## Four smaller things nobody else has
+## Four smaller operational differences
 
-These are not the pitch — the pitch is one claim and it is in the next section. But this page exists
-to say where Portico actually stands, and it has been understating these.
+These are not the architectural pitch, but they matter in unattended and production-adjacent tools.
+The comparison is a dated source survey, not a timeless claim of exclusivity.
 
 A survey of all six repositories on **2026-07-29** (cloned and grepped, not read from their
 documentation; evidence recorded on POR-95) found none of the following anywhere:
@@ -105,9 +133,9 @@ documentation; evidence recorded on POR-95) found none of the following anywhere
 | Immutable collection binding (`ImmutableArray<T>` and friends) | **0 of 6** |
 | Named POSIX exit-code constants | **0 of 6** |
 
-**Secret redaction is the one worth stating plainly, because the others actively leak.** Every one of
-the six interpolates the user's value into parse-error text. System.CommandLine's template, verified
-in its `Resources.resx` on 2026-07-29:
+**Secret redaction is the difference worth stating plainly.** In the dated survey, every compared
+framework interpolated the user's value into parse-error text. System.CommandLine's template,
+verified in its `Resources.resx` on 2026-07-29:
 
 ```
 Cannot parse argument '{0}' for option '{1}' as expected type '{2}'.
@@ -149,7 +177,7 @@ repeated-flag accumulation (5 of 6), `T[]` / `List<T>` / `IEnumerable<T>` bindin
 zero-registration custom type binding (5 of 6 — System.CommandLine is the outlier, with no
 convention at all).
 
-## The one claim we make, stated precisely enough to be falsified
+## The verification claim, stated precisely enough to be falsified
 
 > **No other .NET CLI framework makes a command's documented examples executable tests of its own
 > routing.**
@@ -179,14 +207,17 @@ And `[CliCommandExample]` is not a comment: `CliContractValidator<T>` runs every
 real pipeline and fails the test suite when one stops dispatching, or stops binding the value it used to
 bind.
 
-Composition is not part of the claim, deliberately: mounting sub-CLIs is
-[not novel](../how-to/compose-clis.md) — oclif and cobra have done it for years. What is unusual is
-that Portico's verification survives the mount.
+Composition is not claimed as an invention: mounting sub-CLIs is
+[not novel](../how-to/compose-clis.md) — oclif and cobra have done it for years. Portico's proposition
+is the particular combination of .NET assembly composition, contract-first routes, extensible
+operational attributes, middleware policy, and verification that survives the mount.
 
 **Declarative attribute routing is not part of the claim either**, because it is table stakes: clap
-derive (Rust), picocli (Java), typer (Python), kong (Go) and oclif (Node) all have it. And "less
-boilerplate" is not a benefit worth selling in 2026 — an agent will emit two hundred lines of builder
-wiring and never get bored. Anyone pitching you brevity is pitching a scarcity that no longer exists.
+derive (Rust), picocli (Java), typer (Python), kong (Go) and oclif (Node) all have it. Nor do we claim
+the shortest program in every comparison. Code generation makes typing framework wiring cheap.
+Reading it, reviewing it, debugging it, and keeping it coherent across teams are not free. Portico
+therefore aims for **low accidental ceremony and high semantic density**: a route should mostly state
+the operational contract, while reusable attributes and middleware carry repeated domain meaning.
 
 ## Who got there first
 
@@ -229,5 +260,7 @@ in-process pipeline evaluation. Portico runs each example through the real dispa
 `DispatchProxy` of the contract interface, and a stale one fails the test suite — retyping an option from
 `int` to `string` breaks even though the example still parses.
 
-That is the entire pitch. If none of it is worth anything to you, one of the frameworks above is a
-better choice, and you should use it.
+That is the precise verification claim. The broader reason to choose Portico is architectural: you
+want the CLI to be a typed operational boundary inside a larger .NET system, and you value its
+assembly composition, domain vocabulary, policy bundles, and reflection-first runtime model. If that
+is not your problem, one of the frameworks above is probably a better choice.
