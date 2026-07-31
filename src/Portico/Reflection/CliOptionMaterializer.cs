@@ -707,16 +707,23 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
     private readonly bool _isOptional;
     private readonly object? _defaultValue;
 
+    // Retained only for error messages. The parser closes over the converter, so materialization
+    // never needs the type — but "what did you declare this as" is the question the flag-capture
+    // message has to answer, and it is the one thing the author has to go and look at (POR-143).
+    private readonly Type _declaredType;
+
     private CliScalarOptionMaterializer(
         CliOptionAttribute attribute,
         Func<string, object> valueParser,
         bool isOptional,
-        object? defaultValue)
+        object? defaultValue,
+        Type declaredType)
     {
         _attribute = attribute;
         _valueParser = valueParser;
         _isOptional = isOptional;
         _defaultValue = defaultValue;
+        _declaredType = declaredType;
     }
     public override object? Materialize(CliInvocation invocation)
     {
@@ -766,20 +773,55 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
                       $"({string.Join(", ", collection.Values.Select(v => $"'{v}'"))}). " +
                       $"If the extra values are positional arguments, pass them after the '--' terminator " +
                       $"(e.g. '{option.Name} {collection.Values[0]} -- {string.Join(" ", collection.Values.Skip(1))}')."),
-            // A user typing `--help` on a command that declares --help as its own option got only
-            // "cannot be used as a flag", which reads as a fault in the tool rather than as a
-            // consequence of the contract (POR-120). The route legitimately wins over the built-in
-            // trigger — that is what makes `-h` for `--host` work — so the fix is to say so.
             CliFlagOptionCapture => throw new CliOptionMaterializationException(
-                CliBuiltInTriggers.IsDefaultTrigger(option.Name)
-                    ? $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead. " +
-                      $"Note that this command declares '{option.Name}' as one of its own options, so it " +
-                      $"takes precedence over the built-in one — if you were asking for help, this command " +
-                      $"does not answer '{option.Name}'."
-                    : $"The option '{option.Name}' cannot be used as a flag. Provide a single value instead."),
+                FlagCaptureMessage(option.Name)),
             _ => throw new CliOptionMaterializationException(
                 $"The option '{option.Name}' is not in the expected format. Refer to the documentation for valid usage.")
         };
+    }
+
+    /// <summary>
+    /// A value option written as a bare flag — <c>--dry-run</c> where the parameter takes a value.
+    /// </summary>
+    /// <remarks>
+    /// This said only <i>"cannot be used as a flag. Provide a single value instead."</i>, which
+    /// diagnoses the <b>invocation</b> and prescribes <c>--dry-run true</c>. For a <c>bool</c>
+    /// parameter that is almost never what the author meant, and it is the one case where the
+    /// framework has a better answer than the one the reader was about to act on: <c>CliFlag?</c> is
+    /// presence-only and is what <c>--dry-run</c> means everywhere else. Someone who trusted the old
+    /// message shipped <c>--dry-run true</c> and never learned <c>CliFlag</c> existed (POR-143).
+    /// <para>
+    /// <b>Conditional on the declared type, because for a <c>string</c> or an <c>int</c> the old
+    /// advice was right.</b> There is no flag form to reach for, and prescribing <c>CliFlag?</c> to
+    /// someone who simply forgot the value would trade one wrong prescription for another. The type
+    /// is named either way — it is what the author has to go and look at.
+    /// </para>
+    /// </remarks>
+    private string FlagCaptureMessage(string optionName)
+    {
+        var declared = FriendlyName(_declaredType);
+        var underlying = Nullable.GetUnderlyingType(_declaredType) ?? _declaredType;
+
+        var advice = underlying == typeof(bool)
+            ? $"For a presence-only flag ('{optionName}', not '{optionName} true'), declare the parameter " +
+              $"as 'CliFlag?'. To keep it a value option, pass '{optionName} true'. Analyzer POR012 " +
+              $"reports this at compile time."
+            : $"Provide a value, for example '{optionName} <{declared}>'.";
+
+        var message =
+            $"The option '{optionName}' was passed without a value, but its declared type is " +
+            $"'{declared}', which needs one. {advice}";
+
+        // A user typing `--help` on a command that declares --help as its own option got only the
+        // generic text, which reads as a fault in the tool rather than as a consequence of the
+        // contract (POR-120). The route legitimately wins over the built-in trigger — that is what
+        // makes `-h` for `--host` work — so the fix is to say so.
+        return CliBuiltInTriggers.IsDefaultTrigger(optionName)
+            ? message +
+              $" Note that this command declares '{optionName}' as one of its own options, so it " +
+              $"takes precedence over the built-in one — if you were asking for help, this command " +
+              $"does not answer '{optionName}'."
+            : message;
     }
 
     // Not a Try* method: unlike its siblings it never returns null. Scalar is the terminal case of
@@ -850,7 +892,7 @@ internal sealed class CliScalarOptionMaterializer : CliOptionMaterializer
             }
         }
 
-        return new CliScalarOptionMaterializer(attribute, ParseValue, isOptional, defaultValue);
+        return new CliScalarOptionMaterializer(attribute, ParseValue, isOptional, defaultValue, declaredType);
     }
 }
 

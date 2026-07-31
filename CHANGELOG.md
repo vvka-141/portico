@@ -99,6 +99,17 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ### Fixed
 
+- **The "cannot be used as a flag" error named the wrong fix.** `[CliOption("--dry-run")] bool
+  dryRun = false` invoked as `--dry-run` answered *"cannot be used as a flag. Provide a single value
+  instead."* — which diagnoses the invocation and prescribes `--dry-run true`. That is not how CLIs
+  are written, and the framework already has the right answer: `CliFlag?` is presence-only. Someone
+  who trusted the message shipped `--dry-run true` and never learned `CliFlag` existed. The message
+  now names the **declared type** and, for a `bool`, points at `CliFlag?` and at analyzer POR012,
+  which catches the same thing at compile time. It still offers `--dry-run true` for a genuine
+  two-state option — that is why POR012 is a Warning. A `string` or `int` option is simply asked for
+  its value, as before: there is no flag form for those, and prescribing `CliFlag?` to someone who
+  merely forgot a value would be a different wrong answer.
+
 - **A map option's usage hint named `--opt` — a flag that does not exist — when the option had no
   long alias.** Every *"Use `--config key=value`"* and *"empty map key"* message on the map path
   builds its hint from the option's first long alias, and fell back to a literal `--opt` when there

@@ -16,6 +16,10 @@ namespace Portico;
 // help had become unreachable, and a user typing `--help` got "cannot be used as a flag", which
 // reads as a fault in the tool rather than as a consequence of the contract.
 //
+// That base wording is gone — POR-143 replaced it with one naming the declared type — but the
+// shadowing note this file exists for is appended to whatever the base message is, so the behaviour
+// under test is unchanged. The quotation above is kept as the historical reason.
+//
 // Dispatch is unchanged. Only the two silences are closed.
 public sealed class CliShadowedBuiltInTrigger_Should
 {
@@ -165,8 +169,13 @@ public sealed class CliShadowedBuiltInTrigger_Should
             .Run("app run --name");
 
         Assert.Equal(CliExitException.UsageErrorExitCode, result.ExitCode);
-        Assert.Contains("cannot be used as a flag", result.StandardError, StringComparison.Ordinal);
+        // The base message, whatever its current wording — POR-143 replaced "cannot be used as a
+        // flag" with one that names the declared type. What this test guards is the ABSENCE of the
+        // shadowing note, so it asserts the part that belongs to it and leaves the wording to
+        // CliFlagCaptureMessage_Should.
+        Assert.Contains("was passed without a value", result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("its own options", result.StandardError, StringComparison.Ordinal);
+        Assert.DoesNotContain("does not answer", result.StandardError, StringComparison.Ordinal);
     }
 
     // --- AC 4: SOL-75 behaviour is unchanged ---------------------------------------------------
