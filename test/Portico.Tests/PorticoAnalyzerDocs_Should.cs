@@ -259,6 +259,8 @@ public sealed class PorticoAnalyzerDocs_Should
     [Theory]
     [InlineData(RulesPath)]
     [InlineData(AuditPath)]
+    // POR-110 put the same claim on the landing page, where it is read most and checked least.
+    [InlineData(ReadmePath)]
     public void Count_The_Code_Fixes_Correctly_In_Prose(string path)
     {
         var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root(), path));
