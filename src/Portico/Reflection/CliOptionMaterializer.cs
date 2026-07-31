@@ -78,13 +78,40 @@ internal abstract class CliOptionMaterializer
 
     /// <summary>
     /// The value of the option's <c>EnvironmentVariable</c>, or <see langword="null"/> when the
-    /// attribute declares none or the variable is unset. Consulted only when the option is absent
-    /// from the command line — argv always wins.
+    /// attribute declares none, the variable is unset, <b>or the variable is set to nothing</b>.
+    /// Consulted only when the option is absent from the command line — argv always wins.
     /// </summary>
-    protected static string? EnvironmentValue(CliOptionAttribute attribute) =>
-        string.IsNullOrWhiteSpace(attribute.EnvironmentVariable)
-            ? null
-            : Environment.GetEnvironmentVariable(attribute.EnvironmentVariable!);
+    /// <remarks>
+    /// <b>A set-but-empty variable means absent.</b> This is the single rule for every shape —
+    /// scalar, collection and flag — and it lives here so the three cannot answer it differently
+    /// (POR-161). They did: the flag path decided empty meant "off" and wrote down why, the
+    /// collection path arrived at the same answer as a side effect of dropping empty items, and the
+    /// scalar path bound the empty string — so <c>PORT=</c> on an <c>int</c> option failed the
+    /// process with a usage error instead of using its declared default.
+    /// <para>
+    /// <c>docker run -e FOO</c> passes <c>FOO=</c>, and so does a compose file interpolating a
+    /// variable that is not set. Portico's stated niche is the admin CLI inside a service's
+    /// container, which makes that the mainline case rather than an edge one — a tool that refuses
+    /// to start because an orchestrator passed an empty string is failing at the worst possible
+    /// moment, and for a reason its operator did not choose. The .NET configuration stack and Spring
+    /// Boot both bind empty here and inherit exactly that crash; not copying them is deliberate.
+    /// </para>
+    /// <para>
+    /// The cost is that the environment cannot say "explicitly the empty string", or a whitespace-only
+    /// one. Nothing becomes unexpressible — argv still says it, as <c>--name ""</c> — and an
+    /// environment variable is a source of <i>defaults</i> rather than an input channel: an empty
+    /// answer from a default source is not an answer. Whitespace-only is included because a trailing
+    /// space in a compose file is an accident in every case anyone has been able to name, and because
+    /// the flag path has trimmed since POR-54.
+    /// </para>
+    /// </remarks>
+    protected static string? EnvironmentValue(CliOptionAttribute attribute)
+    {
+        if (string.IsNullOrWhiteSpace(attribute.EnvironmentVariable)) return null;
+
+        var value = Environment.GetEnvironmentVariable(attribute.EnvironmentVariable!);
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
 
     /// <summary>
     /// Whether an environment variable's value turns a <b>flag</b> on. A flag carries no value on the
@@ -98,6 +125,13 @@ internal abstract class CliOptionMaterializer
     /// undefined variable both pass <c>FOO=</c>, so treating "set" as "on" would silently enable a
     /// flag nobody asked for; and <c>FOO=false</c> meaning "on" would be indefensible in any
     /// language (POR-54).
+    /// <para>
+    /// The empty case is now unreachable through the only caller, because
+    /// <see cref="EnvironmentValue"/> returns <see langword="null"/> for it (POR-161). The check
+    /// stays because the two helpers answer different questions — <c>EnvironmentValue</c> answers
+    /// "did the environment supply anything?", this answers "does this text mean yes?" — and a total
+    /// function beats a partial one whose precondition is enforced in another method.
+    /// </para>
     /// </remarks>
     protected static bool IsEnvironmentFlagSet(string value) =>
         value.Trim() is var trimmed &&

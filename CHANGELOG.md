@@ -97,6 +97,20 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   that drives it — is now recorded in `docs/ROADMAP.md` and documented in
   `docs/reference/capabilities.md`, which it never was.
 
+- **Breaking (0.x): an `EnvironmentVariable` set to nothing now counts as unset, on every option
+  shape.** `docker run -e FOO` and a compose file interpolating an undefined variable both pass
+  `FOO=`, so a variable set to nothing falls through to the option's declared default. The three
+  option shapes used to disagree: a flag treated it as off and said why, a collection agreed by
+  accident, and a **scalar bound the empty string** — so `PORT=` on `int port = 8080` failed the
+  process with *"'' is not a valid value for Int32"* and never reached `8080`. A containerised tool
+  refusing to start because its orchestrator passed an empty variable is failing at the worst
+  possible moment, for a reason its operator did not choose.
+
+  What you give up is the environment saying *"explicitly the empty string"* (or a whitespace-only
+  one). Nothing becomes unexpressible — argv still says it, as `--name ""` — and a variable is a
+  source of **defaults**, where an empty answer is not an answer. If you relied on `VAR=` binding
+  `""`, pass it on the command line instead.
+
 ### Fixed
 
 - **The "cannot be used as a flag" error named the wrong fix.** `[CliOption("--dry-run")] bool
