@@ -13,7 +13,7 @@ dotnet test
 ```
 
 Every `[CliCommandExample]` on `IGreetTool` is executed against the real pipeline. Rename the route,
-retype an option, make one required — the example stops dispatching and the build goes red.
+retype an option, make one required — the example stops dispatching and the test suite goes red.
 
 Try it: change `--name` to `--who` in `IGreetTool.cs` and run `dotnet test` again. The examples in your
 help output cannot drift from the CLI you actually shipped, because they are the tests.

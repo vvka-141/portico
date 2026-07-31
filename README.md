@@ -129,8 +129,11 @@ dotnet new portico-command -n Migrate --route "db migrate"
 ```
 
 Add `--async` for a `Task<int>` handler with a `CancellationToken`. Both emitted files build clean
-under `TreatWarningsAsErrors`, which matters because `POR004` is an error: a route with no example
-fails the build, so hand-typing your first command does not work and this does.
+under `TreatWarningsAsErrors`. `POR004` is an error, so a route with no example fails the build; the
+template starts from a declaration that already satisfies it.
+
+Continue with the **[15-minute tutorial](docs/tutorial/first-cli.md)**, or use the
+**[documentation index](docs/README.md)** to jump directly to a task or reference page.
 
 ---
 
@@ -150,7 +153,7 @@ public void Dispatch(CliContractExample example) =>
         $"Example did not dispatch: {example.Example}\n  Reason: {example.FailureReason}");
 ```
 
-Rename a route, make an argument required — the example stops dispatching and the build goes red,
+Rename a route, make an argument required — the example stops dispatching and the test suite goes red,
 and it tells you why in the framework's own words:
 
 ```
@@ -174,10 +177,10 @@ Retype `--rows` from `int` to `string` and the example still *dispatches* — bu
 documentation is the test.**
 
 Two enforcement points, and it is worth being exact about which does what. `POR004` is an **Error**,
-so a route that ships with no example at all breaks the build outright — no configuration, nothing to
-opt into. Whether the examples' *contents* still dispatch is checked by the `CliContractValidator<T>`
-test above; `dotnet new portico-cli` writes it for you, and a project laid out by hand needs that one
-test for the guarantee to hold.
+so a route that ships with no example at all breaks the build by default — the analyzer is enabled by
+the package, though it can be suppressed deliberately. Whether the examples' *contents* still dispatch is checked by the `CliContractValidator<T>`
+test above; `dotnet new portico-cli` writes it for you, and a project laid out by hand needs that test
+in its CI gate for the enforcement to hold.
 
 Compare what an example is everywhere else. `cobra.Command.Example`, oclif's `examples`, yargs'
 `.example()`, OpenCLI's `examples: [string]` — free text, printed in help, never verified. They are
@@ -247,8 +250,8 @@ output never sees the credential either. It was built for logs; it works for tra
 
 ## Test your CLI end-to-end, without spawning a process
 
-`CliTestHarness` runs your commands against a hermetic in-memory console — exit codes,
-stdout, stderr, stdin injection — no `Console.SetOut`, no process spawn, no flaky parallel tests:
+`CliTestHarness` runs your commands in-process and captures exit codes, stdout, stderr and stdin —
+no process spawn:
 
 ```csharp
 var harness = CliTestHarness.ForApplication(cfg => cfg.AddCommands(new MyService()));
@@ -261,6 +264,12 @@ harness.Run("myapp delete repo", input: "y\n").ExpectExit(0);
 `CliContractValidator<T>` answers "does my declared surface still hold?" —
 `CliTestHarness` answers "what does my command actually do when run?" Both ship in the
 same package, no extra install.
+
+The harness temporarily redirects the process-global `Console` streams under a semaphore so calls
+to `Console.WriteLine` and `Console.ReadLine` are captured too. Harness runs are serialized with one
+another; if other parallel tests in the same process touch `Console`, put those tests in a
+non-parallel collection. The [testing reference](docs/reference/capabilities.md#end-to-end-testing--clitestharness)
+spells out the boundary.
 
 ## Several teams, one binary
 
@@ -377,8 +386,8 @@ ConsoleAppFramework or System.CommandLine is the better destination instead.
 
 ## Known rough edges
 
-Portico is **0.x**. It is extracted from a framework with ~530 tests behind it, and it is honest
-about what is not finished:
+Portico is **0.x**. It is extracted from an established framework, ships with over a thousand tests,
+and is honest about what is not finished:
 
 - **No machine-readable command manifest yet.** An agent learns the surface by reading `--help`,
   which is honest and verified but not structured.
@@ -399,23 +408,20 @@ changelog. **1.0 is cut when the API is one we would defend**, not when the code
 
 **[Start here](docs/tutorial/first-cli.md)** — build your first Portico CLI in fifteen minutes.
 
-The full index: **[docs/](docs/README.md)** — tutorials, how-to guides, reference, and explanation,
-organised by [Diataxis](https://diataxis.fr/).
+Choose the shortest path for the job:
 
-- [Charter](docs/explanation/charter.md) — the design constitution, and the invariants it will not trade
-- [Extensibility](docs/explanation/extensibility.md) — what you can extend, and what is deliberately sealed
-- [AOT](docs/explanation/aot.md) — why not, and what would change our mind
-- [Roadmap](docs/ROADMAP.md) — the open decision, and the parked list
-- [Capabilities](docs/reference/capabilities.md) — the whole surface, every entry backed by a test
-- [The agent-first CLI contract, scored](docs/explanation/agent-first-contract.md) — what Portico answers, what it declines, and why
-- [Analyzer rules](docs/reference/analyzer-rules.md) — the twelve compile-time checks, and how to suppress one
-- [The alternatives, honestly](docs/explanation/alternatives.md) — what every competitor is better at, and the one claim we make
-- [Your first operational command](docs/how-to/operational-command.md) — env fallback, secret redaction, durations, exit codes and drain-on-SIGTERM, in one walkthrough
-- [Composing CLIs](docs/how-to/compose-clis.md) — mounting several contracts into one binary, and what that does not give you
-- [Migrating from Cocona](docs/how-to/migrate-from-cocona.md) — the concept mapping, and when another framework is the better move
-- [`examples/AdminCli`](examples/AdminCli) — a backend admin CLI (`migrate`, `seed`, `backfill`, `reindex`, `drain`, `health`), built and contract-tested by CI
-- [`examples/ReferenceCli`](examples/ReferenceCli) — the full-surface reference: map options, bundles with validation, `RankByOptions`, middleware with DI, composition — the ground truth for correct Portico code
-- [`examples/PlatformCli`](examples/PlatformCli) — a master CLI over two independently-built tools, its composed surface contract-tested by CI
+| Goal | Read |
+|---|---|
+| Build a production-shaped command | [Your first operational command](docs/how-to/operational-command.md) |
+| Look up routing, binding, middleware or testing behavior | [Capabilities reference](docs/reference/capabilities.md) |
+| Understand or suppress a diagnostic | [Analyzer rules](docs/reference/analyzer-rules.md) |
+| Mount several team-owned contracts | [Composing CLIs](docs/how-to/compose-clis.md) |
+| Move from Cocona | [Migration guide](docs/how-to/migrate-from-cocona.md) |
+| Decide whether Portico is the right framework | [The alternatives, honestly](docs/explanation/alternatives.md) |
+
+The full **[documentation index](docs/README.md)** separates user guidance from Portico's public
+design records, audits and roadmap. The worked CLIs under [`examples/`](examples) are built and
+contract-tested by CI.
 
 ## Contributing
 

@@ -61,7 +61,7 @@
       "description": "Next steps",
       "manualInstructions": [
         {
-          "text": "Register the command where you build the application:\n\n  CliApplication.Create(cfg => cfg.AddCommands(new PorticoCommandTool())).Run(args);\n\nThen make the example a test, which is the whole point of declaring it:\n\n  [Fact]\n  public void Dispatch_Every_Example()\n  {\n      var notDispatched = 0;\n      new CliContractValidator<IPorticoCommandTool>()\n          .Validate(onNotInvoked: (example, reason) => notDispatched++);\n      Assert.Equal(0, notDispatched);\n  }\n\nEvery [CliCommandExample] then runs through the real pipeline, and the build goes red\nif one stops dispatching."
+          "text": "Register the command where you build the application:\n\n  CliApplication.Create(cfg => cfg.AddCommands(new PorticoCommandTool())).Run(args);\n\nThen make the example a test, which is the whole point of declaring it:\n\n  [Fact]\n  public void Dispatch_Every_Example()\n  {\n      var notDispatched = 0;\n      new CliContractValidator<IPorticoCommandTool>()\n          .Validate(onNotInvoked: (example, reason) => notDispatched++);\n      Assert.Equal(0, notDispatched);\n  }\n\nEvery [CliCommandExample] then runs through the real pipeline, and the test suite goes red\nif one stops dispatching."
         }
       ],
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",

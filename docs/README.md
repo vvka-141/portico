@@ -23,23 +23,26 @@ to a specific question.
 | | |
 |---|---|
 | [Capabilities](reference/capabilities.md) | The whole surface, every entry backed by a test |
-| [Analyzer rules](reference/analyzer-rules.md) | The ten compile-time checks, and how to suppress one |
+| [Analyzer rules](reference/analyzer-rules.md) | Every live compile-time check, and how to suppress one |
 
 ## Explanation — understanding-oriented
 
 | | |
 |---|---|
-| [Charter](explanation/charter.md) | The design constitution, and the invariants it will not trade |
 | [Extensibility](explanation/extensibility.md) | What you can extend, and what is deliberately sealed |
 | [AOT](explanation/aot.md) | Why not, and what would change our mind |
 | [The alternatives, honestly](explanation/alternatives.md) | What every competitor is better at, and the one claim we make |
 | [The agent-first CLI contract, scored](explanation/agent-first-contract.md) | What Portico answers, what it declines, and why |
-| [Public surface classification](explanation/public-surface.md) | Every exported type, classified |
-| [Analyzer message audit](explanation/analyzer-message-audit.md) | Actionability assessment of all ten live diagnostics |
-| [Agent grounding benchmark](explanation/agent-grounding-benchmark.md) | Does shipping the guide help? A measured answer |
 
-## Project documents
+## Project internals and decisions
+
+These documents explain how Portico itself is governed and evaluated. They are useful when
+contributing or assessing the project's direction; they are not prerequisites for using the API.
 
 | | |
 |---|---|
+| [Charter](explanation/charter.md) | The design constitution, and the invariants it will not trade |
+| [Public surface classification](explanation/public-surface.md) | Every exported type, classified |
+| [Analyzer message audit](explanation/analyzer-message-audit.md) | Actionability assessment of every live diagnostic |
+| [Agent grounding benchmark](explanation/agent-grounding-benchmark.md) | Does shipping the guide help? A measured answer |
 | [Roadmap](ROADMAP.md) | The parked list — what is deliberately not being built, and why |

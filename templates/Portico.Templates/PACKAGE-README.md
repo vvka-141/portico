@@ -27,25 +27,29 @@ The namespace comes from the project's `RootNamespace`, and the emitted code bui
 
 The template gives you a solution with two projects: a CLI (`MyCli/`) and a test project
 (`MyCli.Tests/`). The test runs every `[CliCommandExample]` through the real pipeline — rename
-an option and the build goes red.
+an option and the test suite goes red.
 
 The scaffolded project references the exact `Portico` version this template package shipped
-with — the default is written at pack time, not typed by hand, so `Portico.Templates` 0.2.0
-scaffolds `Portico` 0.2.0 and never a stale line. Pass `--porticoVersion` to pick another:
+with — the default is written at pack time rather than copied into this README, so matching
+`Portico.Templates` and `Portico` versions stay together. Pass `--porticoVersion` only when you
+deliberately need another version:
 
 ```
-dotnet new portico-cli -n MyCli --porticoVersion 0.1.1
+dotnet new portico-cli -n MyCli --porticoVersion <version>
 ```
 
-Pick the target framework with `-f` / `--framework` — `net10.0` (default) or `net8.0`:
+The default target is `net10.0` — the active LTS, supported to November 2028. Pick `net8.0`
+explicitly with `-f` / `--framework` if you are still on that runtime; note it is in maintenance and
+its support ends 2026-11-10:
 
 ```
 dotnet new portico-cli -n MyCli -f net8.0
 ```
 
 The template requires an 8.0.100 SDK or later and hides itself on anything older, rather than
-scaffolding a project you cannot build. Note that `-f net10.0` still needs the .NET 10 SDK: a
-`dotnet new` constraint is evaluated before your choices are known, so it can only enforce the floor.
+scaffolding a default project you cannot build. `-f net10.0` still needs the .NET 10 SDK: a
+`dotnet new` constraint is evaluated before your framework choice is known, so it can enforce only
+the minimum.
 
 **Full documentation:** [github.com/vvka-141/portico](https://github.com/vvka-141/portico) · **Issues and feedback:** [github.com/vvka-141/portico/issues](https://github.com/vvka-141/portico/issues)
 

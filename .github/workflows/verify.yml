@@ -123,12 +123,28 @@ jobs:
 
           dotnet new install "artifacts/Portico.Templates.$version.nupkg"
 
-          for tfm in net10.0 net8.0; do
-            echo "=== Smoke-testing template with --Framework $tfm ==="
+          for tfm in default net10.0 net8.0; do
+            framework_args=()
+            expected_tfm="$tfm"
+            if [[ "$tfm" == "default" ]]; then
+              # The template's default. Kept in step with
+              # PublicDocumentation_Should.Default_The_Template_To_The_Newest_Supported_Framework,
+              # which asserts the default is the newest TFM Portico supports — a scaffolding default
+              # is chosen for people who have not formed an opinion, so it must not point at the
+              # runtime closest to end of support.
+              expected_tfm="net10.0"
+              echo "=== Smoke-testing template default ($expected_tfm) ==="
+            else
+              framework_args=(--framework "$tfm")
+              echo "=== Smoke-testing template with --framework $tfm ==="
+            fi
+
             scaffold="$RUNNER_TEMP/scaffold-$tfm"
             mkdir -p "$scaffold" && cd "$scaffold"
-            dotnet new portico-cli -n SmokeCli --porticoVersion "$version" --framework "$tfm"
+            dotnet new portico-cli -n SmokeCli --porticoVersion "$version" "${framework_args[@]}"
             cd SmokeCli
+
+            grep -q "<TargetFramework>$expected_tfm</TargetFramework>" SmokeCli/SmokeCli.csproj
 
             # printf, not a heredoc: a heredoc body inside a YAML block scalar keeps the
             # indentation that makes it readable here, and an XML declaration with anything at

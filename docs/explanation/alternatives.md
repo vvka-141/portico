@@ -72,8 +72,9 @@ ships on System.CommandLine *plus* Spectre.Console, which is exactly the split w
 a router that routes, and a renderer that renders. Spectre also has genuine testing support:
 `CommandAppTester` — a documented, first-class helper with assertions on `ExitCode`, `Output` and
 `Settings` (the typed parse result). `CliTestHarness` covers similar ground (exit code, stdout,
-stderr, stdin injection); the main additions are `CliContractValidator<T>` (automated contract
-verification) and the process-global console gate that prevents parallel-test interference.
+stderr, stdin injection); the main addition is `CliContractValidator<T>` (automated contract
+verification). Portico's harness serializes its own runs while it redirects the process-global
+console, so unrelated parallel tests that touch `Console` still need a non-parallel collection.
 
 **CliFx — if you like the attributed-command-class shape and want AOT with it.** It does not drag
 `Microsoft.Extensions.*` behind it, and since 3.0.0 it is source-generated, so it competes with
@@ -175,7 +176,7 @@ contract-validation mechanism. The others — duplicate routes, malformed option
 types — are variations of checks the competitors also make. The difference is model, not count.
 
 And `[CliCommandExample]` is not a comment: `CliContractValidator<T>` runs every example through the
-real pipeline and fails the build when one stops dispatching, or stops binding the value it used to
+real pipeline and fails the test suite when one stops dispatching, or stops binding the value it used to
 bind.
 
 Composition is not part of the claim, deliberately: mounting sub-CLIs is
@@ -225,7 +226,7 @@ What survives all five: **no .NET CLI framework checks that a declared example d
 handler and binds specific values, as a build-time gate.** Spectre checks tokenization at startup if
 you ask; azdev checks recognition with conversion mocked out; Nushell executes examples against an
 in-process pipeline evaluation. Portico runs each example through the real dispatch pipeline against a
-`DispatchProxy` of the contract interface, and a stale one fails the build — retyping an option from
+`DispatchProxy` of the contract interface, and a stale one fails the test suite — retyping an option from
 `int` to `string` breaks even though the example still parses.
 
 That is the entire pitch. If none of it is worth anything to you, one of the frameworks above is a

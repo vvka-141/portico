@@ -591,15 +591,18 @@ harness.Run("myapp seed --rows abc").ExpectExit(2).ExpectError("invalid");
 harness.Run("myapp confirm-delete", input: "y\n").ExpectExit(0);
 ```
 
-Each `Run` builds a fresh `CliApplication` with a dedicated in-memory `ICliConsole`.
-Exit code, stdout, stderr and stdin injection — no `Console.SetOut`, no process spawn,
-no parallel-test interference. Four chainable assertions: `ExpectExit`, `ExpectOut`,
-`ExpectError`, `ExpectNotError`.
+Each `Run` builds a fresh `CliApplication` with a dedicated in-memory `ICliConsole` and does not
+spawn a process. To capture handlers that use `Console.WriteLine` or `Console.ReadLine`, the harness
+temporarily redirects the process-global `Console.Out`, `Console.Error` and `Console.In` streams.
+A semaphore serializes harness runs with one another, but it cannot serialize them against unrelated
+parallel tests that touch `Console`; put those tests in a non-parallel collection.
+
+Four chainable assertions ship: `ExpectExit`, `ExpectOut`, `ExpectError`, `ExpectNoError`.
 
 Both types ship inside the core `Portico` package. Nothing extra to install.
 
 ## See also
 
 - [Composing CLIs](../how-to/compose-clis.md) — mounting several contracts into one binary
-- [Analyzer rules](analyzer-rules.md) — the ten compile-time checks
+- [Analyzer rules](analyzer-rules.md) — every live compile-time check
 - [Extensibility](../explanation/extensibility.md) — what you can extend, and what is sealed

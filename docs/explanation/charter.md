@@ -277,7 +277,7 @@ What is scarce is not typing speed. It is **ground truth**: a description of the
 cannot drift from the surface itself. Most incumbents' examples are free text —
 `cobra.Command.Example`, oclif's `examples`, yargs' `.example()`, OpenCLI's `examples: [string]` — printed
 in help, never verified. Portico's are executed through the real pipeline against the real contract,
-and a stale one fails the build.
+and a stale one fails the test suite and CI.
 
 ### The prior art we concede, by name
 

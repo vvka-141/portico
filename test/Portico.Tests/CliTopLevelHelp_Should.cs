@@ -14,7 +14,7 @@ namespace Portico;
 public sealed class CliTopLevelHelp_Should
 {
     // The shape Portico is positioned for: a backend admin CLI. Under the old renderer this printed
-    // every option of all five commands.
+    // every option of every command.
     public interface IAdminContract
     {
         [CliRoute("db migrate")]

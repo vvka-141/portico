@@ -21,7 +21,7 @@ public interface IAdminTool
 ```
 
 One `CliContractValidator<T>` test runs every `[CliCommandExample]` through the real pipeline,
-and a stale one fails the build.
+and a stale one fails the test suite and CI.
 
 Or start from a template — one for a new project, one for a service you already have:
 
@@ -32,10 +32,7 @@ dotnet new portico-cli -n MyCli && cd MyCli && dotnet test   # a whole new CLI
 dotnet new portico-command -n Migrate                        # one command, into this project
 ```
 
-## Four things nothing else in .NET does
-
-A survey of six .NET CLI frameworks on 2026-07-29, verified against their source, found none of
-these anywhere:
+## Four operational capabilities
 
 - **Secrets stay out of your logs.** `[CliOption("--token", Sensitive = true)]` — the value is
   withheld from every message the framework composes. All six others interpolate what the user typed
@@ -50,6 +47,10 @@ these anywhere:
 
 [The whole surface](https://github.com/vvka-141/portico/blob/main/docs/reference/capabilities.md),
 every entry backed by a test.
+
+For a dated, source-checked comparison with other .NET CLI frameworks, including prior art and the
+cases where another framework is the better choice, see
+[The alternatives, honestly](https://github.com/vvka-141/portico/blob/main/docs/explanation/alternatives.md).
 
 ## Related packages
 

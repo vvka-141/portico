@@ -4,10 +4,11 @@ Portico ships Roslyn analyzers **inside the package**. One `dotnet add package P
 build starts checking your CLI — no separate analyzer package, no configuration. Every rule below is
 decidable from your declarations alone; that is the test for whether a rule belongs here at all.
 
-**Every rule has a runtime backstop.** The framework re-checks each of these at
-`CliApplication.Create` and throws `CliConfigurationException` on startup. The analyzer does not
-replace that check — it moves the failure into your edit loop, where you can fix it without running
-anything.
+**Nine structural rules have a runtime backstop.** `CliApplication.Create` re-checks invalid route,
+option and handler shapes and throws `CliConfigurationException` on startup. POR004 is an authoring-
+discipline rule: refusing to start a valid command because its example is missing would turn a
+documentation gap into an outage. POR012 and POR013 diagnose legal but risky code, so neither has an
+invalid runtime shape to reject. The table makes the boundary explicit.
 
 **Seven of the twelve ship a code fix**, so Ctrl-. clears the diagnostic. All seven support *Fix all in
 document / project*, which matters most after a rename: one parameter rename can produce a dozen
@@ -15,20 +16,20 @@ POR001s at once. The other five deliberately offer nothing — in each case the 
 the analyzer cannot see, and **a code fix that guesses is worse than no code fix, because you accept it
 without reading.** Each rule below says which it is and why.
 
-| Rule | Severity | What it catches | Code fix (Ctrl-.) |
-|---|---|---|---|
-| [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter | Rename, or add the parameter |
-| [POR002](#por002) | Error | Two methods **on one type** declare the same route | — |
-| [POR003](#por003) | Error | A malformed `[CliOption]` alias spec | Partial — see below |
-| [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` | Insert an example stub |
-| [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder | Add the placeholder to the route |
-| [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor | Insert the constructor |
-| [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code | — |
-| [POR009](#por009) | Error | Two options on one command declaring the same alias | — |
-| [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string | — |
-| [POR011](#por011) | Error | A route declares the same `{placeholder}` twice | — |
-| [POR012](#por012) | Warning | A `[CliOption]` on a `bool` is probably meant to be a switch | Change to `CliFlag?` |
-| [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` | Add the `when` filter |
+| Rule | Severity | What it catches | Runtime backstop | Code fix (Ctrl-.) |
+|---|---|---|---|---|
+| [POR001](#por001) | Error | A `{placeholder}` in a route matches no parameter | Yes | Rename, or add the parameter |
+| [POR002](#por002) | Error | Two methods **on one type** declare the same route | Yes | — |
+| [POR003](#por003) | Error | A malformed `[CliOption]` alias spec | Yes | Partial — see below |
+| [POR004](#por004) | Error | A `[CliRoute]` with no `[CliCommandExample]` | No — authoring discipline | Insert an example stub |
+| [POR005](#por005) | Error | `[CliArgument]` has no matching route placeholder | Yes | Add the placeholder to the route |
+| [POR006](#por006) | Error | A `CliOptions` bundle with no public parameterless constructor | Yes | Insert the constructor |
+| [POR008](#por008) | Error | A `[CliRoute]` method that cannot return an exit code | Yes | — |
+| [POR009](#por009) | Error | Two options on one command declaring the same alias | Yes | — |
+| [POR010](#por010) | Error | A `[CliOption]` type that cannot be built from a command-line string | Yes | — |
+| [POR011](#por011) | Error | A route declares the same `{placeholder}` twice | Yes | — |
+| [POR012](#por012) | Warning | A `[CliOption]` on a `bool` is probably meant to be a switch | No — legal code | Change to `CliFlag?` |
+| [POR013](#por013) | Warning | A `catch` clause in a handler swallows `CliExitException` | No — legal code | Add the `when` filter |
 
 ---
 

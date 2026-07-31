@@ -13,11 +13,10 @@ namespace Portico.Testing;
 // themselves with xUnit's [CollectionDefinition(DisableParallelization = true)].
 
 /// <summary>
-/// Hermetic test helper for Portico CLIs. Each <see cref="Run(string, string, CancellationToken)"/>
+/// In-process test helper for Portico CLIs. Each <see cref="Run(string, string, CancellationToken)"/>
 /// call constructs a fresh <see cref="CliApplication"/> with a dedicated in-memory
-/// <see cref="ICliConsole"/>, so assertions about exit codes and captured output are free of
-/// cross-test global state (unlike <c>Console.SetOut</c> / <c>Console.SetError</c>, which are
-/// process-wide).
+/// <see cref="ICliConsole"/> and temporarily redirects the process-global console streams so
+/// handlers that use <see cref="Console"/> directly are captured too.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -42,6 +41,10 @@ namespace Portico.Testing;
 /// The harness overrides <see cref="ICliApplicationBuilder.WithConsole"/>, so any
 /// <c>WithConsole</c> call inside the caller's configure delegate is replaced by the
 /// harness-owned capturing console.
+/// </para>
+/// <para>
+/// Harness runs are serialized with one another. The serialization cannot cover unrelated tests
+/// that touch <see cref="Console"/> directly; put those tests in a non-parallel test collection.
 /// </para>
 /// </remarks>
 public sealed class CliTestHarness

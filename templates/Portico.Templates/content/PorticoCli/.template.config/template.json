@@ -25,8 +25,8 @@
       "datatype": "choice",
       "description": "The target framework for the scaffolded projects.",
       "choices": [
-        { "choice": "net10.0", "description": ".NET 10 (STS) — needs the .NET 10 SDK" },
-        { "choice": "net8.0", "description": ".NET 8 (LTS) — needs the .NET 8 SDK or later" }
+        { "choice": "net10.0", "description": ".NET 10 (LTS, active — supported to 2028-11-14); needs the .NET 10 SDK" },
+        { "choice": "net8.0", "description": ".NET 8 (LTS, maintenance — support ends 2026-11-10); needs the .NET 8 SDK or later" }
       ],
       "defaultValue": "net10.0",
       "replaces": "TARGET_FRAMEWORK"
@@ -53,7 +53,7 @@
       "description": "Next steps",
       "manualInstructions": [
         {
-          "text": "cd into the new directory, then:\n\n  dotnet test        every [CliCommandExample] runs against the real pipeline\n\nThen break it on purpose: rename --name to --who in IGreetTool.cs and run\ndotnet test again. The example stops dispatching and the build goes red — your help\noutput cannot drift from the CLI you shipped, because it is the test.\n\nMore in README.md."
+          "text": "cd into the new directory, then:\n\n  dotnet test        every [CliCommandExample] runs against the real pipeline\n\nThen break it on purpose: rename --name to --who in IGreetTool.cs and run\ndotnet test again. The example stops dispatching and the test suite goes red — your help\noutput cannot drift from the CLI you shipped, because it is the test.\n\nMore in README.md."
         }
       ],
       "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",

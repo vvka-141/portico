@@ -5,8 +5,13 @@ you will break it on purpose and watch the build go red. That last step is the p
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) — the template scaffolds `net10.0` by
+  default, the LTS in active support
 - A terminal
+
+> Still on .NET 8? It is supported, but its support ends **2026-11-10**. Scaffold with
+> `dotnet new portico-cli -n MyCli -f net8.0` and the .NET 8 SDK is enough for the rest of this
+> tutorial.
 
 ## Scaffold the project
 
@@ -189,12 +194,14 @@ Run `dotnet test` again — green.
 Two enforcement points, and it is worth being exact about which does what:
 
 - **POR004** (a Roslyn analyzer) is an **Error**: a `[CliRoute]` with no `[CliCommandExample]` at all
-  breaks the build outright. No configuration, nothing to opt into.
+  breaks the build by default. The package enables the analyzer automatically; like any diagnostic,
+  it can still be suppressed deliberately.
 - **`CliContractValidator<T>`** checks that the examples' *contents* still dispatch and bind. It is a
   test you write (the template writes it for you), and it is what caught the rename above.
 
-Together they guarantee that every command has at least one example, and every example is executable.
-The documentation cannot drift from the code, because the documentation is the test.
+In the scaffolded project, with analyzers enabled and the generated test in CI, these two checks
+enforce that every command has at least one example and every example is executable. The examples in
+help cannot drift from the accepted command surface without failing compilation or the test suite.
 
 ## What's next
 
@@ -202,7 +209,7 @@ The documentation cannot drift from the code, because the documentation is the t
   multi-team composition, the HTTP analogy.
 - [Capabilities reference](../reference/capabilities.md) — the whole surface, every entry backed by
   a test.
-- [Analyzer rules](../reference/analyzer-rules.md) — the ten compile-time checks, and how to
+- [Analyzer rules](../reference/analyzer-rules.md) — every live compile-time check, and how to
   suppress one.
-- [`examples/AdminCli`](../../examples/AdminCli) — a backend admin CLI with five commands, built and
+- [`examples/AdminCli`](../../examples/AdminCli) — a backend admin CLI, built and
   contract-tested by CI.

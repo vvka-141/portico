@@ -57,7 +57,7 @@ recording the standard it applied — this document records it.
 
 ---
 
-## POR001 — Route placeholder does not match any parameter
+## POR001
 
 **Message format:**
 ```
@@ -84,7 +84,7 @@ without that, an agent reading the message has the problem but not the vocabular
 
 ---
 
-## POR002 — Duplicate route on one type
+## POR002
 
 **Message format:**
 ```
@@ -106,7 +106,7 @@ the renamed route should be. Not automatable.
 
 ---
 
-## POR003 — Malformed option spec
+## POR003
 
 **Message format:**
 ```
@@ -139,7 +139,7 @@ looks like. Clean from inception.
 
 ---
 
-## POR004 — Missing example on a route method
+## POR004
 
 **Message format:**
 ```
@@ -164,7 +164,7 @@ rule in the suite.
 
 ---
 
-## POR005 — Argument has no matching route placeholder
+## POR005
 
 **Message format:**
 ```
@@ -195,7 +195,7 @@ reading this message can apply the fix without understanding the binding model.
 
 ---
 
-## POR006 — CliOptions bundle needs a public parameterless constructor
+## POR006
 
 **Message format:**
 ```
@@ -221,7 +221,7 @@ even though it inherits from `CliOptions`, because middleware is user-constructe
 
 ---
 
-## POR008 — Invalid return type on a route method
+## POR008
 
 **Message format:**
 ```
@@ -245,7 +245,7 @@ agents, which tend to return `0` unconditionally unless told otherwise.
 
 ---
 
-## POR009 — Two options declare the same alias
+## POR009
 
 **Message format:**
 ```
@@ -270,7 +270,7 @@ which is a subtlety an agent would otherwise not know.
 
 ---
 
-## POR010 — Option type cannot be converted from a command-line string
+## POR010
 
 **Message format:**
 ```
@@ -297,7 +297,7 @@ to Roslyn and a false positive at Error severity would break a working build.
 
 ---
 
-## POR011 — Route declares the same placeholder twice
+## POR011
 
 **Message format:**
 ```
@@ -325,7 +325,7 @@ despite the runtime already rejecting it at `CliApplication.Create`.
 
 ---
 
-## POR012 — `[CliOption]` on a `bool` is probably meant to be a switch
+## POR012
 
 **Message format:**
 ```
@@ -353,7 +353,7 @@ option needs to be told so at the point of failure.
 
 ---
 
-## POR013 — A `catch` clause swallows `CliExitException`
+## POR013
 
 **Message format:**
 ```
@@ -381,27 +381,24 @@ implies coverage it does not have.
 
 ---
 
-## Where code fixes would be cheap to add
+## Code-fix coverage
 
-Four rules already ship code fixes:
+Seven rules ship code fixes:
 
 | Rule | Code fix | What it does |
 |------|----------|-------------|
+| POR001 | `RoutePlaceholderCodeFix` | Renames the placeholder to a declared parameter, or adds the missing parameter |
+| POR003 | `CliOptionSpecCodeFix` | Repairs recoverable undashed aliases and empty pipe segments |
 | POR004 | `MissingCommandExampleCodeFix` | Inserts a `[CliCommandExample("TODO")]` stub |
+| POR005 | `CliArgumentRouteCodeFix` | Appends the missing placeholder to the route |
 | POR006 | `BundleMissingCtorCodeFix` | Inserts a `public TypeName() { }` constructor |
 | POR012 | `BoolUsedAsSwitchCodeFix` | Rewrites a `bool` option to `CliFlag? … = null` |
 | POR013 | `SwallowedCliExitExceptionCodeFix` | Adds `when (ex is not CliExitException)` to the catch |
 
-One rule has a cheap opportunity:
-
-| Rule | Opportunity | Effort |
-|------|------------|--------|
-| POR005 | Replace the `[CliRoute]` argument with the corrected route string (already computed by the analyzer) | Low — the shape is identical to `MissingCommandExampleCodeFix` |
-
-The remaining seven rules involve ambiguous intent (POR001, POR002, POR009, POR011), structurally different
-fixes per sub-case (POR003), return-type changes that require method-body rewrites (POR008), or
-whole-type rewrites (POR010). None is cheap. (Four shipped + one cheap + seven not cheap = the
-twelve live rules; POR007 is retired.)
+The other five rules require decisions a provider cannot make safely: which duplicate route or alias
+should change (POR002, POR009, POR011), what exit-code logic a new return type needs (POR008), or
+whether an unsupported type should gain a converter or be replaced (POR010). The rule reference
+records the reason beside each one.
 
 ---
 

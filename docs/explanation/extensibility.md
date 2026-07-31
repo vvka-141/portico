@@ -48,7 +48,7 @@ overlap, no surprises.
 | Fall back to an env var when an option is absent | `[CliOption("--port", EnvironmentVariable = "PORT")] int port` |
 | Share a route prefix across every method on a type | `[CliRoute("db")]` on the interface or class — prepended to each method's route; class wins over inherited interface |
 | Bind a `CancellationToken` to a user-supplied timeout | `[CliOption("--timeout")] CancellationToken timeout` — accepts `30s`/`5m`/`PT2M`/`00:00:30` |
-| Write hermetic CLI integration tests | `CliTestHarness.ForApplication(cfg => …).Run("app cmd").ExpectExit(0)` |
+| Write in-process CLI integration tests | `CliTestHarness.ForApplication(cfg => …).Run("app cmd").ExpectExit(0)`; harness runs serialize while capturing the process-global console |
 | Test a handler that calls `CliPrompt` / `Console.ReadLine` | `harness.Run("app delete foo", input: "y\n")` — feeds stdin |
 | Accept a multi-value option as a list | `[CliOption("--envs")] List<string> envs` — also `T[]`, `IEnumerable<T>`, `IList<T>`, `ICollection<T>`, `IReadOnlyList<T>`, `IReadOnlyCollection<T>`, `ImmutableArray<T>`, `ImmutableList<T>`, `IImmutableList<T>` |
 | Accept a multi-value option as a set (dedup) | `[CliOption("--tags")] HashSet<string> tags` — also `SortedSet<T>`, `ISet<T>`, `IReadOnlySet<T>`, `ImmutableHashSet<T>`, `IImmutableSet<T>`, `ImmutableSortedSet<T>` |
