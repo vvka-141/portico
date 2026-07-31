@@ -1,0 +1,87 @@
+{
+  "releases-index": [
+    {
+      "channel-version": "11.0",
+      "support-phase": "preview",
+      "release-type": "sts"
+    },
+    {
+      "channel-version": "10.0",
+      "support-phase": "active",
+      "release-type": "lts",
+      "eol-date": "2099-01-01"
+    },
+    {
+      "channel-version": "9.0",
+      "support-phase": "maintenance",
+      "release-type": "sts",
+      "eol-date": "2026-11-10"
+    },
+    {
+      "channel-version": "8.0",
+      "support-phase": "active",
+      "release-type": "lts",
+      "eol-date": "2099-01-01"
+    },
+    {
+      "channel-version": "7.0",
+      "support-phase": "eol",
+      "eol-date": "2024-05-14",
+      "release-type": "sts"
+    },
+    {
+      "channel-version": "6.0",
+      "support-phase": "eol",
+      "eol-date": "2024-11-12",
+      "release-type": "lts"
+    },
+    {
+      "channel-version": "5.0",
+      "release-type": "sts",
+      "support-phase": "eol",
+      "eol-date": "2022-05-10"
+    },
+    {
+      "channel-version": "3.1",
+      "release-type": "lts",
+      "support-phase": "eol",
+      "eol-date": "2022-12-13"
+    },
+    {
+      "channel-version": "3.0",
+      "release-type": "sts",
+      "support-phase": "eol",
+      "eol-date": "2020-03-03"
+    },
+    {
+      "channel-version": "2.1",
+      "release-type": "lts",
+      "support-phase": "eol",
+      "eol-date": "2021-08-21"
+    },
+    {
+      "channel-version": "2.2",
+      "release-type": "sts",
+      "support-phase": "eol",
+      "eol-date": "2019-12-23"
+    },
+    {
+      "channel-version": "2.0",
+      "release-type": "sts",
+      "support-phase": "eol",
+      "eol-date": "2018-10-01"
+    },
+    {
+      "channel-version": "1.1",
+      "release-type": "lts",
+      "support-phase": "eol",
+      "eol-date": "2019-06-27"
+    },
+    {
+      "channel-version": "1.0",
+      "release-type": "lts",
+      "support-phase": "eol",
+      "eol-date": "2019-06-27"
+    }
+  ]
+}
