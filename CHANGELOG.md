@@ -8,6 +8,10 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.2.0] - 2026-07-31
+
 ### Added
 
 - **Code fixes for POR001, POR003 and POR005** — Ctrl-. now clears seven of the twelve rules instead of
@@ -129,6 +133,15 @@ There are no alpha/beta feeds. Breaking changes land in minor versions and are c
   `""`, pass it on the command line instead.
 
 ### Fixed
+
+- **`CliTestHarness` was documented as hermetic; it is not.** It redirects the process-global
+  console streams (`Console.SetOut` / `SetError` / `SetIn`) so handlers writing to `Console`
+  directly are captured, and harness runs are serialized with one another. The old wording promised
+  "no `Console.SetOut`" and "no flaky parallel tests", which the implementation never delivered —
+  this repository's own test assembly disables parallelization for exactly that reason. **No
+  behaviour changed**: if other tests in your suite touch `Console` in parallel, put them in a
+  non-parallel collection or inject an `ICliConsole`. The docs now say so, and a test reflects the
+  `Expect*` names against the prose that describes them.
 
 - **The "cannot be used as a flag" error named the wrong fix.** `[CliOption("--dry-run")] bool
   dryRun = false` invoked as `--dry-run` answered *"cannot be used as a flag. Provide a single value
